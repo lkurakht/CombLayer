@@ -46,7 +46,7 @@ my @mainLib=qw( visit src simMC  construct
     global constructVar physics simMC
     transport attachComp visit poly 
     magnetic phitsPhysics mcnpProcess
-    scatMat endf crystal );
+    scatMat endf crystal input);
 
 my $gM=new CMakeList;
 $gM->setParameters(\@ARGV);

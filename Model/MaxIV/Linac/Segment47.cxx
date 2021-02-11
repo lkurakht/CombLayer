@@ -248,6 +248,8 @@ Segment47::createAll(Simulation& System,
   createSplitInnerZone();
   buildObjects(System);
   createLinks();
+  CellMap::setCells("BlockVoid",IZThin->getCells("Unit"));
+
   return;
 }
 

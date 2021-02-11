@@ -161,7 +161,16 @@ Segment48::buildObjects(Simulation& System)
   shieldB->createAll(System,*shieldA,"right");
   for (int i=0; i<=3; ++i)
     shieldB->insertInCell(System,outerCell+i);
+  
+  for(const TDCsegment* sideSegment : sideVec)
+     {
+       const std::vector<int> cellVec= sideSegment->getCells("BlockVoid");
+       //       shieldB->insertInCell(System,cellVec[0]);
+       for(const int cn : cellVec)
+	 ELog::EM<<"BPtr= "<<cn<<ELog::endDiag;
+     }
 
+  
   constructSystem::constructUnit
     (System,*buildZone,*pipeA,"back",*slitTube);
 
