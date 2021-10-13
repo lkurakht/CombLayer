@@ -3,7 +3,7 @@
  
  * File:   essBuild/CompBInsert.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,40 +33,23 @@
 #include <memory>
 #include <numeric>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "SurInter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ReadFunctions.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
@@ -76,9 +59,8 @@
 #include "ContainedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
-#include "Bunker.h"
 #include "CompBInsert.h"
 
 namespace essSystem
@@ -181,21 +163,6 @@ CompBInsert::populate(const FuncDataBase& Control)
   return;
 }
   
-void
-CompBInsert::createUnitVector(const attachSystem::FixedComp& FC,
-                              const long int sideIndex)
-  /*!
-    Create the unit vectors
-    \param FC :: Linked object
-    \param sideIndex :: link point
-  */
-{
-  ELog::RegMethod RegA("CompBInsert","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
-  return;
-}
   
 void
 CompBInsert::createSurfaces()
@@ -336,8 +303,7 @@ CompBInsert::createLinks()
 void
 CompBInsert::createAll(Simulation& System,
                        const attachSystem::FixedComp& FC,
-                       const long int sideIndex,
-                       const attachSystem::FixedComp&)
+                       const long int sideIndex)
   
   /*!
     Generic function to create everything

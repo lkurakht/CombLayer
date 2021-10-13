@@ -3,7 +3,7 @@
  
  * File:   constructVarInc/PortItemGenerator.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,14 +43,18 @@ class PortItemGenerator
   double radius;          ///< Inner radius
   double wallThick;       ///< wall thickness
   
-  double flangeLen;          ///< Flange length
-  double flangeRadius;       ///< Flange radius
-  double plateThick;         ///< Plate thickness
+  double flangeLen;         ///< Flange length
+  double flangeRadius;      ///< Flange radius
+  double capThick;          ///< Plate thickness
+  double windowThick;       ///< Plate thickness
+  double windowRadius;      ///< Plate thickness
 
-  std::string wallMat;       ///< tube wall material
-  std::string plateMat;      ///< cover plate material
+  std::string wallMat;         ///< tube wall material
+  std::string capMat;          ///< cover plate material
+  std::string windowMat;       ///< window plate material
+  std::string outerVoidMat;    ///< outer void material
   
-  bool outerVoid;            ///< Construct outer void
+  bool outerVoid;          ///< Construct outer void
   
  public:
 
@@ -65,8 +69,13 @@ class PortItemGenerator
   void setPort(const double,const double,const double);
   // set flangeLen,flangeRad
   void setFlange(const double,const double);
-  // set 
+  /// set only length
+  void setLength(const double L) { length=L; }
+  // plate thick / mat
   void setPlate(const double,const std::string&);
+  void setWindowPlate(const double,const double,const double,
+		      const std::string&,const std::string&);
+  void setNoPlate(); 
 
   /// accessor to outerVoid
   void setOuterVoid(const bool F) { outerVoid=F; }
@@ -75,6 +84,12 @@ class PortItemGenerator
 		    const Geometry::Vec3D&,
 		    const Geometry::Vec3D&) const;
 
+  void generateAnglePort(FuncDataBase&,const std::string&,
+			 const Geometry::Vec3D&,
+			 const Geometry::Vec3D&,
+			 const Geometry::Vec3D&,
+			 const double) const;
+  
 };
 
 }

@@ -3,7 +3,7 @@
  
  * File:   t1BuildInc/OpenBlockTarget.h
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +35,8 @@ namespace ts1System
   \brief W/Ta plates 
 */
 
-class OpenBlockTarget : public constructSystem::TargetBase
+class OpenBlockTarget :
+  public TMRSystem::TargetBase
 {
  private:
   
@@ -65,8 +66,6 @@ class OpenBlockTarget : public constructSystem::TargetBase
   int waterMat;                 ///< Water material
   int pressMat;                 ///< Pressure mat
 
-  void createUnitVector(const attachSystem::FixedComp&,
-			const long int);
   void createSurfaces();
   void createLinks();
   void createObjects(Simulation&);
@@ -82,11 +81,13 @@ class OpenBlockTarget : public constructSystem::TargetBase
   Geometry::Vec3D plateEdge(const size_t,double&,double&) const;
   void populate(const FuncDataBase&);  
   double getTargetLength() const;
-  void createAll(Simulation&,const attachSystem::FixedComp&);
+
 
   virtual void addProtonLine(Simulation&,const attachSystem::FixedComp&,
 			     const long int); 
-  
+
+  void createAll(Simulation&,const attachSystem::FixedComp&,
+		 const long int);
 };
 
 }

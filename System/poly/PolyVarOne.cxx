@@ -3,7 +3,7 @@
  
  * File:   poly/PolyVarOne.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,8 +43,6 @@
 #include "support.h"
 #include "mathSupport.h"
 #include "MatrixBase.h"
-#include "Matrix.h"
-#include "Vec3D.h"
 #include "masterWrite.h"
 #include "polySupport.h"
 #include "PolyFunction.h"
@@ -1141,7 +1139,7 @@ PolyVar<1>::read(const std::string& Line)
   */
 {
   const char Variable('x');
-  std::string CLine=StrFunc::removeSpace(Line);
+  std::string CLine=StrFunc::removeAllSpace(Line);
   setDegree(PolyFunction::getMaxSize(CLine,Variable));
   std::string::size_type pos=CLine.find(Variable);
   double cV;
@@ -1176,17 +1174,17 @@ PolyVar<1>::read(const std::string& Line)
 	  CLine.erase(0,1);
 	  StrFunc::sectPartNum(CLine,pV);
 	}
-      
-      if (!Comp.empty() && !StrFunc::convert(Comp,cV))
-	throw ColErr::InvalidLine("PolVarOne::read",Line,0);
 
       if (Comp.empty())
 	cV=1.0;
+      else if (!StrFunc::convert(Comp,cV))
+	throw ColErr::InvalidLine("PolVarOne::read",Line,0);
+      
       PCoeff[pV]=sign*cV;
       // Find next value
       pos=CLine.find(Variable);
     }
-
+  
   // Process variable at end:
   if (!CLine.empty() && StrFunc::section(CLine,cV))
     PCoeff[0]=cV;

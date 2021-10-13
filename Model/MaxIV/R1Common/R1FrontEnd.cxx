@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File: R1/R1FrontEnd.cxx
+ * File: R1Common/R1FrontEnd.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,27 +34,20 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -73,37 +66,27 @@
 #include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "CopiedComp.h"
-#include "InnerZone.h"
-#include "World.h"
-#include "AttachSupport.h"
+#include "BlockZone.h"
 #include "ModelSupport.h"
 #include "generateSurf.h"
+#include "generalConstruct.h"
 
 #include "VacuumPipe.h"
 #include "OffsetFlangePipe.h"
-#include "insertObject.h"
-#include "insertCylinder.h"
-#include "insertPlate.h"
 #include "SplitFlangePipe.h"
 #include "Bellows.h"
-#include "GateValve.h"
-#include "VacuumBox.h"
+#include "GateValveCube.h"
+#include "CylGateValve.h"
 #include "portItem.h"
+#include "VirtualTube.h"
 #include "PipeTube.h"
-#include "PortTube.h"
 #include "CrossPipe.h"
-#include "UTubePipe.h"
-#include "Undulator.h"
 #include "SquareFMask.h"
-#include "FlangeMount.h"
 #include "BeamMount.h"
 #include "HeatDump.h"
 #include "BremBlock.h"
-#include "Quadrupole.h"
-#include "PreDipole.h"
-#include "DipoleChamber.h"
 #include "LCollimator.h"
-#include "Quadrupole.h"
+#include "MagnetBlock.h"
 
 #include "R1FrontEnd.h"
 
@@ -115,18 +98,16 @@ namespace xraySystem
 R1FrontEnd::R1FrontEnd(const std::string& Key) :
   attachSystem::CopiedComp(Key,Key),
   attachSystem::ContainedComp(),
-  attachSystem::FixedOffset(newName,2),
-  attachSystem::FrontBackCut(),
+  attachSystem::FixedRotate(newName,2),
+  attachSystem::ExternalCut(),
   attachSystem::CellMap(),
+  attachSystem::SurfMap(),
 
-  buildZone(*this,cellIndex),
+  buildZone(Key+"R3FrontEnd"),
 
-  preDipole(new xraySystem::PreDipole(newName+"PreDipole")),
-  dipoleChamber(new xraySystem::DipoleChamber(newName+"DipoleChamber")),
+  elecGateA(new constructSystem::GateValveCube(newName+"ElecGateA")),
+  magnetBlock(new xraySystem::MagnetBlock(newName+"MagnetBlock")),
   dipolePipe(new constructSystem::VacuumPipe(newName+"DipolePipe")),
-  eCutDisk(new insertSystem::insertCylinder(newName+"ECutDisk")),
-  eCutMagDisk(new insertSystem::insertPlate(newName+"ECutMagDisk")),
-  eCutWallDisk(new insertSystem::insertPlate(newName+"ECutWallDisk")),
   bellowA(new constructSystem::Bellows(newName+"BellowA")),
   collA(new xraySystem::SquareFMask(newName+"CollA")),
   bellowB(new constructSystem::Bellows(newName+"BellowB")),
@@ -136,7 +117,7 @@ R1FrontEnd::R1FrontEnd(const std::string& Key) :
   heatBox(new constructSystem::PipeTube(newName+"HeatBox")),
   heatDump(new xraySystem::HeatDump(newName+"HeatDump")),
   bellowD(new constructSystem::Bellows(newName+"BellowD")),
-  gateTubeA(new constructSystem::PipeTube(newName+"GateTubeA")),
+  gateTubeA(new xraySystem::CylGateValve(newName+"GateTubeA")),
   ionPB(new constructSystem::CrossPipe(newName+"IonPB")),
   pipeB(new constructSystem::VacuumPipe(newName+"PipeB")),
   bellowE(new constructSystem::Bellows(newName+"BellowE")),
@@ -149,11 +130,11 @@ R1FrontEnd::R1FrontEnd(const std::string& Key) :
   moveCollB(new xraySystem::LCollimator(newName+"MoveCollB")),  
   bellowH(new constructSystem::Bellows(newName+"BellowH")),
   pipeC(new constructSystem::VacuumPipe(newName+"PipeC")),
-  gateA(new constructSystem::GateValve(newName+"GateA")),
+  gateA(new constructSystem::GateValveCube(newName+"GateA")),
   bellowI(new constructSystem::Bellows(newName+"BellowI")),
   florTubeA(new constructSystem::PipeTube(newName+"FlorTubeA")),
   bellowJ(new constructSystem::Bellows(newName+"BellowJ")),
-  gateTubeB(new constructSystem::PipeTube(newName+"GateTubeB")),
+  gateTubeB(new xraySystem::CylGateValve(newName+"GateTubeB")),
   offPipeA(new constructSystem::OffsetFlangePipe(newName+"OffPipeA")),
   shutterBox(new constructSystem::PipeTube(newName+"ShutterBox")),
   shutters({
@@ -171,11 +152,9 @@ R1FrontEnd::R1FrontEnd(const std::string& Key) :
   ModelSupport::objectRegister& OR=
     ModelSupport::objectRegister::Instance();
 
-  OR.addObject(preDipole);
-  OR.addObject(dipoleChamber);
+  OR.addObject(elecGateA);
+  OR.addObject(magnetBlock);
   OR.addObject(dipolePipe);
-  OR.addObject(eCutDisk);
-  OR.addObject(eCutMagDisk);
   OR.addObject(bellowA);
   OR.addObject(collA);
   OR.addObject(bellowB);
@@ -226,30 +205,15 @@ R1FrontEnd::populate(const FuncDataBase& Control)
     \param Control :: DataBase
    */
 {
-  FixedOffset::populate(Control);
-  outerRadius=Control.EvalDefVar<double>(keyName+"OuterRadius",0.0);
+  FixedRotate::populate(Control);
+
+  outerLeft=Control.EvalDefVar<double>(keyName+"OuterLeft",0.0);
+  outerRight=Control.EvalDefVar<double>(keyName+"OuterRight",outerLeft);
+  outerFront=Control.EvalDefVar<double>(keyName+"OuterFront",0.0);
+
   return;
 }
 
-void
-R1FrontEnd::createUnitVector(const attachSystem::FixedComp& FC,
-			   const long int sideIndex)
-  /*!
-    Create the unit vectors
-    Note that the FC:in and FC:out are tied to Main
-    -- rotate position Main and then Out/In are moved relative
-
-    \param FC :: Fixed component to link to
-    \param sideIndex :: Link point and direction [0 for origin]
-  */
-{
-  ELog::RegMethod RegA("R1FrontEnd","createUnitVector");
-
-  FixedOffset::createUnitVector(FC,sideIndex);
-  applyOffset();
-  
-  return;
-}
 
 void
 R1FrontEnd::createSurfaces()
@@ -259,16 +223,27 @@ R1FrontEnd::createSurfaces()
 {
   ELog::RegMethod RegA("R1FrontEnd","createSurfaces");
 
-  if (outerRadius>Geometry::zeroTol)
+  if (outerLeft>Geometry::zeroTol &&
+      isActive("Floor") && isActive("Roof"))
     {
-      ModelSupport::buildCylinder(SMap,buildIndex+7,Origin,Y,outerRadius);
-      buildZone.setSurround(HeadRule(-SMap.realSurf(buildIndex+7)));
+      ModelSupport::buildPlane(SMap,buildIndex+3,Origin-X*outerLeft,X);
+      ModelSupport::buildPlane(SMap,buildIndex+4,Origin+X*outerRight,X);
+
+      const HeadRule HR=ModelSupport::getHeadRule(SMap,buildIndex,"3 -4");
+      buildZone.setSurround(HR*getRule("Floor")*getRule("Roof"));
     }
-  if (!frontActive())
+
+  if (!isActive("front"))
     {
-      ModelSupport::buildPlane(SMap,buildIndex+1,Origin-Y*180.0,Y);
-      setFront(SMap.realSurf(buildIndex+1));
+      ELog::EM<<"Building Front "<<outerFront<<ELog::endDiag;
+      ModelSupport::buildPlane(SMap,buildIndex+1,Origin-Y*outerFront,Y);
+      setCutSurf("front",SMap.realSurf(buildIndex+1));
     }
+  else
+    ELog::EM<<"Front == "<<getRule("front")<<ELog::endDiag;
+  
+  buildZone.setFront(getRule("front"));
+  
   return;
 }
 
@@ -276,222 +251,185 @@ R1FrontEnd::createSurfaces()
    
 void
 R1FrontEnd::buildHeatTable(Simulation& System,
-				MonteCarlo::Object* masterCell,
-				const attachSystem::FixedComp& preFC,
-				const long int preSideIndex)
-
+			   const attachSystem::FixedComp& preFC,
+			   const std::string& preSide)
   /*!
     Build the heatDump table
     \param System :: Simulation to use
     \param masterCell :: Main cell with all components in
     \param preFC :: Initial cell
-    \param preSideIndex :: Initial side index
+    \param preSide :: Initial side index
   */
 {
   ELog::RegMethod RegA("R1FrontEnd","buildHeatTable");
 
   int outerCell;
-  // FAKE insertcell:
-  heatBox->addAllInsertCell(masterCell->getName());
+
   heatBox->setPortRotation(3,Geometry::Vec3D(1,0,0));
-  heatBox->createAll(System,preFC,preSideIndex);
+  heatBox->createAll(System,preFC,preSide);
 
   const constructSystem::portItem& PIA=heatBox->getPort(1);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,
-					 PIA,PIA.getSideIndex("OuterPlate"));
+  outerCell=buildZone.createUnit(System,PIA,"OuterPlate");
   heatBox->insertAllInCell(System,outerCell);
     
-  // cant use heatbox here because of port rotation
+  // cant use heatbox here because of port rotation and
+  // using PIA centre point
   
   heatDump->addInsertCell("Inner",heatBox->getCell("Void"));
   heatDump->addInsertCell("Outer",outerCell);
   heatDump->createAll(System,PIA,0,*heatBox,2);
 
+  constructSystem::constructUnit
+    (System,buildZone,PIA,"OuterPlate",*bellowD);
 
-  //  const constructSystem::portItem& PI=heatBox->getPort(1);  
-  bellowD->createAll(System,PIA,PIA.getSideIndex("OuterPlate"));
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*bellowD,2);
-  bellowD->insertInCell(System,outerCell);
+  constructSystem::constructUnit
+    (System,buildZone,*bellowD,"back",*gateTubeA);
 
+  constructSystem::constructUnit
+    (System,buildZone,*gateTubeA,"back",*ionPB);
 
-  // FAKE insertcell:
-  gateTubeA->addAllInsertCell(masterCell->getName());
-  gateTubeA->setPortRotation(3,Geometry::Vec3D(1,0,0));
-  gateTubeA->createAll(System,*bellowD,2);  
+  constructSystem::constructUnit
+    (System,buildZone,*ionPB,"back",*pipeB);
 
-  const constructSystem::portItem& GPI=gateTubeA->getPort(1);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,
-				GPI,GPI.getSideIndex("OuterPlate"));
-  gateTubeA->insertAllInCell(System,outerCell);
-  
-  ionPB->createAll(System,GPI,GPI.getSideIndex("OuterPlate"));
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*ionPB,2);
-  ionPB->insertInCell(System,outerCell);
-
-  insertFlanges(System,*gateTubeA);
-  
-  pipeB->createAll(System,*ionPB,2);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*pipeB,2);
-  pipeB->insertInCell(System,outerCell);
-  
   return;
-  
 }
 
 void
 R1FrontEnd::buildApertureTable(Simulation& System,
-			       MonteCarlo::Object* masterCell,
 			       const attachSystem::FixedComp& preFC,
-			       const long int preSideIndex)
+			       const std::string& preSide)
   
   /*!
     Build the moveable aperature table
     \param System :: Simulation to use
     \param masterCell :: Main cell with all components in
     \param preFC :: Initial cell
-    \param preSideIndex :: Initial side index
+    \param preSide :: Initial side index
   */
 {
   ELog::RegMethod RegA("R1FrontEnd","buildApertureTable");
 
   int outerCell;
   // NOTE order for master cell [Next 4 object
-  aperturePipe->createAll(System,preFC,preSideIndex);
+  aperturePipe->createAll(System,preFC,preSide);
+  
   moveCollA->addInsertCell(aperturePipe->getCell("Void"));
   moveCollA->createAll(System,*aperturePipe,0);
   
   // bellows AFTER movable aperture pipe
-  bellowE->setFront(preFC,preSideIndex);
+  bellowE->setFront(preFC,preSide);
   bellowE->setBack(*aperturePipe,1);
-  bellowE->createAll(System,preFC,preSideIndex);
+  bellowE->createAll(System,preFC,preSide);
 
-  ionPC->createAll(System,preFC,preSideIndex);
+  ionPC->createAll(System,preFC,preSide);
 
   // bellows AFTER aperature ionpump and ion pump
   bellowF->setFront(*aperturePipe,2);
   bellowF->setBack(*ionPC,1);
-  bellowF->createAll(System,preFC,preSideIndex);
+  bellowF->createAll(System,preFC,preSide);
 
   // now do insert:
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*bellowE,2);
+  outerCell=buildZone.createUnit(System,*bellowE,"back");
   bellowE->insertInCell(System,outerCell);
     
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*aperturePipe,2);
-  aperturePipe->insertInCell(System,outerCell);
+  outerCell=buildZone.createUnit(System,*aperturePipe,"back");
+  aperturePipe->insertAllInCell(System,outerCell);
   
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*bellowF,2);
+  outerCell=buildZone.createUnit(System,*bellowF,"back");
   bellowF->insertInCell(System,outerCell);
 
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*ionPC,2);
+  outerCell=buildZone.createUnit(System,*ionPC,"back");
   ionPC->insertInCell(System,outerCell);
 
-
   // Next 4 objects need to be build before insertion
-  aperturePipeB->createAll(System,*ionPC,2);
+  aperturePipeB->createAll(System,*ionPC,"back");
   moveCollB->addInsertCell(aperturePipeB->getCell("Void"));
   moveCollB->createAll(System,*aperturePipeB,0);
 
   // bellows AFTER movable aperture pipe
   bellowG->setFront(*ionPC,2);
   bellowG->setBack(*aperturePipeB,1);
-  bellowG->createAll(System,*ionPC,2);
+  bellowG->createAll(System,*ionPC,"back");
 
-  pipeC->createAll(System,*ionPC,2);
+  pipeC->createAll(System,*ionPC,"back");
 
   // bellows AFTER movable aperture pipe
-  bellowH->setFront(*aperturePipeB,2);
+  bellowH->setFront(*aperturePipeB,"back");
   bellowH->setBack(*pipeC,1);
-  bellowH->createAll(System,*ionPC,2);
+  bellowH->createAll(System,*ionPC,"back");
 
 
   // now do insert:
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*bellowG,2);
+  outerCell=buildZone.createUnit(System,*bellowG,"back");
   bellowG->insertInCell(System,outerCell);
     
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*aperturePipeB,2);
-  aperturePipeB->insertInCell(System,outerCell);
+  outerCell=buildZone.createUnit(System,*aperturePipeB,"back");
+  aperturePipeB->insertAllInCell(System,outerCell);
   
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*bellowH,2);
+  outerCell=buildZone.createUnit(System,*bellowH,"back");
   bellowH->insertInCell(System,outerCell);
 
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*pipeC,2);
-  pipeC->insertInCell(System,outerCell);
+  outerCell=buildZone.createUnit(System,*pipeC,"back");
+  pipeC->insertAllInCell(System,outerCell);
 
-  
   return;
 }
 
 void
 R1FrontEnd::buildShutterTable(Simulation& System,
-				   MonteCarlo::Object* masterCell,
-				   const attachSystem::FixedComp& preFC,
-				   const long int preSideIndex)
+			      const attachSystem::FixedComp& preFC,
+			      const std::string& preSide)
 
   /*!
     Build the moveable aperature table
     \param System :: Simulation to use
     \param masterCell :: Main cell for insertion
     \param preFC :: Initial cell
-    \param preSideIndex :: Initial side index
+    \param preSide :: Initial side index
   */
 {
   ELog::RegMethod RegA("R1FrontEnd","buildShutterTable");
   int outerCell;
-  
-  gateA->createAll(System,preFC,preSideIndex);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*gateA,2);
-  gateA->insertInCell(System,outerCell);
 
-  // bellows 
-  bellowI->createAll(System,*gateA,2);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*bellowI,2);
-  bellowI->insertInCell(System,outerCell);
 
-  // FAKE insertcell:
-  florTubeA->addAllInsertCell(masterCell->getName());
+  constructSystem::constructUnit
+    (System,buildZone,preFC,preSide,*gateA);
+
+  constructSystem::constructUnit
+    (System,buildZone,*gateA,"back",*bellowI);
+
   florTubeA->setPortRotation(3,Geometry::Vec3D(1,0,0));
-  florTubeA->createAll(System,*bellowI,2);
+  florTubeA->createAll(System,*bellowI,"back");
   const constructSystem::portItem& FPI=florTubeA->getPort(1);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,
-				FPI,FPI.getSideIndex("OuterPlate"));
+  outerCell=buildZone.createUnit(System,FPI,"OuterPlate");
   florTubeA->insertAllInCell(System,outerCell);
+
+  constructSystem::constructUnit
+    (System,buildZone,FPI,"OuterPlate",*bellowJ);
+
+  //  insertFlanges(System,*florTubeA);
+
+  constructSystem::constructUnit
+    (System,buildZone,*bellowJ,"back",*gateTubeB);
+
+  constructSystem::constructUnit
+    (System,buildZone,*gateTubeB,"back",*offPipeA);
+
+ 
+  shutterBox->createAll(System,*offPipeA,"FlangeBCentre");
+  outerCell=buildZone.createUnit(System,*shutterBox,"back");
+
+  shutterBox->splitVoidPorts
+    (System,"SplitVoid",1001,shutterBox->getCell("Void"),{0,1});
   
-  // bellows 
-  bellowJ->createAll(System,FPI,FPI.getSideIndex("OuterPlate"));
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*bellowJ,2);
-  bellowJ->insertInCell(System,outerCell);
-
-  insertFlanges(System,*florTubeA);
-
-  // FAKE insertcell:
-  gateTubeB->addAllInsertCell(masterCell->getName());
-  gateTubeB->setPortRotation(3,Geometry::Vec3D(1,0,0));
-  gateTubeB->createAll(System,*bellowJ,2);  
-  const constructSystem::portItem& GPI=gateTubeB->getPort(1);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,
-				GPI,GPI.getSideIndex("OuterPlate"));
-  gateTubeB->insertAllInCell(System,outerCell);
-
-  offPipeA->createAll(System,GPI,GPI.getSideIndex("OuterPlate"));
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*offPipeA,2);
-  offPipeA->insertInCell(System,outerCell);
-
-  insertFlanges(System,*gateTubeB);
-
-  shutterBox->delayPorts();
-  shutterBox->createAll(System,*offPipeA,
-			offPipeA->getSideIndex("FlangeBCentre"));
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*shutterBox,2);
-  shutterBox->insertAllInCell(System,outerCell);
   
-  cellIndex=shutterBox->splitVoidPorts(System,"SplitVoid",1001,
-				       shutterBox->getCell("Void"),
-				       {0,1});
-  cellIndex=
-    shutterBox->splitVoidPorts(System,"SplitOuter",2001,
+  shutterBox->splitVoidPorts(System,"SplitOuter",2001,
 			       outerCell,{0,1});
-  shutterBox->addAllInsertCell(outerCell);
-  shutterBox->createPorts(System);
+  shutterBox->insertMainInCell(System,shutterBox->getCells("SplitOuter"));
+  shutterBox->insertPortInCell(System,0,shutterBox->getCell("SplitOuter",0));
+  shutterBox->insertPortInCell(System,1,shutterBox->getCell("SplitOuter",1));
+
+
 
   for(size_t i=0;i<shutters.size();i++)
     {
@@ -499,51 +437,23 @@ R1FrontEnd::buildShutterTable(Simulation& System,
       shutters[i]->addInsertCell("Support",PI.getCell("Void"));
       shutters[i]->addInsertCell("Support",shutterBox->getCell("SplitVoid",i));
       shutters[i]->addInsertCell("Block",shutterBox->getCell("SplitVoid",i));
-
+      
       shutters[i]->createAll(System,*offPipeA,
 			     offPipeA->getSideIndex("FlangeACentre"),
 			     PI,PI.getSideIndex("InnerPlate"));
     }
 
-  offPipeB->createAll(System,*shutterBox,2);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*offPipeB,2);
-  offPipeB->insertInCell(System,outerCell);
-
+  constructSystem::constructUnit
+    (System,buildZone,*shutterBox,"back",*offPipeB);
+  
   bremBlock->addInsertCell(offPipeB->getCell("Void"));
   bremBlock->setFront(*offPipeB,-1);
   bremBlock->setBack(*offPipeB,-2);
   bremBlock->createAll(System,*offPipeB,0);
-    
-  // bellows 
-  bellowK->createAll(System,*offPipeB,2);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*bellowK,2);
-  bellowK->insertInCell(System,outerCell);
-  
-  return;
-}
 
-void
-R1FrontEnd::insertFlanges(Simulation& System,
-			       const constructSystem::PipeTube& PT)
-  /*!
-    Boilerplate function to insert the flanges from pipetubes
-    that extend past the linkzone in to ther neighbouring regions.
-    \param System :: Simulation to use
-    \param PT :: PipeTube
-   */
-{
-  ELog::RegMethod RegA("R1FrontEnd","insertFlanges");
-  
-  const size_t voidN=this->getNItems("OuterVoid")-3;
+  constructSystem::constructUnit
+    (System,buildZone,*offPipeB,"back",*bellowK);
 
-  this->insertComponent(System,"OuterVoid",voidN,
-			PT.getFullRule("FlangeA"));
-  this->insertComponent(System,"OuterVoid",voidN,
-			PT.getFullRule("FlangeB"));
-  this->insertComponent(System,"OuterVoid",voidN+2,
-			PT.getFullRule("FlangeA"));
-  this->insertComponent(System,"OuterVoid",voidN+2,
-			PT.getFullRule("FlangeB"));
   return;
 }
   
@@ -558,85 +468,116 @@ R1FrontEnd::buildObjects(Simulation& System)
   ELog::RegMethod RegA("R1FrontEnd","buildObjects");
 
   int outerCell;
-  buildZone.setFront(getFrontRule());
-  buildZone.setBack(getBackRule());
-  MonteCarlo::Object* masterCell=
-    buildZone.constructMasterCell(System,*this);
+
+  buildZone.addInsertCells(this->getInsertCells());
+
 
   const attachSystem::FixedComp& undulatorFC=
-    buildUndulator(System,masterCell,*this,0);
+    buildUndulator(System,*this,"Origin");
 
-  preDipole->setCutSurf("front",undulatorFC,2);
-  preDipole->createAll(System,undulatorFC,2);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*preDipole,2);
-  preDipole->insertInCell(System,outerCell);
+  constructSystem::constructUnit
+    (System,buildZone,undulatorFC,"back",*elecGateA);
 
-  preDipole->createQuads(System,outerCell);
+  magnetBlock->setStopPoint(stopPoint);
+  magnetBlock->createAll(System,*elecGateA,2);
   
-  dipoleChamber->setCutSurf("front",*preDipole,2);
-  dipoleChamber->createAll(System,*preDipole,2);
-  // two splits [main / exit]
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*dipoleChamber,2);
-  dipoleChamber->insertInCell("Main",System,outerCell);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*dipoleChamber,3);
-  dipoleChamber->insertInCell("Exit",System,outerCell);
+  outerCell=buildZone.createUnit(System,*magnetBlock,2);
 
-  eCutWallDisk->setNoInsert();
-  eCutWallDisk->addInsertCell(outerCell);
-  eCutWallDisk->createAll(System,*dipoleChamber,
-			 dipoleChamber->getSideIndex("dipoleExit"));
+  magnetBlock->insertInCell("Magnet",System,outerCell);
+  magnetBlock->insertInCell("Dipole",System,outerCell);
 
-  dipolePipe->setFront(*dipoleChamber,dipoleChamber->getSideIndex("exit"));
-  dipolePipe->createAll(System,*dipoleChamber,
-			dipoleChamber->getSideIndex("exit"));
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*dipolePipe,2);
-  dipolePipe->insertInCell(System,outerCell);
+  if (stopPoint=="Quadrupole")
+    {
+      processEnd(System,magnetBlock);
+      return;
+    }
+  
+  outerCell=buildZone.createUnit(System,*magnetBlock,3);
+  magnetBlock->insertInCell("Magnet",System,outerCell);
+  magnetBlock->insertInCell("Photon",System,outerCell);
 
-  eCutDisk->setNoInsert();
-  eCutDisk->addInsertCell(dipoleChamber->getCell("NonMagVoid"));
-  eCutDisk->createAll(System,*dipoleChamber,-2);
+  
+  if (stopPoint=="Dipole")
+    {
+      processEnd(System,magnetBlock);
+      return;
+    }
 
-  eCutMagDisk->setNoInsert();
-  eCutMagDisk->addInsertCell(dipoleChamber->getCell("MagVoid"));
-  eCutMagDisk->createAll(System,*dipoleChamber,
-			 -dipoleChamber->getSideIndex("dipoleExit"));
+  // FM1 Built relateive to MASTER coordinate
+  collA->createAll(System,*this,0);
+  bellowA->createAll(System,*collA,1);
 
-  //  bellowA->registerSpaceCut(1,2);
-  bellowA->createAll(System,*dipolePipe,2);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*bellowA,2);
+  dipolePipe->setFront(*magnetBlock,"Photon");
+  dipolePipe->setBack(*bellowA,2);
+  dipolePipe->createAll(System,*magnetBlock,"Photon");
+  outerCell=buildZone.createUnit(System,*dipolePipe,2);
+
+  magnetBlock->insertInCell("Magnet",System,outerCell);  
+  dipolePipe->insertAllInCell(System,outerCell);
+
+  // note : bellowA is reversed
+  outerCell=buildZone.createUnit(System,*bellowA,1);
   bellowA->insertInCell(System,outerCell);
-
-  collA->createAll(System,*bellowA,2);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*collA,2);
+  magnetBlock->insertInCell("Magnet",System,outerCell);
+  
+  outerCell=buildZone.createUnit(System,*collA,2);
   collA->insertInCell(System,outerCell);
-  
-  bellowB->createAll(System,*collA,2);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*bellowB,2);
-  bellowB->insertInCell(System,outerCell);
 
-  ionPA->createAll(System,*bellowB,2);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*ionPA,2);
-  ionPA->insertInCell(System,outerCell);
+  constructSystem::constructUnit
+    (System,buildZone,*collA,"back",*bellowB);
 
-  bellowC->createAll(System,*ionPA,2);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*bellowC,2);
-  bellowC->insertInCell(System,outerCell);
+  constructSystem::constructUnit
+    (System,buildZone,*bellowB,"back",*ionPA);
 
-  heatPipe->createAll(System,*bellowC,2);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*heatPipe,2);
-  heatPipe->insertInCell(System,outerCell);
+  constructSystem::constructUnit
+    (System,buildZone,*ionPA,"back",*bellowC);
 
-  
-  buildHeatTable(System,masterCell,*heatPipe,2);  
-  buildApertureTable(System,masterCell,*pipeB,2);
-  buildShutterTable(System,masterCell,*pipeC,2);
+  constructSystem::constructUnit
+    (System,buildZone,*bellowC,"back",*heatPipe);
 
-  setCell("MasterVoid",masterCell->getName());
-  lastComp=bellowK;
-  
+
+  if (stopPoint=="Heat")
+    {
+      processEnd(System,heatPipe);
+      return;
+    }
+
+  buildHeatTable(System,*heatPipe,"back");  
+  buildApertureTable(System,*pipeB,"back");
+  buildShutterTable(System,*pipeC,"back");  
+
+
+  processEnd(System,bellowK);
+
   return;
 }
-  
+
+void
+R1FrontEnd::processEnd(Simulation& System,
+                       std::shared_ptr<attachSystem::FixedComp> lUnit)
+  /*!
+    Process the end point
+    \param System :: Simulation to use
+    \param lUnit :: last unit
+  */
+{
+  ELog::RegMethod RegA("R1FrontEnd","processEnd");
+
+  if (ExternalCut::isActive("REWall"))
+    {
+      buildZone.setMaxExtent(getRule("REWall"));
+      buildZone.createUnit(System);
+    }
+
+  buildZone.rebuildInsertCells(System);
+
+  for(const int CN : magnetCells)
+    magnetBlock->insertInCell("Magnet",System,CN);
+  setCell("MasterVoid",buildZone.getLastCell("Unit"));
+  lastComp=lUnit;
+  return;
+}
+
 void 
 R1FrontEnd::createAll(Simulation& System,
 		      const attachSystem::FixedComp& FC,
@@ -655,12 +596,6 @@ R1FrontEnd::createAll(Simulation& System,
   createSurfaces();
   buildObjects(System);
   createLinks();
-
-  std::string Out=ModelSupport::getComposite(SMap,buildIndex," -7 ");
-  Out+=frontRule()+backRule();
-
-  addOuterSurf(Out);
-  insertObjects(System);
 
   return;
 }

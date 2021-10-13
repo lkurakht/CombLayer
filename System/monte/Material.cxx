@@ -3,7 +3,7 @@
  
  * File:   monte/Material.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,14 +39,11 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "support.h"
 #include "writeSupport.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "RefCon.h"
 #include "Vec3D.h"
 #include "masterWrite.h"
@@ -71,15 +68,25 @@ operator<<(std::ostream& OX,const Material& MT)
 }
 
 Material::Material() :
-  Mnum(-1),Name("Unnamed"),
-  atomDensity(0.0)
+  matID(-1),Name("Unnamed"),atomDensity(0.0)
   /*!
     Default Constructor
   */
 {} 
 
+Material::Material(const int mcnpNum,const std::string N,
+		   const double D) :
+  matID(mcnpNum),Name(std::move(N)),atomDensity(D)
+  /*!
+    Default Constructor 
+    \param mcnpNum :: mcnp number [must be unique]
+    \param N :: name
+    \param D :: density [atom/A^3]
+  */
+{} 
+
 Material::Material(const Material& A) :
-  Mnum(A.Mnum),Name(A.Name),zaidVec(A.zaidVec),
+  matID(A.matID),Name(A.Name),zaidVec(A.zaidVec),
   mxCards(A.mxCards),Libs(A.Libs),SQW(A.SQW),
   atomDensity(A.atomDensity)
   /*!
@@ -98,7 +105,7 @@ Material::operator=(const Material& A)
 {
   if (this!=&A)
     {
-      Mnum=A.Mnum;
+      matID=A.matID;
       Name=A.Name;
       zaidVec=A.zaidVec;
       mxCards=A.mxCards;
@@ -183,11 +190,11 @@ Material::operator+=(const Material& A)
 	}
     }
   // Now add All cards in A, that don't exist in *this.
-  for(const MXTYPE::value_type MX : A.mxCards)
+  for(const MXTYPE::value_type AMX : A.mxCards)
     {
-      MXTYPE::const_iterator mc=mxCards.find(MX.first);
+      MXTYPE::const_iterator mc=mxCards.find(AMX.first);
       if (mc==mxCards.end())
-	mxCards.emplace(mc->first,mc->second);
+	mxCards.emplace(AMX.first,AMX.second);
     }
 
   // SQW
@@ -343,7 +350,7 @@ Material::lineType(std::string& Line)
        (Line.size()==1 || isspace(Line[1]))))
     return -1;
   
-  Line=StrFunc::fullBlock(Line);                
+  Line=StrFunc::removeOuterSpace(Line);                
   int index;
   std::string part;
   if (!StrFunc::convert(Line,part)) return 0;
@@ -465,7 +472,7 @@ Material::setMaterial(const int MIndex,
 
   ELog::RegMethod RegA("Material","setMaterial(i,s,s,s)");
 
-  Mnum=MIndex;  
+  matID=MIndex;  
   std::vector<std::string> Items=
     StrFunc::StrParts(MLine);
   
@@ -504,7 +511,7 @@ Material::setMaterial(const int MIndex,
   // PROCESS MT Line:
   std::vector<std::string> MTItems=StrFunc::StrParts(MTLine);
   for(const std::string& sUnit : MTItems)
-    SQW.push_back(StrFunc::fullBlock(sUnit));
+    SQW.push_back(StrFunc::removeOuterSpace(sUnit));
   
   // PROCESS LIBS
   std::vector<std::string> LibItems=StrFunc::StrParts(LibLine);
@@ -538,7 +545,7 @@ Material::setMaterial(const std::vector<std::string>& PVec)
   std::string& FItem(Items[0]);  
   const char pItem=FItem[0];
   FItem[0]=' ';
-  if ((pItem!='m' && pItem!='M') || !StrFunc::convert(FItem,Mnum))
+  if ((pItem!='m' && pItem!='M') || !StrFunc::convert(FItem,matID))
     {
       ELog::EM<<"Non material card at "<<pItem<<FItem<<ELog::endErr;
       return -2;
@@ -581,14 +588,14 @@ Material::setMaterial(const std::vector<std::string>& PVec)
       switch (mType)
 	{
 	case 1:          // mt card
-	  SQW.push_back(StrFunc::fullBlock(sqwItem));
+	  SQW.push_back(StrFunc::removeOuterSpace(sqwItem));
 	  break;
 	case 2:          // mx card
 	  throw ColErr::InContainerError<std::string>
 	    (sqwItem,"Un supported mx card");
 	}
     }
-  Name="m"+std::to_string(Mnum);
+  Name="m"+std::to_string(matID);
   calcAtomicDensity();
   return 0;
 }
@@ -603,7 +610,6 @@ Material::setDensity(const double D)
   ELog::RegMethod RegA("Material","setDensity");
 
   std::vector<Zaid>::const_iterator zcc;
-  std::vector<Zaid>::iterator zc;
   double FSum(0.0);
   for(zcc=zaidVec.begin();zcc!=zaidVec.end();zcc++)
     FSum+=zcc->getDensity();
@@ -699,14 +705,13 @@ Material::listComponent() const
     List the ZAID components to std::cout
   */
 {
-  std::cout<<"Material :"<<Name<<" : "<<Mnum<<std::endl;
+  std::cout<<"Material :"<<Name<<" : "<<matID<<std::endl;
   std::vector<Zaid>::const_iterator vc;
   for(vc=zaidVec.begin();vc!=zaidVec.end();vc++)
     std::cout<<*vc<<std::endl;
 
   return;
 }
-
 
 void 
 Material::print() const
@@ -716,7 +721,7 @@ Material::print() const
   */
 {
   std::cout<<"Material "<<Name<<" N == "<<zaidVec.size()<<std::endl;
-  std::vector<Zaid>::const_iterator zc;
+
 
   for(const Zaid& ZItem : zaidVec)
     std::cout<<ZItem<<std::endl;
@@ -765,7 +770,7 @@ Material::writeCinder(std::ostream& OX) const
       OX.setf(std::ios_base::right,std::ios_base::adjustfield);
       OX<<"mat";
       OX.width(3);
-      OX<<Mnum;
+      OX<<matID;
       OX.width(4);
       OX<<cZaid.size()<<atomDensity<<std::endl;
       for(size_t i=0;i<cZaid.size();i++)
@@ -825,11 +830,9 @@ Material::writePHITS(std::ostream& OX) const
 
   std::ostringstream cx;
   OX<<"$ Material : "<<Name<<" rho="<<getMacroDensity() << " g/cc"<<std::endl;
-  OX<<"mat["<<Mnum<<"]\n";
+  OX<<"mat["<<matID<<"]\n";
   
   cx.precision(10);
-  std::vector<Zaid>::const_iterator zc;
-  std::vector<std::string>::const_iterator vc;
   for(const Zaid& ZItem: zaidVec)
     {
       if (ZItem.getZ())
@@ -842,8 +845,11 @@ Material::writePHITS(std::ostream& OX) const
 	    }
 	  else
 	    {
-	      cx<<"    "<<EL.elmSym(ZItem.getZ())
-		<<"       "<<ZItem.getDensity();
+	      if (ZItem.getZ()!=30)
+		{
+		  cx<<"    "<<EL.elmSym(ZItem.getZ())
+		    <<"       "<<ZItem.getDensity();
+		}
 	    }
 	}
 		  
@@ -853,8 +859,8 @@ Material::writePHITS(std::ostream& OX) const
   if (!SQW.empty())
     {
       cx.str("");
-      cx<<"mt"<<Mnum<<"    ";
-      if (Mnum<10) cx<<" ";
+      cx<<"mt"<<matID<<"    ";
+      if (matID<10) cx<<" ";
       std::copy(SQW.begin(),SQW.end(),
 		std::ostream_iterator<std::string>(cx," "));
       StrFunc::writeMCNPX(cx.str(),OX);
@@ -873,7 +879,7 @@ Material::writeFLUKA(std::ostream& OX) const
   ELog::RegMethod RegA("Material","writeFLUKA");
   boost::format FMTnum("%1$.4g");
 
-  const std::string matName("M"+std::to_string(Mnum));
+  const std::string matName("M"+std::to_string(matID));
   
   std::ostringstream cx;
   cx<<"*\n* Material : "<<Name<<" rho="<<getMacroDensity()<<" g/cc";
@@ -908,11 +914,10 @@ Material::writePOVRay(std::ostream& OX) const
   masterWrite& MW=masterWrite::Instance();
   const int rgbScale(0xFFFFF);
   // RGB : 150 max
-  const int rgb(Mnum*rgbScale/150);
+  const int rgb(matID*rgbScale/150);
   Geometry::Vec3D rgbCol(rgb/0xFFFF,(rgb % 0xFFFF)/0xFF,rgb % 0xFF);
   rgbCol.makeUnit();
 
-  
   OX<<"#declare mat"<<MW.NameNoDot(Name)<<" = texture {"
     << " pigment{color rgb<"
     <<   MW.NumComma(rgbCol)
@@ -937,8 +942,8 @@ Material::write(std::ostream& OX) const
   cx.str("");
   
   cx.precision(10);
-  cx<<"m"<<Mnum<<"     ";
-  if (Mnum<10) cx<<" ";
+  cx<<"m"<<matID<<"     ";
+  if (matID<10) cx<<" ";
   std::copy(zaidVec.begin(),zaidVec.end(),std::ostream_iterator<Zaid>(cx," "));
 
   for(const std::string& libItem : Libs)
@@ -950,7 +955,7 @@ Material::write(std::ostream& OX) const
   MXTYPE::const_iterator mc;
   for(mc=mxCards.begin();mc!=mxCards.end();mc++)
     {
-      cx<<"mx"<<Mnum;
+      cx<<"mx"<<matID;
       mc->second.write(cx,zaidVec);
       StrFunc::writeMCNPX(cx.str(),OX);
     }
@@ -960,8 +965,8 @@ Material::write(std::ostream& OX) const
   if (!SQW.empty())
     {
       rx.str("");
-      rx<<"mt"<<Mnum<<"    ";
-      if (Mnum<10) rx<<" ";
+      rx<<"mt"<<matID<<"    ";
+      if (matID<10) rx<<" ";
       std::copy(SQW.begin(),SQW.end(),
 		std::ostream_iterator<std::string>(rx," "));
       StrFunc::writeMCNPX(rx.str(),OX);

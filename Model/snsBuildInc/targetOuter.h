@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   buildInc/targetOuter.h
+ * File:   snsBuildInc/targetOuter.h
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,11 +34,9 @@ namespace snsSystem
   \brief Creates the SNS target front nose cone
 */
 
-class targetOuter : public constructSystem::TargetBase
+class targetOuter : public TMRSystem::TargetBase
 {
  private:
-  
-
   
   double totalLength;            ///< Straight length
 
@@ -91,9 +89,7 @@ class targetOuter : public constructSystem::TargetBase
 
   int mainCell;                 ///< Main tungsten cylinder
 
-  void populate(const FuncDataBase&);
-  void createUnitVector(const attachSystem::FixedComp&);
-  
+  void populate(const FuncDataBase&);  
   void createSurfaces();  
   void createObjects(Simulation&);
   void createLinks();
@@ -112,7 +108,8 @@ class targetOuter : public constructSystem::TargetBase
   void addProtonLine(Simulation&,const attachSystem::FixedComp&,
 		     const long int);
 
-  virtual void createAll(Simulation&,const attachSystem::FixedComp&);
+  void createAll(Simulation&,const attachSystem::FixedComp&,
+		 const long int);
   
 
 };

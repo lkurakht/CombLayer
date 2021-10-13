@@ -36,6 +36,8 @@ class FixedGroup : public FixedComp
 {
  protected:
 
+  std::string primKey;     ///< Primary key
+  std::string sndKey;      ///< Secondary key
   /// Fixed Storage
   typedef std::shared_ptr<attachSystem::FixedComp> CompTYPE;
   /// Map storage
@@ -47,7 +49,7 @@ class FixedGroup : public FixedComp
   Geometry::Vec3D bY;          ///< Secondary Y
   Geometry::Vec3D bZ;          ///< Secondary Z
   Geometry::Vec3D bOrigin;     ///< Secondary origin
-  Geometry::Vec3D bExit;     ///< Secondary origin
+  Geometry::Vec3D bExit;       ///< Secondary origin
   
   void registerKey(const std::string&,const size_t);
 
@@ -68,7 +70,9 @@ class FixedGroup : public FixedComp
   FixedGroup& operator=(const FixedGroup&);
   virtual ~FixedGroup();
 
-		   
+  virtual void createUnitVector(const attachSystem::FixedComp&,
+				const long int);
+  
   void setDefault(const std::string&);
   void setSecondary(const std::string&);
   void setDefault(const std::string&,const std::string&);
@@ -79,6 +83,12 @@ class FixedGroup : public FixedComp
   FixedComp& addKey(const std::string&,const size_t);
   virtual FixedComp& getKey(const std::string&);
   virtual const FixedComp& getKey(const std::string&) const;
+  const FixedComp& getPrimary() const;
+  FixedComp& getPrimary();
+
+  
+  virtual void applyRotation(const localRotate&);
+  virtual void applyRotation(const Geometry::Vec3D&,const double);
 
   
   void setAxisControl(const long int,const Geometry::Vec3D&);

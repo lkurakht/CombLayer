@@ -35,17 +35,10 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
@@ -58,22 +51,15 @@ namespace setVariable
 {
 
 EPSeparatorGenerator::EPSeparatorGenerator() :
-  length(73.5),photonOuterGap(0.25),
-  photonRadius(0.35),
-  photonAGap(0.5),photonBGap(0.7),
-  electronRadius(1.1),initEPSeparation(2.8),   // guess
-  wallPhoton(0.3),wallElectron(4.1),wallHeight(2.4),
-  electronAngle(1.54),
-  portAPipeRadius(CF63::innerRadius),
-  portAFlangeRadius(CF63::flangeRadius),
-  portAThick(CF63::flangeLength),  
-  portBPipeRadius(CF63::innerRadius),
-  portBFlangeRadius(CF63::flangeRadius),
-  portBThick(CF63::flangeLength),  
-  portBWall(CF63::wallThick),
-  portBLen(8.0),
+  length(43.5),photonXStep(-0.36),electronXStep(1.817),
+  photonXYAngle(0.0),electronXYAngle(1.5),
+  photonRadius(0.3),electronRadius(1.1),
+  wallXStep(1.8),wallWidth(6.25),
+  wallHeight(2.65),
+  flangeRadius(CF63::flangeRadius),
+  flangeLength(CF63::flangeLength),
   voidMat("Void"),wallMat("Copper"),
-  portMat("Stainless304")
+  flangeMat("Stainless304")
   /*!
     Constructor and defaults
   */
@@ -87,44 +73,30 @@ EPSeparatorGenerator::~EPSeparatorGenerator()
 
 void
 EPSeparatorGenerator::generatePipe(FuncDataBase& Control,
-				   const std::string& keyName,
-				   const double yStep) const
+				   const std::string& keyName) const 
   /*!
     Primary funciton for setting the variables
     \param Control :: Database to add variables 
     \param keyName :: head name for variable
-    \param yStep :: Step along beam centre
   */
 {
   ELog::RegMethod RegA("EPSeparatorGenerator","generateColl");
 
-  Control.addVariable(keyName+"YStep",yStep);
-  
   Control.addVariable(keyName+"Length",length);
-  Control.addVariable(keyName+"PhotonOuterGap",photonOuterGap);
-  Control.addVariable(keyName+"PhotonRadius",photonRadius);
-  Control.addVariable(keyName+"PhotonAGap",photonAGap);
-  Control.addVariable(keyName+"PhotonBGap",photonBGap);
+  Control.addVariable(keyName+"PhotonXStep",photonXStep);
+  Control.addVariable(keyName+"ElectronXStep",electronXStep);
+  Control.addVariable(keyName+"PhotonXYAngle",photonXYAngle);
+  Control.addVariable(keyName+"ElectronXYAngle",electronXYAngle);
   Control.addVariable(keyName+"ElectronRadius",electronRadius);
-  Control.addVariable(keyName+"InitEPSeparation",initEPSeparation);
-  Control.addVariable(keyName+"ElectronAngle",electronAngle);
-
-  Control.addVariable(keyName+"WallPhoton",wallPhoton);
-  Control.addVariable(keyName+"WallElectron",wallElectron);
+  Control.addVariable(keyName+"PhotonRadius",photonRadius);
+  Control.addVariable(keyName+"WallXStep",wallXStep);
+  Control.addVariable(keyName+"WallWidth",wallWidth);
   Control.addVariable(keyName+"WallHeight",wallHeight);
-  
-  Control.addVariable(keyName+"PortAPipeRadius",portAPipeRadius);
-  Control.addVariable(keyName+"PortAFlangeRadius",portAFlangeRadius);
-  Control.addVariable(keyName+"PortAThick",portAThick);
-  Control.addVariable(keyName+"PortBPipeRadius",portBPipeRadius);
-  Control.addVariable(keyName+"PortBWall",portBWall);
-  Control.addVariable(keyName+"PortBFlangeRadius",portBFlangeRadius);
-  Control.addVariable(keyName+"PortBLen",portBLen);
-  Control.addVariable(keyName+"PortBThick",portBThick);
-  
+  Control.addVariable(keyName+"FlangeRadius",flangeRadius);
+  Control.addVariable(keyName+"FlangeLength",flangeLength);
   Control.addVariable(keyName+"VoidMat",voidMat);
   Control.addVariable(keyName+"WallMat",wallMat);
-  Control.addVariable(keyName+"PortMat",portMat);
+  Control.addVariable(keyName+"FlangeMat",flangeMat);
   
   return;
 }

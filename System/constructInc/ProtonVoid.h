@@ -1,9 +1,9 @@
 /********************************************************************* 
-  CombLayer : MNCPX Input builder
+  CombLayer : MCNP(X) Input builder
  
  * File:   constructInc/ProtonVoid.h
 *
- * Copyright (c) 2004-2013 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,17 +35,17 @@ namespace ts1System
   \brief ProtonVoid [insert object]
 */
 
-class ProtonVoid : public attachSystem::ContainedComp,
-    public attachSystem::FixedComp
+class ProtonVoid :
+    public attachSystem::ContainedComp,
+  public attachSystem::FixedComp,
+  public attachSystem::ExternalCut,
+  public attachSystem::CellMap
 {
  private:
   
-  int protonVoidCell;           ///< Inner void cell
-
   double viewRadius;            ///< Radius of proton tube
   
   void populate(const FuncDataBase&);
-  void createUnitVector(const attachSystem::FixedComp&);
   void createSurfaces();
   void createLinks();
   void createObjects(Simulation&,const std::string&,const std::string&);
@@ -57,10 +57,7 @@ class ProtonVoid : public attachSystem::ContainedComp,
   ProtonVoid& operator=(const ProtonVoid&);
   ~ProtonVoid();
 
-  int getVoidCell() const { return protonVoidCell; }
   void createAll(Simulation&,const attachSystem::FixedComp&,
-		 const long int,
-		 const attachSystem::FixedComp&,
 		 const long int);
 
 };

@@ -224,8 +224,8 @@ LineShieldPlus::populate(const FuncDataBase& Control)
   voidHeight=Control.EvalVar<double>(keyName+"VoidHeight");
   voidDepth=Control.EvalVar<double>(keyName+"VoidDepth");
   
-  defMat=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMat",0);
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  defMat=ModelSupport::EvalDefMat(Control,keyName+"DefMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   int FinalMat;
 
   nSeg=Control.EvalDefVar<size_t>(keyName+"NSeg",1);
@@ -260,7 +260,7 @@ LineShieldPlus::populate(const FuncDataBase& Control)
   ModelSupport::populateDivideLen(Control,nWallLayers-1,keyName+"WallLen",
 				  std::min(left,right),wallFrac);
   wallFrac.push_back(1.0);
-  FinalMat=ModelSupport::EvalDefMat<int>(Control,keyName+"FinalMat",0);
+  FinalMat=ModelSupport::EvalDefMat(Control,keyName+"FinalMat",0);
   wallMat[nWallLayers-1] = FinalMat;
   }
   else{

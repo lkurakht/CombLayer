@@ -3,7 +3,7 @@
  
  * File:   constructInc/portItem.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,41 +50,42 @@ class portItem :
   public attachSystem::ContainedComp,
   public attachSystem::CellMap
 {
- private:
+
+ protected:
 
   const std::string portBase;  ///< Base key name
   bool statusFlag;             ///< Flag to check object correct
   bool outerFlag;              ///< Make outer void
 
-  Geometry::Vec3D centreOffset;
-  Geometry::Vec3D axisOffset;
+  Geometry::Vec3D centreOffset;  ///< Centre axis
+  Geometry::Vec3D axisOffset;    ///< axis Offset
   
   double externalLength;     ///< Length of item 
   double radius;             ///< radius of pipe
   double wall;               ///< wall thick
   double flangeRadius;       ///< flange radius
   double flangeLength;       ///< flange thick(length)
-  double plateThick;         ///< Plate on flange [if thick>0]
+  double capThick;           ///< Plate on flange [if thick>0]
+  double windowRadius;       ///< window radius in plate flange [if thick>0]
+  double windowThick;        ///< window thick in plate flange [if thick>0]
 
   int voidMat;               ///< Void material
   int wallMat;               ///< Wall material
-  int plateMat;              ///< plate Material
+  int capMat;                ///< plate Material
+  int windowMat;             ///< window Material 
+  int outerVoidMat;          ///< outer void Material [window outer/surround]
 
   std::set<int> outerCell;   ///< Extra cell to add outer to
   std::string refComp;       ///< Name of reference object
   Geometry::Vec3D exitPoint; ///< exit point of object
+ 
+  virtual void createSurfaces();
+  void createLinks();
 
-  void populate(const FuncDataBase&);
-  void createSurfaces();
-  void createLinks(const ModelSupport::LineTrack&,
-		   const size_t,const size_t);
-
-  void constructOuterFlange(Simulation&,
-			    const ModelSupport::LineTrack&,
-			    const size_t,const size_t);
-  void calcBoundaryCrossing(const objectGroups&,
-			    const ModelSupport::LineTrack&,
-			    size_t&,size_t&) const;
+  virtual void constructObject(Simulation&,
+			       const HeadRule&,
+			       const HeadRule&);
+  
   
  public:
 
@@ -94,11 +95,17 @@ class portItem :
   portItem& operator=(const portItem&);
   ~portItem();
 
+  // make public as accessor function:
+  virtual void populate(const FuncDataBase&);
+  
   double getExternalLength() const { return externalLength; }
+  double getCapLength() const
+    { return std::max(capThick,0.0); }
   
   void createUnitVector(const attachSystem::FixedComp&,const long int);
   void setCentLine(const attachSystem::FixedComp&,
 		   const Geometry::Vec3D&,const Geometry::Vec3D&);
+  void reNormZ(const Geometry::Vec3D&);
 
   void addOuterCell(const int);
   void setMain(const double,const double,const double);
@@ -108,11 +115,22 @@ class portItem :
   /// surround the object
   void setWrapVolume() { outerFlag=1; }
   
-  void constructTrack(Simulation&);
+  void constructTrack(Simulation&,MonteCarlo::Object*,
+		      const HeadRule&,const HeadRule&);
   
-  void intersectPair(Simulation&,const portItem&) const;
+  void intersectPair(Simulation&,portItem&) const;
   void intersectVoidPair(Simulation&,const portItem&) const;
-  void createAll(Simulation&,
+
+
+  void constructAxis(Simulation&,
+		     const attachSystem::FixedComp&,
+		     const long int);
+
+  void addPortCut(MonteCarlo::Object*) const;
+  void addFlangeCut(MonteCarlo::Object*) const;
+  
+  using FixedComp::createAll;
+  virtual void createAll(Simulation&,
 		 const attachSystem::FixedComp&,
 		 const long int);
 				       

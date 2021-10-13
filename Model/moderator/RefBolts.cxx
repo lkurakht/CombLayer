@@ -3,7 +3,7 @@
  
  * File:   moderator/RefBolts.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,47 +35,31 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
 #include "localRotate.h"
 #include "masterRotate.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ModelSupport.h"
 #include "MaterialSupport.h"
-#include "SimProcess.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 #include "ContainedComp.h"
+#include "BaseMap.h"
+#include "CellMap.h"
 #include "pipeUnit.h"
 #include "PipeLine.h"
 #include "RefBolts.h"
 
-#include "Debug.h"
 
 namespace moderatorSystem
 {
@@ -164,7 +148,7 @@ RefBolts::createBoltGrp(Simulation& System,const std::string& subKey)
       if (Control.hasVariable(boltName+"Track0"))
 	{
 	  //  Get Default/base radii
-	  matN=ModelSupport::EvalDefMat<int>(Control,boltName+"Mat",matN); 
+	  matN=ModelSupport::EvalDefMat(Control,boltName+"Mat",matN); 
 
 	  size_t index(0);
 	  while(Control.hasVariable(boltName+"Radius"+std::to_string(index)))
@@ -203,7 +187,7 @@ RefBolts::createBoltGrp(Simulation& System,const std::string& subKey)
 	      TBolt.setActive(0,3);
 	      TBolt.setActive(1,1);
 	    }
-	  TBolt.createAll(System);
+	  TBolt.build(System);
 	  flag=1;
 	  bolt++;
 	} 
@@ -213,16 +197,18 @@ RefBolts::createBoltGrp(Simulation& System,const std::string& subKey)
   
 void
 RefBolts::createAll(Simulation& System,
-		    const attachSystem::FixedComp& FUnit)
+		    const attachSystem::FixedComp& FUnit,
+		    const long int sideIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation to create objects in
     \param FUnit :: Fixed Base unit
+    \param sideIndex :: link poitn (7)
   */
 {
   ELog::RegMethod RegA("RefBolts","createAll");
 
-  createUnitVector(FUnit,7);
+  createUnitVector(FUnit,sideIndex);
   createBoltGrp(System,"Nim");
   createBoltGrp(System,"Steel");
   createBoltGrp(System,"Buck");

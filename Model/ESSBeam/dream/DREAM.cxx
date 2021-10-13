@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   essBuild/DREAM.cxx
+ * File:   ESSBeam/dream/DREAM.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,25 +35,13 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "stringCombine.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -65,33 +53,28 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
-#include "World.h"
 #include "AttachSupport.h"
 #include "beamlineSupport.h"
 #include "GuideItem.h"
-#include "Jaws.h"
 #include "GuideLine.h"
 #include "DiskChopper.h"
-#include "VacuumBox.h"
 #include "VacuumPipe.h"
 #include "Bunker.h"
-#include "BunkerInsert.h"
-#include "Aperture.h"
 #include "CompBInsert.h"
 #include "SingleChopper.h"
 #include "DreamHut.h"
-#include "DetectorTank.h"
-#include "CylSample.h"
 #include "LineShield.h"
 #include "PipeCollimator.h"
 
@@ -103,7 +86,7 @@ namespace essSystem
 DREAM::DREAM(const std::string& keyName) :
   attachSystem::CopiedComp("dream",keyName),
   stopPoint(0),
-  dreamAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  dreamAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
 
   FocusA(new beamlineSystem::GuideLine(newName+"FA")),
  
@@ -178,7 +161,6 @@ DREAM::DREAM(const std::string& keyName) :
     ModelSupport::objectRegister::Instance();
 
   // This is necessary as not directly constructed:
-  // OR.cell(newName+"Axis");
   OR.addObject(dreamAxis);
 
   OR.addObject(FocusA);
@@ -280,11 +262,11 @@ DREAM::build(Simulation& System,
 
   if (stopPoint==1) return;                      // STOP At monolith edge
 
-  VPipeB->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeB->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeB->createAll(System,GItem.getKey("Beam"),2);
   FocusB->addInsertCell(VPipeB->getCells("Void"));
   FocusB->createAll(System,*VPipeB,0,*VPipeB,0);
-
+  
   // NEW TEST SECTION:
   ChopperA->addInsertCell(bunkerObj.getCell("MainVoid"));
   ChopperA->createAll(System,FocusB->getKey("Guide0"),2);
@@ -301,10 +283,10 @@ DREAM::build(Simulation& System,
   SDisk->createAll(System,ChopperA->getKey("Main"),0);
   ChopperA->insertAxle(System,*SDisk);
   
-  VPipeC0->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeC0->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeC0->createAll(System,ChopperA->getKey("Beam"),2);
 
-  VPipeC->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeC->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeC->createAll(System,*VPipeC0,2);
   FocusC->addInsertCell(VPipeC->getCells("Void"));
   FocusC->createAll(System,*VPipeC,0,*VPipeC,0);
@@ -322,7 +304,7 @@ DREAM::build(Simulation& System,
   BandADisk->createAll(System,ChopperB->getKey("Main"),0);
   ChopperB->insertAxle(System,*BandADisk);
     
-  VPipeD->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeD->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeD->createAll(System,ChopperB->getKey("Beam"),2);
 
   FocusD->addInsertCell(VPipeD->getCells("Void"));
@@ -337,7 +319,7 @@ DREAM::build(Simulation& System,
   T0DiskA->createAll(System,ChopperC->getKey("Main"),0);
   ChopperC->insertAxle(System,*T0DiskA);
   
-  VPipeE1->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeE1->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeE1->createAll(System,ChopperC->getKey("Beam"),2);
   FocusE1->addInsertCell(VPipeE1->getCells("Void"));
   FocusE1->createAll(System,*VPipeE1,0,*VPipeE1,0);
@@ -347,7 +329,7 @@ DREAM::build(Simulation& System,
   CollimB->addInsertCell(VPipeE1->getCells("Void"));
   CollimB->createAll(System,*VPipeE1,-1);
 
-  VPipeE2->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeE2->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeE2->createAll(System,*VPipeE1,2);
   FocusE2->addInsertCell(VPipeE2->getCells("Void"));
   FocusE2->createAll(System,*VPipeE2,0,*VPipeE2,0);
@@ -358,12 +340,12 @@ DREAM::build(Simulation& System,
   CollimC->createAll(System,*VPipeE2,-2);
   
   // move guide
-  VPipeF->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeF->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeF->createAll(System,*VPipeE2,2);
   FocusF->addInsertCell(VPipeF->getCells("Void"));
   FocusF->createAll(System,*VPipeF,0,*VPipeF,0);
 
-  VPipeG->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeG->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeG->createAll(System,*VPipeF,2);
   FocusG->addInsertCell(VPipeG->getCells("Void"));
   FocusG->createAll(System,*VPipeG,0,*VPipeG,0);
@@ -377,7 +359,7 @@ DREAM::build(Simulation& System,
   //  attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsert);
 
   BInsertA->addInsertCell(bunkerObj.getCell("MainVoid"));
-  BInsertA->createAll(System,*VPipeG,2,bunkerObj);
+  BInsertA->createAll(System,*VPipeG,2);
   attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsertA);
   
   FocusWallA->addInsertCell(BInsertA->getCell("Item"));
@@ -392,13 +374,13 @@ DREAM::build(Simulation& System,
   BInsertB->addInsertCell(bunkerObj.getCell("MainVoid"));
   BInsertB->addInsertCell(ShieldA->getCell("Void"));
   BInsertB->addInsertCell(voidCell);
-  BInsertB->createAll(System,*BInsertA,2,bunkerObj);
+  BInsertB->createAll(System,*BInsertA,2);
   attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsertB);
   
   if (stopPoint==3) return;                      // STOP At bunker edge
   
   // Section up to 41.35 m 
-  VPipeOutA->addInsertCell(ShieldA->getCell("Void"));
+  VPipeOutA->addAllInsertCell(ShieldA->getCell("Void"));
   VPipeOutA->setBack(*ShieldA,-2);
   VPipeOutA->createAll(System,FocusWallA->getKey("Guide0"),2);
       
@@ -409,7 +391,7 @@ DREAM::build(Simulation& System,
   ShieldB->addInsertCell(voidCell);
   ShieldB->createAll(System,*ShieldA,2);
 
-  VPipeOutB->addInsertCell(ShieldB->getCell("Void"));
+  VPipeOutB->addAllInsertCell(ShieldB->getCell("Void"));
   VPipeOutB->setFront(*ShieldB,-1);
   VPipeOutB->setBack(*ShieldB,-2);
   VPipeOutB->createAll(System,*ShieldB,-1);
@@ -421,7 +403,7 @@ DREAM::build(Simulation& System,
   ShieldC->addInsertCell(voidCell);
   ShieldC->createAll(System,*ShieldB,2);
 
-  VPipeOutC->addInsertCell(ShieldC->getCell("Void"));
+  VPipeOutC->addAllInsertCell(ShieldC->getCell("Void"));
   VPipeOutC->setFront(*ShieldC,-1);
   VPipeOutC->setBack(*ShieldC,-2);
   VPipeOutC->createAll(System,*ShieldC,-1);
@@ -433,8 +415,8 @@ DREAM::build(Simulation& System,
   Cave->createAll(System,*ShieldC,2);
   Cave->insertComponent(System,"FrontWall",*ShieldC);
 
-  VPipeCaveA->addInsertCell(Cave->getCell("FrontWall"));
-  VPipeCaveA->addInsertCell(Cave->getCell("Void"));
+  VPipeCaveA->addAllInsertCell(Cave->getCell("FrontWall"));
+  VPipeCaveA->addAllInsertCell(Cave->getCell("Void"));
   VPipeCaveA->setFront(*VPipeOutC,2);
   VPipeCaveA->createAll(System,*VPipeOutC,2);
   FocusCaveA->addInsertCell(VPipeCaveA->getCell("Void"));

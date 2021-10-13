@@ -34,29 +34,18 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "inputParam.h"
-#include "stringCombine.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -64,24 +53,17 @@
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
-#include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
-#include "BoundOuter.h"
 #include "insertObject.h"
 #include "insertPlate.h"
-#include "insertSphere.h"
 #include "World.h"
-#include "AttachSupport.h"
 #include "plateInfo.h"
 #include "PlateMod.h"
-#include "EQDetector.h"
-#include "ModContainer.h"
 #include "VacuumVessel.h"
-#include "CylLayer.h"
 #include "TableSupport.h"
 #include "He3Tubes.h"
 #include "TubeDetBox.h"
@@ -151,9 +133,7 @@ makePhoton2::buildWings(Simulation& System)
   const Geometry::Vec3D ZA=PModObj->getLinkPt(5);
   const Geometry::Vec3D ZB=PModObj->getLinkPt(6);
   
-  const double DX=XA.Distance(XB)/2.0;
   const double DY=YA.Distance(YB);   // Not divided
-  const double DZ=ZA.Distance(ZB)/2.0;
   
   for(size_t i=0;i<4;i++)
     {

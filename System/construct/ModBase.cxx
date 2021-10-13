@@ -3,7 +3,7 @@
  
  * File:   construct/ModBase.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,34 +36,15 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
 #include "ModelSupport.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
@@ -146,8 +127,29 @@ ModBase::populate(const FuncDataBase& Control)
 }
 
 void
-ModBase::createUnitVector(const attachSystem::FixedComp& axisFC,
-			  const attachSystem::FixedComp* orgFC,
+ModBase::createUnitVector(const attachSystem::FixedComp& orgFC,
+			  const long int orgIndex,
+			  const attachSystem::FixedComp& axisFC,
+			  const long int axisIndex)
+  /*!
+    Local create unit for central Base.
+    \param axisFC :: Axis coordinate system
+    \param orgFC :: if given origin point
+    \param orgIndex :: link point of orgFC
+    \param axisIndex :: link point of orgFC
+  */
+{
+  ELog::RegMethod RegA("ModBase","createUnitVector");
+  
+  attachSystem::FixedComp::createUnitVector(axisFC,axisIndex);
+  
+  Origin= orgFC.getLinkPt(orgIndex);
+  FixedOffset::applyOffset();
+  return; 
+}
+
+void
+ModBase::createUnitVector(const attachSystem::FixedComp& FC,
 			  const long int sideIndex)
   /*!
     Local create unit for central Base.
@@ -158,9 +160,7 @@ ModBase::createUnitVector(const attachSystem::FixedComp& axisFC,
 {
   ELog::RegMethod RegA("ModBase","createUnitVector");
   
-  attachSystem::FixedComp::createUnitVector(axisFC);
-  if (orgFC)
-    Origin= orgFC->getLinkPt(sideIndex);
+  attachSystem::FixedComp::createUnitVector(FC,sideIndex);
   FixedOffset::applyOffset();
   return; 
 }
@@ -202,5 +202,23 @@ ModBase::getSideIndex(const size_t I) const
   return (I>=flightSides.size()) ? 0 : flightSides[I];
 }
 
+void
+ModBase::createAll(Simulation& System,
+		    const attachSystem::FixedComp& FC,
+		    const long int sideIndex)
+  /*!
+    Extrenal build everything
+    \param System :: Simulation
+    \param FC :: FixedComp to get axis / origin
+    \param sideIndex :: link point for origin if given
+   */
+{
+  ELog::RegMethod RegA("ModBase","createAll");
+  // virtual call
+  this->createAll(System,FC,sideIndex,FC,0);
+  return;
+}
+
+  
   
 }  // NAMESPACE constructSystem

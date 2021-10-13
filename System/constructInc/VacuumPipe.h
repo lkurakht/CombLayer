@@ -1,9 +1,9 @@
-/********************************************************************* 
+/*********************************************************************
   CombLayer : MCNP(X) Input builder
- 
+
  * File:   constructInc/VacuumPipe.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  ****************************************************************************/
 #ifndef constructSystem_VacuumPipe_h
@@ -42,24 +42,24 @@ struct windowInfo
   double width;           ///< Window Width
   int mat;                ///< Material
 };
-  
+
 /*!
   \class VacuumPipe
   \version 1.0
   \author S. Ansell
   \date July 2015
-  \brief VacuumPipe unit  
+  \brief VacuumPipe unit
 */
 
 class VacuumPipe :
-  public attachSystem::FixedOffset,
-  public attachSystem::ContainedComp,
+  public attachSystem::FixedRotate,
+  public attachSystem::ContainedGroup,
   public attachSystem::CellMap,
   public attachSystem::SurfMap,
   public attachSystem::FrontBackCut
 {
  private:
-  
+
   bool frontJoin;               ///< Flag for front join
   Geometry::Vec3D FPt;          ///< Front point
   Geometry::Vec3D FAxis;        ///< Front point
@@ -71,7 +71,7 @@ class VacuumPipe :
   double radius;                ///< void radius [inner]
   double height;                ///< void radius [inner]
   double width;                 ///< void radius [inner]
-  
+
   double length;                ///< void length [total]
 
   double feThick;               ///< pipe thickness
@@ -90,13 +90,14 @@ class VacuumPipe :
   int activeWindow;             ///< Flag on window activity
   windowInfo windowFront;       ///< Front window info
   windowInfo windowBack;        ///< Back window info
-    
+
   int voidMat;                  ///< Void material
   int feMat;                    ///< Pipe material
-  int claddingMat;              ///< Pipe cladding material 
-  
-  size_t nDivision;             ///< Number divisions
-  
+  int claddingMat;              ///< Pipe cladding material
+  int flangeMat;                ///< Flange material
+
+  int outerVoid;                ///< Flag to build the outer void cell between flanges
+
   void populate(const FuncDataBase&);
   void createUnitVector(const attachSystem::FixedComp&,const long int);
   void createSurfaces();
@@ -104,8 +105,7 @@ class VacuumPipe :
   void createLinks();
 
   void applyActiveFrontBack();
-  void createDivision(Simulation&);
-  
+
  public:
 
   VacuumPipe(const std::string&);
@@ -113,15 +113,15 @@ class VacuumPipe :
   VacuumPipe& operator=(const VacuumPipe&);
   virtual ~VacuumPipe();
 
-  void setFront(const attachSystem::FixedComp&,const long int,const bool =0);
-  void setBack(const attachSystem::FixedComp&,const long int,const bool =0);
-  
-  void createAll(Simulation&,const attachSystem::FixedComp&,
-		 const long int);
+  void setJoinFront(const attachSystem::FixedComp&,const long int);
+  void setJoinBack(const attachSystem::FixedComp&,const long int);
+
+  using FixedComp::createAll;
+  virtual void createAll(Simulation&,const attachSystem::FixedComp&,
+			 const long int);
 
 };
 
 }
 
 #endif
- 

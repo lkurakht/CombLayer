@@ -3,7 +3,7 @@
  
  * File:   t1BuildInc/Cannelloni.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,14 +45,13 @@ namespace ts1System
   \brief Creates the Canneloni target system
 */
 
-class Cannelloni : public constructSystem::TargetBase
+class Cannelloni :
+  public TMRSystem::TargetBase
 {
  private:
   
   typedef std::map<int,constructSystem::hexUnit*> MTYPE;
   
-
-
   int frontPlate;               ///< Front Plate
   int backPlate;                ///< Back Plate
   
@@ -78,8 +77,6 @@ class Cannelloni : public constructSystem::TargetBase
   double targetTemp;            ///< Target temperature
   double waterTemp;             ///< Water temperature
   double externTemp;            ///< Pressure temperature
-
-  int mainCell;                 ///< Main tungsten cylinder
 
   void clearHVec();
   const Geometry::Vec3D& getHexAxis(const size_t) const;
@@ -111,13 +108,11 @@ class Cannelloni : public constructSystem::TargetBase
   void setRefPlates(const int A,const int B) 
     { frontPlate=A; backPlate=B; }
 
-  void addProtonLine(Simulation&,	 
-		     const attachSystem::FixedComp& refFC,
-		     const long int index);
-  virtual void createAll(Simulation&,
-			 const attachSystem::FixedComp&);
+  void addProtonLine(Simulation&,const attachSystem::FixedComp&,
+		     const long int);
+  void createAll(Simulation&,const attachSystem::FixedComp&,
+		 const long int);
   
-
 };
 
 }

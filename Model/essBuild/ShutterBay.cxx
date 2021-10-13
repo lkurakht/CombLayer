@@ -3,7 +3,7 @@
  
  * File:   essBuild/ShutterBay.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,32 +34,18 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDIter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -71,6 +57,7 @@
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
+#include "ExternalCut.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "ShutterBay.h"
@@ -80,7 +67,7 @@ namespace essSystem
 
 ShutterBay::ShutterBay(const std::string& Key)  :
   attachSystem::ContainedComp(),attachSystem::FixedOffset(Key,8),
-  attachSystem::CellMap()
+  attachSystem::CellMap(),attachSystem::ExternalCut()
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Name for item in search
@@ -89,7 +76,7 @@ ShutterBay::ShutterBay(const std::string& Key)  :
 
 ShutterBay::ShutterBay(const ShutterBay& A) : 
   attachSystem::ContainedComp(A),attachSystem::FixedOffset(A),
-  attachSystem::CellMap(A),
+  attachSystem::CellMap(A),attachSystem::ExternalCut(A),
   radius(A.radius),height(A.height),depth(A.depth),
   skin(A.skin),topSkin(A.topSkin),
   mat(A.mat),skinMat(A.skinMat)
@@ -174,22 +161,7 @@ ShutterBay::populate(const FuncDataBase& Control)
 
   return;
 }
-  
-void
-ShutterBay::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    \param FC :: Linked object
-  */
-{
-  ELog::RegMethod RegA("ShutterBay","createUnitVector");
-
-  FixedComp::createUnitVector(FC);
-  applyOffset();
-
-  return;
-}
-  
+    
 void
 ShutterBay::createSurfaces()
   /*!
@@ -227,19 +199,17 @@ ShutterBay::createSurfaces()
 }
 
 void
-ShutterBay::createObjects(Simulation& System,
-			  const attachSystem::ContainedComp& CC)
+ShutterBay::createObjects(Simulation& System)
   /*!
     Adds the all the components
     \param System :: Simulation to create objects in
-    \param CC :: Bulk object
   */
 {
   ELog::RegMethod RegA("ShutterBay","createObjects");
 
   std::string Out;
   Out=ModelSupport::getComposite(SMap,buildIndex,"5 -106 -7 ");
-  Out+=CC.getExclude();  
+  Out+=ExternalCut::getRuleStr("Bulk");
   System.addCell(MonteCarlo::Object(cellIndex++,mat,0.0,Out));
   addCell("MainCell",cellIndex-1);
 
@@ -325,7 +295,7 @@ ShutterBay::createLinks()
 void
 ShutterBay::createAll(Simulation& System,
 		      const attachSystem::FixedComp& FC,
-		      const attachSystem::ContainedComp& CC)
+		      const long int sideIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation item
@@ -336,10 +306,10 @@ ShutterBay::createAll(Simulation& System,
   ELog::RegMethod RegA("ShutterBay","createAll");
 
   populate(System.getDataBase());
-  createUnitVector(FC);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createLinks();
-  createObjects(System,CC);
+  createObjects(System);
   insertObjects(System);              
 
   return;

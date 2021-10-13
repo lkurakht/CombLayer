@@ -3,7 +3,7 @@
  
  * File:   flexpesInc/FLEXPES.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,11 +32,14 @@ namespace constructSystem
   class VacuumBox;
   class portItem;
   class PortTube;
-  class GateValve;
-  class JawValve;
+  class GateValveCube;
+  class JawValveCube;
 }
 
-
+namespace insertSystem
+{
+  class insertPlate;
+}
 
 /*!
   \namespace xraySystem
@@ -50,7 +53,7 @@ namespace xraySystem
 {
   class R1Ring;
   class flexpesFrontEnd;
-  class flexpesOpticsHut;
+  class maxpeemOpticsHut;
   class flexpesOpticsBeamline;
   class ExperimentalHutch;
   class ExptBeamline;
@@ -68,22 +71,17 @@ namespace xraySystem
   */
 
 class FLEXPES :
-  public attachSystem::CopiedComp
+  public xraySystem::R1Beamline
 {
  private:
 
-  /// ring component  [taken from main setup]
-  std::shared_ptr<R1Ring> r1Ring;
-  std::string startPoint;       ///< Start point
-  std::string stopPoint;        ///< End point
-
   std::shared_ptr<flexpesFrontEnd> frontBeam;    ///< in ring front end
   std::shared_ptr<WallLead> wallLead;            ///< lead in beam wall
-  std::shared_ptr<flexpesOpticsHut> opticsHut;   ///< main optics hut
+  std::shared_ptr<maxpeemOpticsHut> opticsHut;   ///< main optics hut
   /// Pipe joining frontend to optics hut
   std::shared_ptr<constructSystem::VacuumPipe> joinPipe;
   /// Main optics hutch componentsr 
-  std::shared_ptr<flexpesOpticsBeamline> opticsBeam;
+  std::shared_ptr<maxpeemOpticsLine> opticsBeam;
 
  public:
   

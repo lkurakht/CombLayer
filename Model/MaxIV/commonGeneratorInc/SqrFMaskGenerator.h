@@ -3,7 +3,7 @@
  
  * File:   commonBeamInc/SqrFMaskGenerator.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,14 +41,14 @@ class SqrFMaskGenerator :
  private:
 
   double width;           ///< Outer width
-  double height;          ///< Outer heigh
+  double height;          ///< Outer height
 
   double aFInRadius;      ///< A flange Inner radius
   double aFOutRadius;     ///< A flange Outer radius
-  double aFLength;        ///< A flange lenght
+  double aFLength;        ///< A flange length
   double bFInRadius;      ///< B flange Inner radius
   double bFOutRadius;     ///< B flange Outer radius
-  double bFLength;        ///< B flange lenght
+  double bFLength;        ///< B flange length
 
   double pipeRadius;      ///< Pipe radius
   double pipeXWidth;      ///< Pipe x-width
@@ -57,7 +57,7 @@ class SqrFMaskGenerator :
   double pipeYStep;       ///< Pipe yStep
   
   std::string flangeMat;         ///< main material    
-  std::string waterMat;         ///< coolant material
+  std::string waterMat;          ///< coolant material
   
  public:
 
@@ -70,6 +70,7 @@ class SqrFMaskGenerator :
   template<typename CF> void setAFlangeCF();
   template<typename CF> void setBFlangeCF();
 
+  void setPipeRadius(const double R) { pipeRadius=R; }
   void setFlangeMat(const std::string&);
   
   virtual void generateColl(FuncDataBase&,const std::string&,

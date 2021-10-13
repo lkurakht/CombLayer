@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   essBuild/ESTIA.cxx
+ * File:   estia/ESTIA.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,25 +35,13 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "stringCombine.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -65,33 +53,26 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
-#include "World.h"
-#include "AttachSupport.h"
 #include "beamlineSupport.h"
 #include "GuideItem.h"
-#include "Jaws.h"
 #include "GuideLine.h"
 #include "DiskChopper.h"
 #include "VacuumBox.h"
 #include "VacuumPipe.h"
 #include "ChopperHousing.h"
 #include "Bunker.h"
-#include "BunkerInsert.h"
-#include "ChopperPit.h"
-#include "DHut.h"
-#include "DetectorTank.h"
-#include "CylSample.h"
-#include "LineShield.h"
 
 #include "ESTIA.h"
 
@@ -101,7 +82,7 @@ namespace essSystem
 ESTIA::ESTIA(const std::string& keyName) :
   attachSystem::CopiedComp("estia",keyName),
   stopPoint(0),
-  estiaAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  estiaAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
   FocusMono(new beamlineSystem::GuideLine(newName+"FMono")),
   VPipeA(new constructSystem::VacuumPipe(newName+"PipeA")),
   FocusA(new beamlineSystem::GuideLine(newName+"FA")),
@@ -119,8 +100,11 @@ ESTIA::ESTIA(const std::string& keyName) :
   ModelSupport::objectRegister& OR=
     ModelSupport::objectRegister::Instance();
 
+<<<<<<< HEAD
   // This is necessary:
   // OR.cell(newName+"Axis");
+=======
+>>>>>>> origin/master
   OR.addObject(estiaAxis);
 
   OR.addObject(FocusMono);
@@ -174,7 +158,7 @@ ESTIA::buildChopperBlock(Simulation& System,
   House.createAll(System,Disk.getKey("Main"),0);
   House.insertComponent(System,"Void",Disk);
 
-  Pipe.addInsertCell(bunkerObj.getCell("MainVoid"));
+  Pipe.addAllInsertCell(bunkerObj.getCell("MainVoid"));
   Pipe.setFront(prevVacBox,2);
   Pipe.setBack(VacBox,1);
   Pipe.createAll(System,prevVacBox,2);
@@ -217,7 +201,7 @@ ESTIA::build(Simulation& System,
   FocusMono->createAll(System,*estiaAxis,-3,*estiaAxis,-3);
 
   // Shutter pipe [note gap front/back]
-  VPipeA->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeA->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeA->createAll(System,FocusMono->getKey("Guide0"),2);
 
   FocusA->addInsertCell(VPipeA->getCells("Void"));
@@ -225,7 +209,7 @@ ESTIA::build(Simulation& System,
 		    FocusMono->getKey("Guide0"),2);
 
   // pipe for first section
-  VPipeB->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeB->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeB->createAll(System,FocusA->getKey("Guide0"),2);
 
   return;

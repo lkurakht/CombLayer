@@ -3,7 +3,7 @@
  
  * File:   source/SurfNormSource.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,27 +33,19 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Source.h"
-#include "SrcItem.h"
 #include "SrcData.h"
 #include "surfRegister.h"
-#include "ModelSupport.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedOffsetUnit.h"
 #include "inputSupport.h"
 #include "SourceBase.h"
 #include "SurfNormSource.h"
@@ -62,7 +54,7 @@ namespace SDef
 {
 
 SurfNormSource::SurfNormSource(const std::string& K) :
-  attachSystem::FixedOffset(K,0),SourceBase(),
+  attachSystem::FixedOffsetUnit(K,0),SourceBase(),
   angleSpread(0.0),surfNum(0),
   width(0.0),height(0.0)
   /*!
@@ -72,7 +64,7 @@ SurfNormSource::SurfNormSource(const std::string& K) :
 {}
 
 SurfNormSource::SurfNormSource(const SurfNormSource& A) : 
-  attachSystem::FixedOffset(A),SourceBase(A),
+  attachSystem::FixedOffsetUnit(A),SourceBase(A),
   angleSpread(A.angleSpread),
   surfNum(A.surfNum),width(A.width),height(A.height)
   /*!

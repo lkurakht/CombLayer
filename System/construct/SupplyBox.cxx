@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   essBuild/SupplyBox.cxx
+ * File:   construct/SupplyBox.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,42 +35,25 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDIter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 #include "ContainedComp.h"
+#include "BaseMap.h"
+#include "CellMap.h"
 #include "LayerComp.h"
 #include "boxValues.h"
 #include "boxUnit.h"
@@ -136,7 +119,7 @@ SupplyBox::~SupplyBox()
 {}
 
 void
-SupplyBox::populate(const Simulation& System)
+SupplyBox::populate(const FuncDataBase& Control)
   /*!
     Populate all the variables
     \param System :: Simulation to use
@@ -144,31 +127,28 @@ SupplyBox::populate(const Simulation& System)
 {
   ELog::RegMethod RegA("SupplyBox","populate");
   
-  const FuncDataBase& Control=System.getDataBase();
-  
-  
   std::string numStr;
   NSegIn=Control.EvalPair<size_t>(optName+"NSegIn",keyName+"NSegIn");
   for(size_t i=0;i<=NSegIn;i++)
     {
-      numStr=StrFunc::makeString(i);
+      numStr=std::to_string(i);
       PPts.push_back(Control.EvalPair<Geometry::Vec3D>
 		     (optName+"PPt"+numStr,keyName+"PPt"+numStr));
     }
 
   size_t aN(0);
-  numStr=StrFunc::makeString(aN);
+  numStr=std::to_string(aN);
   while(Control.hasVariable(keyName+"Active"+numStr))
     {
       ActiveFlag.push_back
 	(Control.EvalVar<size_t>(keyName+"Active"+numStr)); 
-      numStr=StrFunc::makeString(++aN);
+      numStr=std::to_string(++aN);
     }
 
   const size_t NLayer=Control.EvalVar<size_t>(keyName+"NLayer"); 
   for(size_t i=0;i<NLayer;i++)
     {
-      const std::string numStr=StrFunc::makeString(i);
+      const std::string numStr=std::to_string(i);
       Width.push_back(Control.EvalVar<double>(keyName+"Width"+numStr));
       Depth.push_back(Control.EvalVar<double>(keyName+"Depth"+numStr));
       Mat.push_back
@@ -250,7 +230,7 @@ SupplyBox::insertInlet(const attachSystem::FixedComp& FC,
   PtZ+=layerOffset;
   const int commonSurf=LC->getCommonSurf(lSideIndex);
   const std::string commonStr=(commonSurf) ? 		       
-    StrFunc::makeString(commonSurf) : "";
+    std::to_string(commonSurf) : "";
   if (PtZ!=Pt)
     Coaxial.addPoint(Pt);
   
@@ -292,7 +272,7 @@ SupplyBox::addExtraLayer(const attachSystem::LayerComp& LC,
   const size_t NL(LC.getNLayers(lSideIndex));
 
   const std::string commonStr=(commonSurf) ? 		       
-    StrFunc::makeString(commonSurf) : "";
+    std::to_string(commonSurf) : "";
   const Geometry::Vec3D PtZ=
     LC.getSurfacePoint(NL-1,lSideIndex)+
     layerOffset;
@@ -392,7 +372,7 @@ SupplyBox::createAll(Simulation& System,
   */
 {
   ELog::RegMethod RegA("SupplyBox","createAll");
-  populate(System);
+  populate(System.getDataBase());
 
   createUnitVector(FC,sideIndex);
   addOuterPoints();
@@ -401,7 +381,7 @@ SupplyBox::createAll(Simulation& System,
   //  Coaxial.setNAngle(nAngle);
   if (!startSurf.empty())
     Coaxial.setStartSurf(startSurf);
-  Coaxial.createAll(System);
+  Coaxial.build(System);
   createLinks();
   return;
 }
@@ -422,7 +402,7 @@ SupplyBox::createAll(Simulation& System,
   */
 {
   ELog::RegMethod RegA("SupplyBox","createAll");
-  populate(System);
+  populate(System.getDataBase());
 
   createUnitVector(FC,orgLayerIndex,orgSideIndex);
   insertInlet(FC,exitSideIndex);
@@ -432,7 +412,7 @@ SupplyBox::createAll(Simulation& System,
   //  Coaxial.setNAngle(nAngle);
   if (!startSurf.empty())
     Coaxial.setStartSurf(startSurf);
-  Coaxial.createAll(System);
+  Coaxial.build(System);
   
   createLinks();
   return;
@@ -458,7 +438,7 @@ SupplyBox::createAll(Simulation& System,
   */
 {
   ELog::RegMethod RegA("SupplyBox","createAll<LC>");
-  populate(System);
+  populate(System.getDataBase());
 
   createUnitVector(FC,orgLayerIndex,orgSideIndex);
 
@@ -471,7 +451,7 @@ SupplyBox::createAll(Simulation& System,
   //  Coaxial.setNAngle(nAngle);
   if (!startSurf.empty())
     Coaxial.setStartSurf(startSurf);
-  Coaxial.createAll(System);
+  Coaxial.build(System);
   createLinks();
   return;
 }

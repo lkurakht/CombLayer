@@ -3,7 +3,7 @@
  
  * File:   tally/surfaceConstruct.cxx
  *
- * Copyright (c) 2004-2010 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,27 +38,15 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Triple.h"
-#include "support.h"
-#include "stringCombine.h"
 #include "surfRegister.h"
-#include "surfIndex.h"
-#include "objectRegister.h"
-#include "Rules.h"
 #include "HeadRule.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "LinkSupport.h"
 #include "BaseMap.h"
 #include "SurfMap.h"
 #include "groupRange.h"
@@ -66,12 +54,8 @@
 #include "Simulation.h"
 #include "SimMCNP.h"
 #include "inputParam.h"
-#include "NList.h"
-#include "NRange.h"
-#include "Tally.h"
 #include "TallyCreate.h"
 
-#include "TallySelector.h" 
 #include "surfaceConstruct.h" 
 
 namespace tallySystem

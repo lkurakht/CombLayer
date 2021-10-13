@@ -4,7 +4,11 @@
 
  * File:   essBuild/H2Wing.cxx
  *
+<<<<<<< HEAD
  * Copyright (c) 2004-2017 by Stuart Ansell
+=======
+ * Copyright (c) 2004-2020 by Stuart Ansell
+>>>>>>> origin/master
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,55 +41,35 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
 #include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDivide.h"
-#include "surfDIter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "RuleSupport.h"
+#include "Importance.h"
 #include "Object.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "Vert2D.h"
-#include "Convex2D.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
 #include "ContainedComp.h"
 #include "LayerComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "AttachSupport.h"
 #include "geomSupport.h"
-#include "ModBase.h"
 #include "H2FlowGuide.h"
 #include "McDonaldFlowGuide.h"
 #include "H2Wing.h"
@@ -240,7 +224,8 @@ H2Wing::populate(const FuncDataBase& Control)
 }
 
 void
-H2Wing::createUnitVector(const attachSystem::FixedComp& FC)
+H2Wing::createUnitVector(const attachSystem::FixedComp& FC,
+			 const long int sideIndex)
   /*!
     Create the unit vectors
     - Y Points down the H2Wing direction
@@ -251,7 +236,7 @@ H2Wing::createUnitVector(const attachSystem::FixedComp& FC)
 {
   ELog::RegMethod RegA("H2Wing","createUnitVector");
 
-  FixedComp::createUnitVector(FC);
+  FixedComp::createUnitVector(FC,sideIndex);
   const double dh = std::accumulate(layerDepth.begin(),layerDepth.end(),0.0) -
     std::accumulate(layerHeight.begin(),layerHeight.end(),0.0);
 
@@ -708,24 +693,32 @@ H2Wing::getLayerString(const size_t layerIndex,
 
 void
 H2Wing::createAll(Simulation& System,
-		  const attachSystem::FixedComp& FC)
+		  const attachSystem::FixedComp& FC,
+		  const long int sideIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation item
     \param FC :: Fixed object just for origin/axis
+    \param sideIndex :: side to link
   */
 {
   ELog::RegMethod RegA("H2Wing","createAll");
 
   populate(System.getDataBase());
+<<<<<<< HEAD
   createUnitVector(FC);
   createSurfaces(FC);
+=======
+  createUnitVector(FC,sideIndex);
+  createSurfaces();
+>>>>>>> origin/master
   createObjects(System);
 
   createLinks();
   insertObjects(System);
 
   if (engActive)
+<<<<<<< HEAD
     {
       ModelSupport::objectRegister& OR=ModelSupport::objectRegister::Instance();
       if (bfType==1)
@@ -743,6 +736,9 @@ H2Wing::createAll(Simulation& System,
 	  bf2FlowGuide->createAll(System,*this);
 	}
     }
+=======
+    InnerComp->createAll(System,*this,0);
+>>>>>>> origin/master
   return;
 }
 

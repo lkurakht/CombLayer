@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   construct/InnerShield.cxx
+ * File:   bifrost/InnerShield.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Rodion Kolevatov
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -230,9 +230,9 @@ InnerShield::populate(const FuncDataBase& Control)
   voidHeight=Control.EvalVar<double>(keyName+"VoidHeight");
   voidDepth=Control.EvalVar<double>(keyName+"VoidDepth");
   
-  defMat=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMat",144);
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
-  spacingMat=ModelSupport::EvalDefMat<int>(Control,keyName+"SpacingMat",0);
+  defMat=ModelSupport::EvalDefMat(Control,keyName+"DefMat","LimestoneConcrete");
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
+  spacingMat=ModelSupport::EvalDefMat(Control,keyName+"SpacingMat",0);
   //  int B4CMat;
 
 
@@ -253,7 +253,7 @@ InnerShield::populate(const FuncDataBase& Control)
 
   OuterB4CThick=
         Control.EvalPair<double>(keyName+"OuterB4CLayerThick","DefaultTileThick");
-   B4CMat=ModelSupport::EvalDefMat<int>(Control,keyName+"B4CTileMat",0);
+   B4CMat=ModelSupport::EvalDefMat(Control,keyName+"B4CTileMat",0);
 
   iSplitVoid=Control.EvalDefVar<int>(keyName+"SplitVoid",0);
   

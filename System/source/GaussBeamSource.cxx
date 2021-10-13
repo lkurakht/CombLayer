@@ -3,7 +3,7 @@
  
  * File:   source/GaussBeamSource.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,35 +32,30 @@
 #include <string>
 #include <algorithm>
 #include <memory>
+#include <boost/format.hpp>
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "support.h"
 #include "writeSupport.h"
 #include "MatrixBase.h"
 #include "Matrix.h"
 #include "Vec3D.h"
-#include "doubleErr.h"
+#include "masterWrite.h"
 #include "Source.h"
-#include "SrcItem.h"
 #include "SrcData.h"
 #include "surfRegister.h"
-#include "ModelSupport.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
-#include "WorkData.h"
-#include "World.h"
+#include "FixedOffsetUnit.h"
 #include "Transform.h"
-#include "localRotate.h"
 #include "particleConv.h"
+#include "flukaGenParticle.h"
 #include "inputSupport.h"
 #include "SourceBase.h"
 #include "GaussBeamSource.h"
@@ -69,7 +64,7 @@ namespace SDef
 {
 
 GaussBeamSource::GaussBeamSource(const std::string& keyName) : 
-  FixedOffset(keyName,0),SourceBase(),
+  FixedOffsetUnit(keyName,0),SourceBase(),
   xWidth(1.0),zWidth(1.0),angleSpread(0.0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -78,7 +73,7 @@ GaussBeamSource::GaussBeamSource(const std::string& keyName) :
 {}
 
 GaussBeamSource::GaussBeamSource(const GaussBeamSource& A) : 
-  attachSystem::FixedOffset(A),SourceBase(A),
+  attachSystem::FixedOffsetUnit(A),SourceBase(A),
   xWidth(A.xWidth),zWidth(A.zWidth),
   angleSpread(A.angleSpread)
   /*!
@@ -332,6 +327,9 @@ GaussBeamSource::writeFLUKA(std::ostream& OX) const
 {
   ELog::RegMethod RegA("GaussBeamSource","writeFLUKA");
 
+  const flukaGenParticle& PC=flukaGenParticle::Instance();
+  masterWrite& MW=masterWrite::Instance();
+  
   // can be two for an energy range
   if (Energy.size()!=1)
     throw ColErr::SizeError<size_t>
@@ -342,12 +340,11 @@ GaussBeamSource::writeFLUKA(std::ostream& OX) const
   // radius : innerRadius : -1 t o means radius
   cx<<"BEAM "<<-0.001*Energy.front()<<" 0.0 "<<M_PI*angleSpread/0.180
     <<" "<<-xWidth<<" "<<-zWidth<<" -1.0 ";
-  cx<<StrFunc::toUpperString(particleType);
+  cx<<StrFunc::toUpperString(PC.nameToFLUKA(particleType));
   StrFunc::writeFLUKA(cx.str(),OX);
   cx.str("");
 
-  // Y Axis is Z in fluka, X is X
-  cx<<"BEAMAXES "<<X<<" "<<Y;
+  cx<<"BEAMAXES "<<MW.Num(X)<<" "<<MW.Num(Y);
   StrFunc::writeFLUKA(cx.str(),OX);
   cx.str("");
   cx<<"BEAMPOS "<<Origin;

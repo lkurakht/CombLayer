@@ -3,7 +3,7 @@
  
  * File:   commonBeam/WallLead.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,29 +36,16 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -71,7 +58,11 @@
 #include "ContainedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
+#include "BaseVisit.h"
+#include "BaseModVisit.h"
+#include "Surface.h"
 
 #include "WallLead.h"
 
@@ -130,30 +121,13 @@ WallLead::populate(const FuncDataBase& Control)
   // Void 
   voidRadius=Control.EvalVar<double>(keyName+"VoidRadius");
 
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   wallMat=ModelSupport::EvalMat<int>(Control,keyName+"WallMat");
   steelMat=ModelSupport::EvalMat<int>(Control,keyName+"SteelMat");
-  midMat=ModelSupport::EvalDefMat<int>(Control,keyName+"MidMat",wallMat);
+  midMat=ModelSupport::EvalDefMat(Control,keyName+"MidMat",wallMat);
 
   return;
 }
-
-void
-WallLead::createUnitVector(const attachSystem::FixedComp& FC,
-			   const long int sideIndex)
-  /*!
-    Create the unit vectors
-    \param FC :: Fixed component to link to
-    \param sideIndex :: Link point and direction [0 for origin]
-  */
-{
-  ELog::RegMethod RegA("WallLead","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
-  return;
-}
-
 
 void
 WallLead::createSurfaces()
@@ -167,17 +141,17 @@ WallLead::createSurfaces()
   if (!frontActive() || !backActive())
     throw ColErr::EmptyContainer("back/front not set for:"+keyName);
 
-  FrontBackCut::getShiftedFront(SMap,buildIndex+11,1,Y,extraLeadDepth);
+  FrontBackCut::getShiftedFront(SMap,buildIndex+11,Y,extraLeadDepth);
 
-  FrontBackCut::getShiftedFront(SMap,buildIndex+21,1,Y,
+  FrontBackCut::getShiftedFront(SMap,buildIndex+21,Y,
 				extraLeadDepth+steelThick);
-
-  FrontBackCut::getShiftedFront(SMap,buildIndex+31,1,Y,
+  FrontBackCut::getShiftedFront(SMap,buildIndex+31,Y,
 				extraLeadDepth+steelThick+frontLength);
 
   if (backLength>Geometry::zeroTol)
-    FrontBackCut::getShiftedBack(SMap,buildIndex+12,-1,Y,backLength);
-  
+    ExternalCut::makeShiftedSurf(SMap,"back",buildIndex+12,Y,-backLength);
+
+
   ModelSupport::buildPlane(SMap,buildIndex+3,Origin-X*extraLeadOutWidth,X);
   ModelSupport::buildPlane(SMap,buildIndex+4,Origin+X*extraLeadRingWidth,X);
   ModelSupport::buildPlane(SMap,buildIndex+5,Origin-Z*(extraLeadHeight/2.0),Z);

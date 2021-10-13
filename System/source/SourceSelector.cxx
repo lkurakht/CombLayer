@@ -3,7 +3,7 @@
  
  * File:   source/SourceSelector.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,41 +36,24 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
 #include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "doubleErr.h"
-#include "Triple.h"
-#include "NRange.h"
-#include "NList.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "Source.h"
-#include "SrcItem.h"
-#include "SrcData.h"
 #include "surfRegister.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "LinkSupport.h"
 #include "inputParam.h"
-#include "PhysCard.h"
-#include "LSwitchCard.h"
-#include "ModeCard.h"
-#include "PhysImp.h"
-#include "PhysicsCards.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -78,15 +61,11 @@
 #include "Zaid.h"
 #include "MXcards.h"
 #include "Material.h"
-#include "DBMaterial.h"
 #include "inputSupport.h"
 #include "SourceCreate.h"
-#include "objectRegister.h"
 #include "vertexCalc.h"
-#include "particleConv.h"
 #include "inputSupport.h"
 #include "SourceBase.h"
-#include "WorkData.h"
 #include "World.h"
 #include "activeUnit.h"
 #include "activeFluxPt.h"
@@ -102,13 +81,13 @@ getCellsContainingZaid(Simulation& System,
 		       const std::string& FuelName,
 		       const size_t zaid)
  /*!
-   
+   \param System :: Simulation 
+   \param FC :: Fixed point to get Cell map from 
+   \param FuelName :: Name to select cell
+   \param zaid :: Integer zaid size
   */
 {
   ELog::RegMethod RegA("","getCellsContainingZaid");
-
-  const ModelSupport::DBMaterial& DB= 
-    ModelSupport::DBMaterial::Instance();
   
   const attachSystem::CellMap* CM=
     dynamic_cast<const attachSystem::CellMap*>(&FC);
@@ -125,10 +104,8 @@ getCellsContainingZaid(Simulation& System,
       MonteCarlo::Object* OPtr=System.findObject(CN);
       if (OPtr)
 	{
-	  const int matN=OPtr->getMat();
-	  const MonteCarlo::Material& cellMat=DB.getMaterial(matN);
-	  
-	  if (cellMat.hasZaid(zaid,0,0))
+	  const MonteCarlo::Material* cellMat=OPtr->getMatPtr();
+	  if (cellMat->hasZaid(zaid,0,0))
 	    {
 	      const Geometry::Vec3D CofM=
 		ModelSupport::calcCOFM(*OPtr);
@@ -258,10 +235,6 @@ sourceSelection(Simulation& System,
       // NOTE THIS IS the old stupid TS2 origin system
       sName=SDef::createTS2Source(inputMap,World::masterTS2Origin(),0);
     }
-  else if (sdefType=="kcode")
-    {
-      ELog::EM<<"kcode sdef selected"<<ELog::endDiag;
-    }
   else
     {
       ELog::EM<<"sdefType :\n"
@@ -282,6 +255,7 @@ sourceSelection(Simulation& System,
 	
 	"FlukaSource :: Source [external] fluka output \n"
 
+	"kcode :: fission kcode \n"
 	      <<ELog::endBasic;
       
     }
@@ -329,7 +303,7 @@ activationSelection(Simulation& System,
       for(size_t index=0;index<nP;index++)
 	{
 	  std::string eMess
-	    ("Insufficient item for activation["+StrFunc::makeString(index)+"]");
+	    ("Insufficient item for activation["+std::to_string(index)+"]");
 	  const std::string key=
 	    IParam.getValueError<std::string>("activation",index,0,eMess);
 	  eMess+=" at key "+key;

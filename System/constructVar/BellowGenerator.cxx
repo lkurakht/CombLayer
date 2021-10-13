@@ -1,9 +1,9 @@
-/********************************************************************* 
+/*********************************************************************
   CombLayer : MCNP(X) Input builder
- 
+
  * File:   constructVar/BellowGenerator.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  ****************************************************************************/
 #include <fstream>
@@ -35,17 +35,10 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
@@ -66,7 +59,7 @@ BellowGenerator::BellowGenerator() :
   */
 {}
 
-BellowGenerator::~BellowGenerator() 
+BellowGenerator::~BellowGenerator()
  /*!
    Destructor
  */
@@ -81,7 +74,7 @@ BellowGenerator::setCF()
 {
   ELog::RegMethod RegA("BellowGenerator","setCF");
   SplitPipeGenerator::setCF<CF>();
-  
+
   bellowStep=CF::bellowStep;
   bellowThick=CF::bellowThick;
 
@@ -137,40 +130,44 @@ BellowGenerator::setMat(const std::string& PMat,
   bellowMat=CMat;
   return;
 }
-  
+
 void
 BellowGenerator::generateBellow(FuncDataBase& Control,
 				const std::string& keyName,
-				const double yStep,
 				const double length) const
   /*!
     Primary funciton for setting the variables
-    \param Control :: Database to add variables 
+    \param Control :: Database to add variables
     \param keyName :: head name for variable
-    \param yStep :: y-offset 
+    \param yStep :: y-offset
     \param length :: length of pipe
   */
 {
   ELog::RegMethod RegA("BellowGenerator","generatorBellow");
 
-  SplitPipeGenerator::generatePipe(Control,keyName,yStep,length);
+  SplitPipeGenerator::generatePipe(Control,keyName,length);
   // VACUUM PIPES:
   Control.addVariable(keyName+"BellowThick",bellowThick);
   Control.addVariable(keyName+"BellowStep",bellowStep);
   Control.addVariable(keyName+"BellowMat",bellowMat);
-      
+
   return;
 
 }
 
 ///\cond TEMPLATE
 
+  template void BellowGenerator::setCF<CF18_TDC>();
+  template void BellowGenerator::setCF<CF26_TDC>();
+  template void BellowGenerator::setCF<CF37_TDC>();
+  template void BellowGenerator::setCF<CF40_22>();
   template void BellowGenerator::setCF<CF40>();
+  template void BellowGenerator::setCF<CF50>();
   template void BellowGenerator::setCF<CF63>();
   template void BellowGenerator::setCF<CF100>();
-  
+
 ///\endcond TEMPLATE
 
 
-  
+
 }  // NAMESPACE setVariable

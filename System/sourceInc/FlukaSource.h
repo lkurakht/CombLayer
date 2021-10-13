@@ -3,7 +3,7 @@
  
  * File:   sourceInc/FlukaSource.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,17 +44,17 @@ namespace SDef
 */
 
 class FlukaSource : 
-  public attachSystem::FixedOffset,
+  public attachSystem::FixedRotateUnit,
   public SourceBase
 {
  private:
 
   std::string sourceName;            ///< Additional card for source
   std::array<unitTYPE,12> sValues;   ///< Main values
+
   
   void populate(const ITYPE&);
-  void createUnitVector(const attachSystem::FixedComp&,
-			const long int);
+  virtual void createAll(Simulation&,const FixedComp&,const long int) {}
   
  public:
 
@@ -69,6 +69,7 @@ class FlukaSource :
   void createAll(const attachSystem::FixedComp&,
 		 const long int);
 
+  void setTDC() { sourceName="TDC"; }
   virtual void rotate(const localRotate&);
   virtual void createSource(SDef::Source&) const;
 

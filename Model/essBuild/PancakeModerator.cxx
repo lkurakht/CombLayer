@@ -3,7 +3,7 @@
 
  * File:   essBuild/PancakeModerator.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell / Konstantin Batkov
+ * Copyright (c) 2004-2019 by Stuart Ansell / Konstantin Batkov
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +35,6 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
@@ -43,37 +42,28 @@
 #include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
-#include "Plane.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
-#include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "stringCombine.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedOffsetUnit.h"
 #include "ContainedComp.h"
+#include "ExternalCut.h"
 #include "LayerComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "EssModBase.h"
-#include "H2Wing.h"
 #include "SurfMap.h"
 #include "DiskPreMod.h"
 #include "EdgeWater.h"
@@ -297,8 +287,8 @@ PancakeModerator::createLinks()
 
   // copy surface top/bottom from H2Wing and Origin from center
 
-  FixedComp::setLinkSignedCopy(4,*MidH2,5);
-  FixedComp::setLinkSignedCopy(5,*MidH2,6);
+  FixedComp::setLinkCopy(4,*MidH2,5);
+  FixedComp::setLinkCopy(5,*MidH2,6);
   const double LowV= LU[4].getConnectPt().Z();
   const double HighV= LU[5].getConnectPt().Z();
   const Geometry::Vec3D LowPt(Origin.X(),Origin.Y(),LowV);
@@ -306,6 +296,11 @@ PancakeModerator::createLinks()
   FixedComp::setConnect(4,LowPt,-Z);
   FixedComp::setConnect(5,HighPt,Z);
 
+<<<<<<< HEAD
+=======
+  //  FixedComp::setLinkCopy(6,*MidH2,13); ELog::EM << "is it correct?" << ELog::endDiag;
+
+>>>>>>> origin/master
   return;
 }
 
@@ -417,6 +412,24 @@ PancakeModerator::getRightExclude() const
 
 void
 PancakeModerator::createAll(Simulation& System,
+			    const attachSystem::FixedComp& FC,
+			    const long int sideIndex)
+
+  /*!
+    Construct the butterfly components
+    \param System :: Simulation
+    \param FC :: FixedComp to get axis [origin if orgFC == 0]
+    \param sideIndex :: link point for origin if given
+   */
+{
+  ELog::RegMethod RegA("PancakeModerator","createAll(FC)");
+
+  createAll(System,FC,sideIndex,FC,sideIndex);
+  return;
+}
+  
+void
+PancakeModerator::createAll(Simulation& System,
 			      const attachSystem::FixedComp& orgFC,
                               const long int orgIndex,
 			      const attachSystem::FixedComp& axisFC,
@@ -425,8 +438,10 @@ PancakeModerator::createAll(Simulation& System,
     Construct the butterfly components
     \param System :: Simulation
     \param axisFC :: FixedComp to get axis [origin if orgFC == 0]
+    \param orgIndex :: link point for origin if given
     \param orgFC :: Extra origin point if required
-    \param sideIndex :: link point for origin if given
+    \param axisIndex :: link point for origin if given
+
    */
 {
   ELog::RegMethod RegA("PancakeModerator","createAll");
@@ -439,8 +454,10 @@ PancakeModerator::createAll(Simulation& System,
 
   const std::string Exclude=
     ModelSupport::getComposite(SMap,buildIndex," -7 5 -6 ");
-  LeftWater->createAll(System,*MidH2,4,Exclude);
-  RightWater->createAll(System,*MidH2,3,Exclude);
+  LeftWater->setCutSurf("Container",Exclude);
+  RightWater->setCutSurf("Container",Exclude);
+  LeftWater->createAll(System,*MidH2,4);
+  RightWater->createAll(System,*MidH2,3);
 
   createExternal();  // makes intermediate
 

@@ -3,7 +3,7 @@
  
  * File:   test/testObject.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,32 +34,26 @@
 #include <algorithm>
 #include <tuple>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
 #include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Transform.h"
-#include "Surface.h"
 #include "Rules.h"
-#include "Debug.h"
 #include "BnId.h"
 #include "AcompTools.h"
 #include "Acomp.h"
 #include "Algebra.h"
 #include "surfIndex.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
-#include "neutron.h"
+#include "particle.h"
+#include "eTrack.h"
 
-#include "Debug.h"
 
 #include "testFunc.h"
 #include "testObject.h"
@@ -112,6 +106,8 @@ testObject::createSurfaces()
   SurI.createSurface(22,"px 15");
 
   // Sphere :
+  SurI.createSurface(101,"so 5");
+  // Sphere :
   SurI.createSurface(100,"so 25");
   
   return;
@@ -143,13 +139,14 @@ testObject::populateMObj()
   // Define entries
   typedef std::map<int,std::string> MTYPE;
   MTYPE MString;
-  MString.insert(MTYPE::value_type(3,"3 2  0.062 60001 -60002 60003 -60004 60005 -60006"));
-  MString.insert(MTYPE::value_type(2,"2 12 0.099 -4  5  60  -61  62  -63"));
-  MString.insert(MTYPE::value_type(8,"8 12 0.099  -12 13 60  -61  62  -63"));
-  MString.insert(MTYPE::value_type(10,"10 2 0.062 "
+  MString.insert(MTYPE::value_type(3,"3 3  0.062 60001 -60002 60003 -60004 60005 -60006"));
+  MString.insert(MTYPE::value_type(2,"2 5 0.099 -4  5  60  -61  62  -63"));
+  MString.insert(MTYPE::value_type(8,"8 5 0.099  -12 13 60  -61  62  -63"));
+  MString.insert(MTYPE::value_type(10,"10 3 0.062 "
 				   "80001 ((-80002 80003) : -80004 ) "
 				   "80005 -80006"));
-  MString.insert(MTYPE::value_type(12,"12 0 63 64 (-61 : -62)")); 
+  MString.insert(MTYPE::value_type(12,"12 0 63 64 (-61 : -62)"));
+  MString.insert(MTYPE::value_type(15,"15 0 -101")); 
 
   // Clear map
   deleteObject();
@@ -189,6 +186,7 @@ testObject::applyTest(const int extra)
       &testObject::testSetObject,
       &testObject::testSetObjectExtra,
       &testObject::testTrackCell,
+      &testObject::testTrackDirection,
       &testObject::testWriteFluka
     };
   const std::string TestName[]=
@@ -202,6 +200,7 @@ testObject::applyTest(const int extra)
       "SetObject",
       "SetObjectExtra",
       "TrackCell",
+      "TrackDirection",
       "WriteFluka"
     };
   
@@ -245,9 +244,9 @@ testObject::testCellStr()
   typedef std::tuple<std::string,std::string> TTYPE;
   std::vector<TTYPE> Tests=
     {
-      TTYPE("4 10 0.0552 -5 60006 60005 60003 ",
+      TTYPE("4 10 0.118747 -5 60006 60005 60003 ",
 	    "60003 60005 60006 -5"),
-      TTYPE("4 10 0.0552 -5 8 60 (-61:62) -63 #3",
+      TTYPE("4 10 0.118747 -5 8 60 (-61:62) -63 #3",
 	    "#(-60006 60005 -60004 60003 -60002 60001)"
 	    "  -63 ( -61 : 62 ) 60 8 -5"),
       TTYPE("5 1 0.05524655 18 45 #(45 (57 : 56))",
@@ -298,8 +297,8 @@ testObject::testSetObject()
   typedef std::tuple<std::string,std::string> TTYPE;
   std::vector<TTYPE> Tests=
     {
-      TTYPE(" 4 10 0.05524655  -5  8  60  -61  62  -63 #3",
-	    "4 10 0.0552465 #3 -63 62 -61 60 8 -5")
+      TTYPE(" 4 10 0.118747  -5  8  60  -61  62  -63 #3",
+	    "4 10 0.118747 #3 -63 62 -61 60 8 -5")
     };
   
   int cnt(1);
@@ -310,16 +309,16 @@ testObject::testSetObject()
       A.setObject(std::get<0>(tc));
       A.write(cx);
       const std::string Out=
-	StrFunc::fullBlock(StrFunc::stripMultSpc(cx.str()));
+	StrFunc::removeOuterSpace(StrFunc::stripMultSpc(cx.str()));
       
       if (Out!=std::get<1>(tc))
 	{
 	  ELog::EM<<"Failed on test "<<cnt<<ELog::endTrace;
 
-	  ELog::EM<<"Input == "<<std::get<0>(tc)<<ELog::endTrace;
-	  ELog::EM<<"Expect == "<<std::get<1>(tc)<<ELog::endTrace;
+	  ELog::EM<<"Input == "<<std::get<0>(tc)<<" == "<<ELog::endTrace;
+	  ELog::EM<<"Expect == "<<std::get<1>(tc)<<" == "<<ELog::endTrace;
 
-	  ELog::EM<<"Result == "<<cx.str()<<ELog::endTrace;
+	  ELog::EM<<"Result == "<<Out<<" == "<<ELog::endTrace;
 	  return -1;
 	}
       cnt++;
@@ -444,6 +443,10 @@ testObject::testIsValid()
   std::vector<TTYPE> Tests;
   
   Tests.push_back(TTYPE("4 10 0.05524655  1 -2 3 -4 5 -6",
+			2,Geometry::Vec3D(1,0,0),0));
+  Tests.push_back(TTYPE("4 10 0.05524655  1 -2 3 -4 5 -6",
+			-2,Geometry::Vec3D(1,0,0),1));
+  Tests.push_back(TTYPE("4 10 0.05524655  1 -2 3 -4 5 -6",
 			0,Geometry::Vec3D(0,0,0),1));
   Tests.push_back(TTYPE("4 10 0.05524655  1 -2 3 -4 5 -6",
 			0,Geometry::Vec3D(0,0,1),1));
@@ -469,14 +472,16 @@ testObject::testIsValid()
       A.setObject(std::get<0>(tc));
       A.populate();
       const int SN=std::get<1>(tc);
-      if (SN)
-	res=A.isDirectionValid(std::get<2>(tc),SN);
-      else
-	res=A.isValid(std::get<2>(tc));
+      
+      res=(SN) ?
+	A.isDirectionValid(std::get<2>(tc),SN) :
+	A.isValid(std::get<2>(tc));
+      
       if (res!=std::get<3>(tc))
 	{
 	  ELog::EM<<"Failed on test "<<cnt<<ELog::endDebug;
 	  ELog::EM<<"Result= "<<res<<" ["<<std::get<3>(tc)<<"]"<<ELog::endDebug;
+	  ELog::EM<<"Surf= "<<SN<<ELog::endDebug;
 	  ELog::EM<<"Point= "<<std::get<2>(tc)<<ELog::endDebug;
 
 	  const Rule* TR=A.topRule();
@@ -505,30 +510,28 @@ testObject::testIsOnSide()
   typedef std::tuple<std::string,Geometry::Vec3D,int> TTYPE;
   std::vector<TTYPE> Tests;
   
-
-
-  Tests.push_back(TTYPE("4 10 0.05 1 -2 3 -4 5 -6",
+  Tests.push_back(TTYPE("4 5 0.05 1 -2 3 -4 5 -6",
 			Geometry::Vec3D(0,0,0),0));
-  Tests.push_back(TTYPE("4 10 0.05 1 -2 3 -4 5 -6",
+  Tests.push_back(TTYPE("4 5 0.05 1 -2 3 -4 5 -6",
 			Geometry::Vec3D(0.5,-1,0.5),3));
-  Tests.push_back(TTYPE("4 10 0.05 1 -2 3 -4 5 -6",
+  Tests.push_back(TTYPE("4 5 0.05 1 -2 3 -4 5 -6",
 			Geometry::Vec3D(0,-1,1),3));
-  Tests.push_back(TTYPE("4 10 0.05 11 -12 13 -14 15 -16 (-1:2:-3:4:-5:6)",
+  Tests.push_back(TTYPE("4 5 0.05 11 -12 13 -14 15 -16 (-1:2:-3:4:-5:6)",
 			Geometry::Vec3D(0,1,3),-16));
-  Tests.push_back(TTYPE("4 10 0.05 11 -12 13 -14 15 -16 (-1:2:-3:4:-5:6)",
+  Tests.push_back(TTYPE("4 5 0.05 11 -12 13 -14 15 -16 (-1:2:-3:4:-5:6)",
 			Geometry::Vec3D(0,1,0.5),4));
-  Tests.push_back(TTYPE("4 10 0.05 11 -12 13 -14 15 -16 (-1:2:-3:4:-5:6)",
+  Tests.push_back(TTYPE("4 5 0.05 11 -12 13 -14 15 -16 (-1:2:-3:4:-5:6)",
 			Geometry::Vec3D(0,-1,1),0));
-  Tests.push_back(TTYPE("4 10 0.05 11 -12 13 -14 15 -16 (-1:2:-3:4:-5:6)",
+  Tests.push_back(TTYPE("4 5 0.05 11 -12 13 -14 15 -16 (-1:2:-3:4:-5:6)",
 			Geometry::Vec3D(2,-1,2),0));
-  Tests.push_back(TTYPE("4 10 0.05 11 -12 13 -14 15 -16 (-1:2:-3:4:-5:6)",
+  Tests.push_back(TTYPE("4 5 0.05 11 -12 13 -14 15 -16 (-1:2:-3:4:-5:6)",
 			Geometry::Vec3D(4,-1,2),0));
   
   int cnt(1);
   for(const TTYPE& tc : Tests)
     {
       A.setObject(std::get<0>(tc));
-      A.populate();
+		  
       A.createSurfaceList();
       const int res=A.isOnSide(std::get<1>(tc));
       if (res!=std::get<2>(tc))
@@ -546,6 +549,9 @@ testObject::testIsOnSide()
   return 0;
 }
 
+
+
+
 int
 testObject::testTrackCell() 
   /*!
@@ -562,7 +568,11 @@ testObject::testTrackCell()
   typedef std::tuple<std::string,int,Geometry::Vec3D,
 		       Geometry::Vec3D,Geometry::Vec3D> TTYPE;
   std::vector<TTYPE> Tests;
-  
+
+  Tests.push_back(TTYPE("4 0 -101",-101,
+			Geometry::Vec3D(0,0,0),Geometry::Vec3D(0,0,1),
+			Geometry::Vec3D(0,0,5)));
+    
   // Tests.push_back(TTYPE("4 10 0.05524655  1 -2 3 -4 5 -6",-2,
   //  			Geometry::Vec3D(0,0,0),Geometry::Vec3D(1,0,0),
   //  			Geometry::Vec3D(1,0,0)));
@@ -593,10 +603,10 @@ testObject::testTrackCell()
       A.setObject(std::get<0>(tc));
       A.createSurfaceList();
 
-      neutron TNeut(1,std::get<2>(tc),std::get<3>(tc));
+      eTrack TNeut(std::get<2>(tc),std::get<3>(tc));
 
       const int outFaceSurf(std::get<1>(tc));
-      const int SN= -A.trackOutCell(TNeut,aDist,SPtr,0);
+      const int SN= -A.trackCell(TNeut,aDist,SPtr,0);
       TNeut.moveForward(aDist);
       if (TNeut.Pos!=std::get<4>(tc) || SN!=outFaceSurf)
 	{
@@ -616,6 +626,65 @@ testObject::testTrackCell()
 }
 
 int
+testObject::testTrackDirection() 
+  /*!
+    Test the object being valid both on and off surface
+    \retval -1 :: Unable to process line
+    \retval 0 :: success
+  */
+{
+  ELog::RegMethod RegA("testObject","testDirection");
+
+  createSurfaces();
+  Object A;
+
+  // Object : Point : SN : Result
+  typedef std::tuple<std::string,Geometry::Vec3D,Geometry::Vec3D,int> TTYPE;
+  const std::vector<TTYPE> Tests
+    ({
+      TTYPE("4 5 0.05 1 -2 3 -4 5 -6",
+	    Geometry::Vec3D(0,0,0),
+	    Geometry::Vec3D(0,0,1),0),
+	
+      TTYPE("4 5 0.05 1 -2 3 -4 5 -6",
+	    Geometry::Vec3D(-1,0,0),
+	    Geometry::Vec3D(1,0,0),1), 
+
+      TTYPE("4 5 0.05 1 -2 3 -4 5 -6",
+	    Geometry::Vec3D(-1,0,0),
+	    Geometry::Vec3D(-0.4,0.4,0),-1), 
+
+      TTYPE("4 5 0.05 1 -2 3 -4 5 -6",
+	    Geometry::Vec3D(1,0,0),
+	    Geometry::Vec3D(-1,0,0),1), 
+
+      TTYPE("4 5 0.05 1 -2 3 -4 5 -6",
+	    Geometry::Vec3D(1,0,0),
+	    Geometry::Vec3D(1,0,0),-1), 
+    });
+  
+  int cnt(1);
+  for(const TTYPE& tc : Tests)
+    {
+      A.setObject(std::get<0>(tc));		  
+      A.createSurfaceList();
+      const Geometry::Vec3D Pt=std::get<1>(tc);
+      const Geometry::Vec3D unit=std::get<2>(tc);
+      const int res=A.trackDirection(Pt,unit);
+      if (res!=std::get<3>(tc))
+	{
+	  ELog::EM<<"Failed on test "<<cnt<<ELog::endDiag;
+	  ELog::EM<<"Result= "<<res<<" ["<<std::get<3>(tc)<<"]"<<ELog::endDiag;
+	  ELog::EM<<"Point= "<<std::get<1>(tc)<<ELog::endDiag;
+	  return -1;
+	}
+      cnt++;
+    }
+
+  return 0;
+}
+
+int
 testObject::testMakeComplement()
   /*!
     Test the making of a given object complementary
@@ -629,7 +698,7 @@ testObject::testMakeComplement()
   typedef std::tuple<int,std::string> TTYPE;
   const std::vector<TTYPE> Tests=
     {
-      TTYPE(2,"2 12 0.099 (63 : -62 : 61 : -60 : -5 : 4)")
+      TTYPE(2,"2 5 0.0582256 (63 : -62 : 61 : -60 : -5 : 4)")
     };
   
   for(const TTYPE& tc : Tests)
@@ -640,7 +709,7 @@ testObject::testMakeComplement()
       MObj[index]->write(ocx);
       MObj[index]->makeComplement();
       MObj[index]->write(cx);
-      if (StrFunc::fullBlock(cx.str())!=std::get<1>(tc))
+      if (StrFunc::removeOuterSpace(cx.str())!=std::get<1>(tc))
 	{
 	  ELog::EM<<"Original "<<ocx.str()<<":"<<ELog::endDebug;
 	  ELog::EM<<"Expected "<<std::get<1>(tc)<<":"<<ELog::endDebug;

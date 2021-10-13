@@ -3,7 +3,7 @@
  
  * File:   include/Simulation.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,7 +47,6 @@ namespace ModelSupport
 
 namespace MonteCarlo
 {
-  class Object;
   class Material;
   class Object;
 }
@@ -86,9 +85,8 @@ class Simulation : public objectGroups
 
   size_t cellDNF;                       ///< max size to convert into DNF
   size_t cellCNF;                       ///< max size to convert into CNF
-  OTYPE OList;   ///< List of objects  (allow to become hulls)
+  OTYPE OList;                          ///< List of objects  (allow to become hulls)
   std::vector<int> cellOutOrder;        ///< List of cells [output order]
-  //   std::set<int> voidCells;              ///< List of void cells
 
   std::string sourceName;               ///< Source name
   
@@ -124,8 +122,14 @@ class Simulation : public objectGroups
   /// set cell CNF
   void setCellCNF(const size_t C) { cellCNF=C; }
 
+  void setImp(const int,const double);
+  void setImp(const int,const std::string&,const double);
+  
   MonteCarlo::Object* findObject(const int);         
   const MonteCarlo::Object* findObject(const int) const; 
+
+  MonteCarlo::Object* findObjectThrow(const int);         
+  const MonteCarlo::Object* findObjectThrow(const int) const; 
 
   MonteCarlo::Object* findCell(const Geometry::Vec3D&,
 			       MonteCarlo::Object*) const;
@@ -139,7 +143,6 @@ class Simulation : public objectGroups
 
   int existCell(const int) const;              ///< check if cell exist
   int getCellMaterial(const int) const;        ///< return cell material
-  int setMaterialDensity(OTYPE&);
   int setMaterialDensity(const int);
 
   /// Gets the data base
@@ -174,7 +177,6 @@ class Simulation : public objectGroups
   int addCell(const int,const int,const double,const std::string&);
   int addCell(const int,const int,const double,const HeadRule&);
 
-
   /// Get values
 
   std::vector<int> getCellVector() const;
@@ -185,13 +187,19 @@ class Simulation : public objectGroups
   std::vector<int> getCellWithMaterial(const int) const;
   std::vector<int> getCellWithZaid(const size_t) const;
 
-  std::vector<std::pair<int,int>> getCellImp() const;            
+  std::vector<int> getCellVec() const;            
+  std::set<int> getActiveMaterial() const;
+  std::map<int,const MonteCarlo::Material*>
+    getOrderedMaterial() const;
 
-  int removeDeadSurfaces(const int); 
+  int removeDeadSurfaces(); 
+ 
   virtual void removeCell(const int);
+  virtual void removeCell(const MonteCarlo::Object*);
+  virtual void removeCell(const attachSystem::FixedComp&);
   int removeAllSurface(const int);
 
-  void voidObject(const std::string&);
+  void setObjectVoid(const std::string&);
   void updateSurface(const int,const std::string&);
 
   void createObjSurfMap();
@@ -199,22 +207,23 @@ class Simulation : public objectGroups
   /// Access surface map
   const ModelSupport::ObjSurfMap* getOSM() const;
 
-  // Tally processing
-
   virtual void setEnergy(const double);
   void setENDF7();
   
   void renumberAll();
   void renumberSurfaces(const std::vector<int>&,
 			const std::vector<int>&);
-  int splitObject(const int,const int);
-  void minimizeObject(const int);
+  int splitObject(const int,const int,const int);
+  int minimizeObject(MonteCarlo::Object*);
+  int minimizeObject(const std::string&);
+  int minimizeObject(const int);
   void makeObjectsDNForCNF();
-  virtual void prepareWrite();
+  virtual void prepareWrite();  
 
   virtual void substituteAllSurface(const int,const int);
   virtual std::map<int,int> renumberCells(const std::vector<int>&,
 					  const std::vector<int>&);
+  
   /// no-op call
   virtual void writeCinder() const {}
 

@@ -3,7 +3,7 @@
  
  * File:   essBuild/Bunker.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,65 +35,39 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ReadFunctions.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
 #include "ContainedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
-#include "FrontBackCut.h"
-#include "MXcards.h"
-#include "Zaid.h"
-#include "Material.h"
-#include "DBMaterial.h"
 
-#include "surfDBase.h"
 #include "surfDIter.h"
-#include "surfDivide.h"
 #include "SurInter.h"
-#include "mergeTemplate.h"
 
-#include "World.h"
 #include "BunkerRoof.h"
 #include "BunkerWall.h"
-#include "LayerDivide3D.h"
-#include "Chicane.h"
 #include "Bunker.h"
 
 
@@ -101,10 +75,12 @@ namespace essSystem
 {
 
 Bunker::Bunker(const std::string& Key)  :
-  attachSystem::ContainedComp(),attachSystem::FixedComp(Key,12),
+  attachSystem::ContainedComp(),
+  attachSystem::FixedComp(Key,12),
   attachSystem::CellMap(),attachSystem::SurfMap(),
   leftWallFlag(1),rightWallFlag(1),
-  roofObj(new BunkerRoof(Key)),wallObj(new BunkerWall(Key))
+  roofObj(new BunkerRoof(Key)),
+  wallObj(new BunkerWall(Key))
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Name for item in search
@@ -147,7 +123,7 @@ Bunker::populate(const FuncDataBase& Control)
   roofThick=Control.EvalVar<double>(keyName+"RoofThick");
   floorThick=Control.EvalVar<double>(keyName+"FloorThick");
 
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   wallMat=ModelSupport::EvalMat<int>(Control,keyName+"WallMat");
   roofMat=ModelSupport::EvalMat<int>(Control,keyName+"RoofMat");
   
@@ -192,19 +168,17 @@ Bunker::populate(const FuncDataBase& Control)
   
 void
 Bunker::createUnitVector(const attachSystem::FixedComp& FC,
-			 const long int sideIndex,
-			 const bool reverseX)
+			 const long int sideIndex)
   /*!
     Create the unit vectors
     \param FC :: Linked object
     \param sideIndex :: Side for linkage centre
-    \param reverseX :: reverse X direction
   */
 {
   ELog::RegMethod RegA("Bunker","createUnitVector");
 
   FixedComp::createUnitVector(FC,sideIndex);
-  if (reverseX) X*=-1;
+  if (revFlag) X*=-1;
   return;
 }
 
@@ -253,15 +227,14 @@ Bunker::calcSegPosition(const size_t segIndex,
 
   
 void
-Bunker::createSurfaces(const bool revX)
+Bunker::createSurfaces()
   /*!
     Create All the surfaces
-    \param revX :: reverse rotation axis sign
   */
 {
   ELog::RegMethod RegA("Bunker","createSurface");
 
-  const Geometry::Vec3D ZRotAxis((revX) ? -Z : Z);
+  const Geometry::Vec3D ZRotAxis((revFlag) ? -Z : Z);
 
   Geometry::Vec3D CentAxis(Y);
   Geometry::Vec3D AWallDir(X);
@@ -456,12 +429,12 @@ Bunker::createObjects(Simulation& System,
 	Out+=ModelSupport::getComposite(SMap,buildIndex," -14 ");
       
       System.addCell(MonteCarlo::Object(cellIndex++,roofMat,0.0,Out+Inner));
-      addCell("roof"+StrFunc::makeString(i),cellIndex-1);
+      addCell("roof"+std::to_string(i),cellIndex-1);
       Out=ModelSupport::getComposite(SMap,buildIndex,divIndex,
 				     " 1 7 -17 1M -2M 5 -106 ");
       System.addCell(MonteCarlo::Object(cellIndex++,wallMat,0.0,Out));
       addCell("frontWall",cellIndex-1);
-      addCell("frontWall"+StrFunc::makeString(i),cellIndex-1);
+      addCell("frontWall"+std::to_string(i),cellIndex-1);
       divIndex++;
     }
 
@@ -503,7 +476,7 @@ Bunker::createMainRoof(Simulation& System,const int innerSurf)
 
   for(size_t i=0;i<nSectors;i++)
     {
-      const std::string SectNum(StrFunc::makeString(i));
+      const std::string SectNum(std::to_string(i));
       const int LW=(i) ? divIndex+1 : lwIndex+3;
       const int RW=(i+1!=nSectors) ? divIndex+2 : rwIndex+4;
       const int cellN=getCell("roof"+SectNum);
@@ -542,14 +515,15 @@ Bunker::createMainWall(Simulation& System)
 
   const std::string Out=ModelSupport::getComposite(SMap,buildIndex," 1 ");
 
-  wallObj->initialize(System.getDataBase(),*this,0);
-  wallObj->setVertSurf(SMap.realSurf(buildIndex+5),SMap.realSurf(buildIndex+106));
+  wallObj->createAll(System,*this,0);
+  wallObj->setVertSurf(SMap.realSurf(buildIndex+5),
+		       SMap.realSurf(buildIndex+106));
   wallObj->setRadialSurf(SMap.realSurf(innerSurf),SMap.realSurf(outerSurf));
   wallObj->setDivider(Out);
 
   for(size_t i=0;i<nSectors;i++)
     {
-      const std::string SectNum(StrFunc::makeString(i));
+      const std::string SectNum(std::to_string(i));
       const int LW=(i) ? divIndex+1 : lwIndex+3;
       const int RW=(i+1!=nSectors) ? divIndex+2 : rwIndex+4;
       const int cellN=getCell("frontWall"+SectNum);
@@ -576,7 +550,7 @@ Bunker::createLinks(const attachSystem::FixedComp& FC,
 {
   ELog::RegMethod RegA("Bunker","createLinks");
 
-  FixedComp::setLinkSignedCopy(2,FC,sideIndex);
+  FixedComp::setLinkCopy(2,FC,sideIndex);
   
   FixedComp::setConnect(0,rotCentre+Y*(wallRadius),Y);
   FixedComp::setLinkSurf(0,-SMap.realSurf(buildIndex+7));
@@ -624,7 +598,7 @@ Bunker::calcSegment(const Simulation& System,
   ELog::RegMethod RegA("Bunker","calcSegment");
   for(size_t i=0;i<nSectors;i++)
     {
-      const std::string SName="frontWall"+StrFunc::makeString(i);
+      const std::string SName="frontWall"+std::to_string(i);
       const int cN=getCell(SName);
       const MonteCarlo::Object* SUnit=System.findObject(cN);
       if (SUnit)
@@ -662,24 +636,24 @@ Bunker::setCutWall(const bool lFlag,const bool rFlag)
 void
 Bunker::createAll(Simulation& System,
 		  const attachSystem::FixedComp& FC,
-		  const long int linkIndex,
-                  const bool reverseX)
+		  const long int linkIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation item
     \param FC :: Central origin
     \param linkIndex :: linkIndex number
-    \param reverseX :: Reverse X direction
   */
 {
   ELog::RegMethod RegA("Bunker","createAll");
 
   populate(System.getDataBase());
-  createUnitVector(FC,linkIndex,reverseX);
-    
-  createSurfaces(reverseX);
+
+  createUnitVector(FC,linkIndex);
+  createSurfaces();
+  
   createLinks(FC,linkIndex);
   createObjects(System,FC,linkIndex);
+
   //  layerProcess(System);
   insertObjects(System);              
 

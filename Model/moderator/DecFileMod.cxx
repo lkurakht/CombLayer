@@ -3,7 +3,7 @@
  
  * File:   moderator/DecFileMod.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,36 +34,23 @@
 #include <functional>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
 #include "MatrixBase.h"
 #include "Matrix.h"
-#include "Tensor.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "localRotate.h"
-#include "masterRotate.h"
 #include "Surface.h"
 #include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quaternion.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "Vertex.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -71,7 +58,6 @@
 #include "ReadFunctions.h"
 #include "ModelSupport.h"
 #include "ObjSurfMap.h"
-#include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
@@ -190,10 +176,10 @@ DecFileMod::readFile(Simulation& System,const std::string& FName)
   ELog::EM<<"Read "<<surfCnt<<" extra surfaces for "<<keyName<<ELog::endDebug;
  
   // REBASE and recentre
-  ModelSupport::surfIndex& SI=
-    ModelSupport::surfIndex::Instance();
+  ModelSupport::surfIndex& SI=ModelSupport::surfIndex::Instance();
   const ModelSupport::surfIndex::STYPE& SMap
     =ModelSupport::surfIndex::Instance().surMap();
+
   ModelSupport::surfIndex::STYPE::const_iterator sc;
   for(sc=SMap.begin();sc!=SMap.end();sc++)
     {
@@ -206,7 +192,6 @@ DecFileMod::readFile(Simulation& System,const std::string& FName)
   reMapSurf(OMap);
 
   // RE-ADJUST 
-  System.setMaterialDensity(OMap);
   std::map<int,Geometry::Surface*> EQMap;
   if (SI.findEqualSurf(buildIndex,buildIndex+10000,EQMap))
     ModelSupport::ObjSurfMap::removeEqualSurf(EQMap,OMap);

@@ -3,7 +3,7 @@
  
  * File:   monteInc/Object.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,8 @@ class Token;
 
 namespace MonteCarlo
 {
-  class neutron;
+  class particle;
+  class Material;
 
 /*!
   \class Object
@@ -45,18 +46,18 @@ class Object
 
   std::string FCUnit; ///< FixedComp name
   
-  int ObjName;       ///< Number for the object
-  int listNum;       ///< Creation number
-  double Tmp;        ///< Starting temperature (if given)
-  int MatN;          ///< Material Number 
+  int ObjName;             ///< Number for the object
+  int listNum;             ///< Creation number
+  double Tmp;              ///< Starting temperature (if given)
+  const Material* matPtr;  ///< Material Number 
   int trcl;          ///< transform number
-  int imp;           ///< importance / 0 
-  double density;    ///< Density
-  int placehold;     ///< Is cell virtual (ie not in output)
+  Importance imp;           ///< importance / 0 
+
   int populated;     ///< Full population
 
   bool activeMag;         ///< Magnetic field active
-  Geometry::Vec3D magVec; ///< Magnetic field  [for fluka/phits]
+  double magMinStep;      ///< min step for mag field [fluka]
+  double magMaxStep;      ///< max step for mag field [fluka]
   
   HeadRule HRule;    ///< Top rule
 
@@ -78,18 +79,18 @@ class Object
   std::vector<const Geometry::Surface*> SurList;  
   std::set<int> SurSet;              ///< set of surfaces in cell [signed]
 
-  int trackDirection(const Geometry::Vec3D&,const Geometry::Vec3D&) const;
-
-  bool keyUnit(std::string&,std::string&,std::string&);
-
- public:
+  const Geometry::Surface* getSurf(const int) const;
   
-  static int startLine(const std::string& Line);
+ public:
 
   Object();
   Object(const std::string&,const int,const int,
 	 const double,const std::string&);
+  Object(const std::string&,const int,const int,
+	 const double,const HeadRule&);
   Object(const int,const int,const double,const std::string&);
+  Object(const int,const int,const double,const HeadRule&);
+
   Object(const Object&);
   Object& operator=(const Object&);
   virtual Object* clone() const;
@@ -109,31 +110,51 @@ class Object
   void setName(const int nx) { ObjName=nx; }           ///< Set Name 
   void setCreate(const int lx) { listNum=lx; }         ///< Set Creation point
   void setTemp(const double A) { Tmp=A; }              ///< Set temperature [Kelvin]
-  void setImp(const int A) { imp=A; }                  ///< Set imp
-  void setMagField(const Geometry::Vec3D&);
+
+  /// access to importance
+  void setImp(const double V) { imp.setImp(V); }
+  void setImp(const std::string& particle,const double V)
+  { imp.setImp(particle,V); }
   void setMagFlag() { activeMag=1; }  ///< implicit mag flag [no field]
   
   int setObject(std::string);
   int setObject(const int,const int,const std::vector<Token>&);
   int procString(const std::string&);
   int procHeadRule(const HeadRule&);
-  void setDensity(const double D) { density=D; }       ///< Set Density [Atom/A^3]
-  void setMaterial(const int M) { MatN=M; }            ///< Set Material number
-  void setPlaceHold(const int P) { placehold=P; }      ///< Set placeholder
-  int isPlaceHold() const { return placehold; }        ///< Get placeholder
 
+  void setMaterial(const int);  // to be written
+  void setMagStep(const double,const double);
+  
   int complementaryObject(const int,std::string&);
   int hasComplement() const;                           
   int isPopulated() const { return populated; }        ///< Is populated   
 
   /// accessor to FCName
-  std::string getFCUnit() const  { return FCUnit; }
+  const std::string& getFCUnit() const { return FCUnit; }
   int getName() const  { return ObjName; }             ///< Get Name
   int getCreate() const  { return listNum; }           ///< Get Creation point
-  int getMat() const { return MatN; }                  ///< Get Material ID
+  int getMatID() const;
+  /// Main accessor to material
+  const Material* getMatPtr() const { return matPtr; }
+  /// is material void
+  bool isVoid() const;
+  
   double getTemp() const { return Tmp; }               ///< Get Temperature [K]
-  double getDensity() const { return density; }        ///< Get Density [Atom/A^3]
-  int getImp() const { return imp; }                   ///< Get importance
+  double getDensity() const;                           ///< to be written
+
+  /// acess
+  const Importance& getImportance() const { return imp; }
+  /// access to importance
+  std::tuple<bool,double> getImpPair() const
+    { return imp.getAllPair(); }
+  /// access to importance
+  double getImp(const std::string& particle) const
+    { return imp.getImp(particle); }
+  double getImp(const int PNum) const
+    { return imp.getImp(PNum); }
+  double getAllImp() const { return imp.getAllImp(); }
+  bool isZeroImp() const { return imp.isZeroImp(); }
+  
 
   /// Return the top rule
   const Rule* topRule() const { return HRule.getTopRule(); }
@@ -146,21 +167,31 @@ class Object
   void createLogicOpp();
   int isObjSurfValid() const { return objSurfValid; }  ///< Check validity needed
   void setObjSurfValid()  { objSurfValid=1; }          ///< set as valid
-  int addSurfString(const std::string&);   
+  int addSurfString(const std::string&);
+  void addUnion(const HeadRule&);
+  void addIntersection(const HeadRule&);
   int removeSurface(const int);        
   int substituteSurf(const int,const int,Geometry::Surface*);  
   void makeComplement();
 
   bool hasSurface(const int) const;
   bool hasMagField() const { return activeMag; }  ///< Active mag
+  /// Steps
+  std::pair<double,double> getMagStep() const
+    { return std::pair<double,double>(magMinStep,magMaxStep); }  
   int isValid(const Geometry::Vec3D&) const;            
   int isValid(const Geometry::Vec3D&,const int) const;            
-  int isDirectionValid(const Geometry::Vec3D&,const int) const;            
+  int isDirectionValid(const Geometry::Vec3D&,const int) const;
+  int isDirectionValid(const Geometry::Vec3D&,const std::set<int>&,
+		       const int) const;            
   int isValid(const Geometry::Vec3D&,const std::set<int>&) const;            
   int pairValid(const int,const Geometry::Vec3D&) const;   
   int isValid(const std::map<int,int>&) const; 
+  std::set<int> surfValid(const Geometry::Vec3D&) const;
   std::map<int,int> mapValid(const Geometry::Vec3D&) const;
 
+  
+  int isOnSurface(const Geometry::Vec3D&) const;
   int isOnSide(const Geometry::Vec3D&) const;
 
   int surfSign(const int) const;
@@ -174,6 +205,7 @@ class Object
 
   std::vector<std::pair<int,int>> getImplicatePairs(const int) const;
   std::vector<std::pair<int,int>> getImplicatePairs() const;
+  std::set<int> getSelfPairs() const;
   
   ///\cond ABSTRACT
   virtual void displace(const Geometry::Vec3D&) {}
@@ -184,20 +216,24 @@ class Object
   // INTERSECTION
   int hasIntercept(const Geometry::Vec3D&,const Geometry::Vec3D&) const;
 
-  std::pair<const Geometry::Surface*,double> 
-    forwardInterceptInit(const Geometry::Vec3D&,
-		     const Geometry::Vec3D&) const;
-  std::pair<const Geometry::Surface*,double> 
-    forwardIntercept(const Geometry::Vec3D&,
-		     const Geometry::Vec3D&) const;
+  std::tuple<int,const Geometry::Surface*,Geometry::Vec3D,double>
+  trackSurfIntersect(const Geometry::Vec3D&,const Geometry::Vec3D&) const;
 
-  int trackCell(const MonteCarlo::neutron&,double&,
-		const int,const Geometry::Surface*&,
+  Geometry::Vec3D trackPoint(const Geometry::Vec3D&,
+			     const Geometry::Vec3D&) const;
+  
+  Geometry::Vec3D trackClosestPoint(const Geometry::Vec3D&,
+				    const Geometry::Vec3D&,
+				    const Geometry::Vec3D&) const;
+
+  int trackSurf(const Geometry::Vec3D&,const Geometry::Vec3D&) const;
+  
+  int trackCell(const MonteCarlo::particle&,double&,
+		const Geometry::Surface*&,
 		const int) const;
-  int trackIntoCell(const MonteCarlo::neutron&,double&,
-		    const Geometry::Surface*&,const int =0) const;
-  int trackOutCell(const MonteCarlo::neutron&,double&,
-		   const Geometry::Surface*&,const int =0) const;
+
+  int trackDirection(const Geometry::Vec3D&,
+		     const Geometry::Vec3D&) const;
 
 
   /// acessor to forward 
@@ -215,8 +251,6 @@ class Object
   void writeFLUKA(std::ostream&) const;    
   void writeFLUKAmat(std::ostream&) const;
   void writePOVRay(std::ostream&) const;    
-  void writePOVRaymat(std::ostream&) const;
-
 
   void checkPointers() const;
 

@@ -3,7 +3,7 @@
  
  * File:   geomInc/surfIndex.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,8 +47,8 @@ class surfIndex
  private:
  
   int uniqNum;                      ///< uniq number
-  STYPE SMap;                       ///< Index of kept surfaces
-  std::map<int,int> holdMap;        ///< Hold/Write map :: surfaceN : write/no-write flag
+  STYPE SMap;                    ///< Index of kept surfaces
+  std::map<int,int> holdMap;     ///< Hold/Write map :: surfaceN : write/no-write flag
   
   surfIndex();
 
@@ -85,7 +85,9 @@ class surfIndex
   void deleteSurface(const int);
   void renumber(const int,const int);
 
-  Geometry::Surface* getSurf(const int) const; 
+  Geometry::Surface* getSurf(const int) const;
+  template<typename T> T* realSurf(const int) const; 
+
   
   int calcRenumber(const int,std::vector<std::pair<int,int> >&) const;
   int calcRenumber(const std::vector<int>&,const std::vector<int>&,

@@ -3,7 +3,7 @@
  
  * File:   t1BuildInc/PlateTarget.h
 *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,12 +35,13 @@ namespace ts1System
   \brief W/Ta plates 
 */
 
-class PlateTarget : public attachSystem::ContainedComp,
-    public attachSystem::FixedComp
+class PlateTarget :
+    public attachSystem::FixedComp,
+    public attachSystem::ContainedComp,
+    public attachSystem::ExternalCut,
+    public attachSystem::CellMap
 {
  private:
-  
-  int populated;                ///< 1:var
   
   double height;                 ///< Width tank
   double width;                 ///< Width tank
@@ -70,7 +71,7 @@ class PlateTarget : public attachSystem::ContainedComp,
   double feedHeight;
   double feedWidth;
 
-  void createUnitVector(const attachSystem::FixedComp&);
+  void createUnitVector(const attachSystem::FixedComp&,const long int);
   void createSurfaces(const attachSystem::FixedComp&);
   void createLinks();
   void createObjects(Simulation&);
@@ -84,9 +85,11 @@ class PlateTarget : public attachSystem::ContainedComp,
 
   Geometry::Vec3D plateEdge(const size_t,double&,double&) const;
   void buildFeedThrough(Simulation&);
-  void populate(const Simulation&);  
+  void populate(const FuncDataBase&);  
   double getTargetLength() const;
-  void createAll(Simulation&,const attachSystem::FixedComp&);
+  
+  void createAll(Simulation&,const attachSystem::FixedComp&,
+		 const long int);
 
 };
 

@@ -33,33 +33,22 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "localRotate.h"
-#include "masterRotate.h"
 #include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "Quadratic.h"
 #include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -67,9 +56,9 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "surfExpand.h"
-#include "chipDataStore.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 #include "ContainedComp.h"
 #include "HWrapper.h"
 
@@ -77,8 +66,8 @@ namespace moderatorSystem
 {
 
 HWrapper::HWrapper(const std::string& Key)  :
-  attachSystem::ContainedComp(),attachSystem::FixedComp(Key,0),
-  populated(0),
+  attachSystem::ContainedComp(),
+  attachSystem::FixedUnit(Key,0),
   divideSurf(0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -87,8 +76,8 @@ HWrapper::HWrapper(const std::string& Key)  :
 {}
 
 HWrapper::HWrapper(const HWrapper& A) : 
-  attachSystem::ContainedComp(A),attachSystem::FixedComp(A),
-  populated(A.populated),divideSurf(A.divideSurf),sideExt(A.sideExt),
+  attachSystem::ContainedComp(A),attachSystem::FixedUnit(A),
+  divideSurf(A.divideSurf),sideExt(A.sideExt),
   heightExt(A.heightExt),backExt(A.backExt),forwardExt(A.forwardExt),
   wingLen(A.wingLen),vacInner(A.vacInner),alInner(A.alInner),
   alOuter(A.alOuter),vacOuter(A.vacOuter),modTemp(A.modTemp),
@@ -111,7 +100,6 @@ HWrapper::operator=(const HWrapper& A)
     {
       attachSystem::ContainedComp::operator=(A);
       attachSystem::FixedComp::operator=(A);
-      populated=A.populated;
       divideSurf=A.divideSurf;
       sideExt=A.sideExt;
       heightExt=A.heightExt;
@@ -136,15 +124,13 @@ HWrapper::~HWrapper()
 {}
 
 void
-HWrapper::populate(const Simulation& System)
+HWrapper::populate(const FuncDataBase& Control)
   /*!
     Populate all the variables
-    \param System :: Simulation to use
+    \param Control :: DataBase to use
   */
 {
   ELog::RegMethod RegA("HWrapper","populate");
-  
-  const FuncDataBase& Control=System.getDataBase();
   
   sideExt=Control.EvalVar<double>(keyName+"SideExt");
   heightExt=Control.EvalVar<double>(keyName+"HeightExt");
@@ -162,7 +148,6 @@ HWrapper::populate(const Simulation& System)
   modMat=ModelSupport::EvalMat<int>(Control,keyName+"ModMat");
   alMat=ModelSupport::EvalMat<int>(Control,keyName+"AlMat");
   
-  populated |= 1;
   return;
 }
 
@@ -209,9 +194,8 @@ HWrapper::createUnitVector(const attachSystem::FixedComp& VacFC)
   */
 {
   ELog::RegMethod RegA("HWrapper","createUnitVector");
-  //  const masterRotate& MR=masterRotate::Instance();
 
-  FixedComp::createUnitVector(VacFC);
+  FixedComp::createUnitVector(VacFC,0);
   FixedComp::applyRotation(Z,180.0);
   return;
 }
@@ -409,10 +393,10 @@ HWrapper::createObjects(Simulation& System,
 }
 
 void
-HWrapper::createAll(Simulation& System,
-		    const attachSystem::FixedComp& vacFC,
-		    const attachSystem::FixedComp& FLine,
-		    const attachSystem::ContainedComp& CM)
+HWrapper::build(Simulation& System,
+		const attachSystem::FixedComp& vacFC,
+		const attachSystem::FixedComp& FLine,
+		const attachSystem::ContainedComp& CM)
   /*!
     Generic function to create everything
     \param System :: Simulation item
@@ -421,9 +405,9 @@ HWrapper::createAll(Simulation& System,
     \param CM :: Central Pre-moderator
   */
 {
-  ELog::RegMethod RegA("HWrapper","createAll");
-  populate(System);
-  
+  ELog::RegMethod RegA("HWrapper","build");
+  populate(System.getDataBase());
+
   createUnitVector(vacFC);
   createSurfaces(vacFC,FLine);
   createObjects(System,CM);

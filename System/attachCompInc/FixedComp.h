@@ -3,7 +3,7 @@
  
  * File:   attachCompInc/FixedComp.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -85,27 +85,39 @@ class FixedComp
 			       const Geometry::Vec3D&,
 			       Geometry::Vec3D&);
 
+  explicit FixedComp(const size_t);
+  explicit FixedComp(const size_t,const std::string&);
   FixedComp(const std::string&,const size_t,const size_t =10000);
   FixedComp(const std::string&,const size_t,const Geometry::Vec3D&);
   FixedComp(const std::string&,const size_t,
 	    const Geometry::Vec3D&,const Geometry::Vec3D&,
 	    const Geometry::Vec3D&,const Geometry::Vec3D&);
   FixedComp(const FixedComp&);
+  FixedComp(const FixedComp&&);
   FixedComp& operator=(const FixedComp&);
   virtual ~FixedComp() {}     ///< Destructor
 
   const LinkUnit& operator[](const size_t) const; 
 
+  /// have cells been built
+  bool hasActiveCells() const
+  { return (buildIndex+1)!=cellIndex; }
+
   void reOrientate();
   void reOrientate(const size_t,const Geometry::Vec3D&);
   
   // Operator Set:
-  void createUnitVector(const FixedComp&);
-  void createUnitVector(const FixedComp&,const Geometry::Vec3D&);
-  void createUnitVector(const FixedComp&,const long int);
-  void createUnitVector(const FixedComp&,const long int,const long int);
-  void createUnitVector(const Geometry::Vec3D&,const Geometry::Vec3D&,
+  virtual void createUnitVector(const FixedComp&);
+  virtual void createUnitVector(const FixedComp&,const Geometry::Vec3D&);
+  virtual void createUnitVector(const FixedComp&,const long int);
+  virtual void createUnitVector(const FixedComp&,const long int,const long int);
+  virtual void createUnitVector(const Geometry::Vec3D&,const Geometry::Vec3D&,
+			const Geometry::Vec3D&);
+  virtual void createUnitVector(const Geometry::Vec3D&,const Geometry::Vec3D&,
 			const Geometry::Vec3D&,const Geometry::Vec3D&);
+
+  void createPairVector(const FixedComp&,const long int,
+			const FixedComp&,const long int);
 
   void setCentre(const Geometry::Vec3D&);
   void applyShift(const double,const double,const double);
@@ -121,6 +133,7 @@ class FixedComp
   void linkAngleRotate(const size_t,const double,const double,const double);
   void linkShift(const size_t,const double,const double,const double);
 
+  void reverseX();
   void reverseZ();
   
   void setConnect(const size_t,const Geometry::Vec3D&,const Geometry::Vec3D&);
@@ -128,6 +141,9 @@ class FixedComp
 		      const Geometry::Vec3D&);
   void setBasicExtent(const double,const double,const double);
 
+
+  template<typename T>
+  void setNamedLinkSurf(const size_t,const std::string&,const T&);
 
   void setLinkSurf(const size_t,const int);
   void setLinkSurf(const size_t,const std::string&);
@@ -153,7 +169,8 @@ class FixedComp
   void addBridgeSurf(const size_t,const int);
   void addBridgeSurf(const size_t,const std::string&);
 
-  void setLinkSignedCopy(const size_t,const FixedComp&,const long int);
+  void setLinkCopy(const size_t,const FixedComp&,const std::string&);
+  void setLinkCopy(const size_t,const FixedComp&,const long int);
 
   /// Get keyname
   const std::string& getKeyName() const { return keyName; }
@@ -181,22 +198,29 @@ class FixedComp
   LinkUnit getSignedLU(const long int) const;
   bool hasSideIndex(const std::string&) const;
   long int getSideIndex(const std::string&) const;
+  std::string getSideName(const long int) const;
   
   std::vector<Geometry::Vec3D> getAllLinkPts() const;
 
   bool hasLinkPt(const long int) const;
   bool hasLinkPt(const std::string&) const;
+
+  bool hasLinkSurf(const long int) const;
+  bool hasLinkSurf(const std::string&) const;
   
   Geometry::Vec3D getLinkPt(const std::string&) const;
   Geometry::Vec3D getLinkAxis(const std::string&) const;
   int getLinkSurf(const std::string&) const;
   
-  virtual Geometry::Vec3D getLinkPt(const long int) const;
-  virtual Geometry::Vec3D getLinkAxis(const long int) const;
+  Geometry::Vec3D getLinkPt(const long int) const;
+  Geometry::Vec3D getLinkAxis(const long int) const;
+  Geometry::Vec3D getLinkZAxis(const long int) const;
+  
   virtual std::string getLinkString(const long int) const;
-  virtual double getLinkDistance(const long int,const long int) const;
-  virtual double getLinkDistance(const long int,const FixedComp&,
-				 const long int) const;
+  double getLinkDistance(const std::string&,const std::string&) const;
+  double getLinkDistance(const long int,const long int) const;
+  double getLinkDistance(const long int,const FixedComp&,
+			 const long int) const;
   virtual int getLinkSurf(const long int) const;
 
   HeadRule getFullRule(const std::string&) const;
@@ -241,6 +265,10 @@ class FixedComp
 			       const std::vector<Geometry::Vec3D>&);
 
   std::vector<int> splitObjectAbsolute
+  (Simulation&,const int,const std::string&,
+     const Geometry::Vec3D&,const Geometry::Vec3D&);
+
+  std::vector<int> splitObjectAbsolute
     (Simulation&,const int,const int,
      const Geometry::Vec3D&,const Geometry::Vec3D&);
   
@@ -248,8 +276,9 @@ class FixedComp
     (Simulation&,const int,const int, const std::vector<Geometry::Vec3D>&,
      const std::vector<Geometry::Vec3D>&);
 
-  virtual void createAll(Simulation&,const FixedComp&,const long int)
-  { };
+  virtual void createAll(Simulation&,const FixedComp&,const long int) =0;
+  virtual void createAll(Simulation&,const FixedComp&,const std::string&);
+
 };
 
 }

@@ -3,7 +3,7 @@
  
  * File:   attachCompInc/BaseMap.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ class BaseMap
   std::string getFCKeyName() const;
   
  public:
-
+  
   BaseMap();         
   BaseMap(const BaseMap&);
   BaseMap& operator=(const BaseMap&);
@@ -59,19 +59,22 @@ class BaseMap
   bool hasItem(const std::string&) const;
   bool hasItem(const std::string&,const size_t) const;
 
-  bool hasCell(const int) const;
-  bool hasCell(const std::string&,const int) const;
+  bool hasUnit(const int) const;
+  bool hasUnit(const std::string&,const int) const;
   
   void setItem(const std::string&,const int);
   void setItem(const std::string&,const size_t,const int);
   void setItems(const std::string&,const int,const int);
   void setItems(const std::string&,const std::vector<int>&);
-  
+
+  void copyAllItems(const BaseMap&);
+  void copyItems(const BaseMap&,const std::string&);
   void addItem(const std::string&,const int);
   void addItems(const std::string&,const std::vector<int>&);
 
   int getItem(const std::string&) const;
   int getItem(const std::string&,const size_t) const;
+  int getLastItem(const std::string&) const;
   const std::string& getName(const int) const;
 
   std::vector<std::string> getNames() const;

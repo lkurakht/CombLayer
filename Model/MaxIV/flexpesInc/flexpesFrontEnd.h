@@ -3,7 +3,7 @@
  
  * File:   flexpesInc/flexpesFrontEnd.h
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,14 +24,14 @@
 
 namespace insertSystem
 {
-  class insertCylinder;
+  class insertPlate;
 }
 
 namespace constructSystem
 {
   class Bellows;
   class CrossPipe;
-  class GateValve;
+  class GateValveCube;
   class OffsetFlangePipe;
   class portItem;
   class PipeTube;
@@ -70,9 +70,13 @@ class flexpesFrontEnd :  public R1FrontEnd
   /// Undulator in vacuum box
   std::shared_ptr<xraySystem::Undulator> undulator;
 
+  /// Steel beam stop
+  std::shared_ptr<insertSystem::insertPlate> shield;
+
   virtual const attachSystem::FixedComp&
-    buildUndulator(Simulation&,MonteCarlo::Object*,
-		   const attachSystem::FixedComp&,const long int);
+    buildUndulator(Simulation&,
+		   const attachSystem::FixedComp&,
+		   const std::string&);
 			      
   virtual void createLinks();
   

@@ -3,7 +3,7 @@
  
  * File:   construct/BasicFlightLine.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,32 +37,20 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
 #include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -73,8 +61,8 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedOffsetUnit.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
@@ -85,7 +73,7 @@ namespace moderatorSystem
 
 BasicFlightLine::BasicFlightLine(const std::string& Key)  :
   attachSystem::ContainedGroup("inner","outer"),
-  attachSystem::FixedOffset(Key,12),
+  attachSystem::FixedOffsetUnit(Key,12),
   nLayer(0),tapFlag(0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -94,7 +82,8 @@ BasicFlightLine::BasicFlightLine(const std::string& Key)  :
 {}
 
 BasicFlightLine::BasicFlightLine(const BasicFlightLine& A) : 
-  attachSystem::ContainedGroup(A),attachSystem::FixedOffset(A),
+  attachSystem::ContainedGroup(A),
+  attachSystem::FixedOffsetUnit(A),
   attachSystem::CellMap(A),
   height(A.height),width(A.width),
   innerMat(A.innerMat),nLayer(A.nLayer),lThick(A.lThick),
@@ -166,7 +155,7 @@ BasicFlightLine::populate(const FuncDataBase& Control)
   height=Control.EvalVar<double>(keyName+"Height");
   width=Control.EvalVar<double>(keyName+"Width");
 
-  innerMat=ModelSupport::EvalDefMat<int>(Control,keyName+"InnerMat",0);
+  innerMat=ModelSupport::EvalDefMat(Control,keyName+"InnerMat",0);
 
   nLayer=Control.EvalDefVar<size_t>(keyName+"NLiner",0);
   lThick.clear();
@@ -362,8 +351,8 @@ BasicFlightLine::createObjects(Simulation& System,
   const std::string innerCut=innerFC.getLinkString(innerIndex);
   const std::string outerCut=outerFC.getLinkString(outerIndex);
   
-  setLinkSignedCopy(0,innerFC,innerIndex);
-  setLinkSignedCopy(1,outerFC,outerIndex);
+  setLinkCopy(0,innerFC,innerIndex);
+  setLinkCopy(1,outerFC,outerIndex);
   
   const int layerIndex=buildIndex+static_cast<int>(nLayer)*10;  
   std::string Out;

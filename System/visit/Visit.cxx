@@ -3,7 +3,7 @@
  
  * File:   visit/Visit.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,27 +33,20 @@
 #include <boost/format.hpp>
 #include <boost/multi_array.hpp>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "objectRegister.h"
-#include "Rules.h"
+//#include "objectRegister.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
-#include "SimProcess.h"
-#include "SurInter.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -174,9 +167,11 @@ Visit::getResult(const MonteCarlo::Object* ObjPtr) const
     case VISITenum::cellID:
       return ObjPtr->getName();
     case VISITenum::material:
-      return ObjPtr->getMat();
+      return ObjPtr->getMatID();
     case VISITenum::density:
       return ObjPtr->getDensity();
+    case VISITenum::imp:
+      return ObjPtr->getImp("neutron");
     case VISITenum::weight:
       return 0.0;
     }
@@ -201,10 +196,8 @@ Visit::populateLine(const Simulation& System,
   
   const long int nA = nPts[IA];
   const long int nB = nPts[IB];
-  const long int nC = nPts[IMax];
     
   Geometry::Vec3D aVec;  
-  const bool aEmptyFlag=Active.empty();
 
   double stepXYZ[3];
   for(size_t i=0;i<3;i++)
@@ -221,7 +214,7 @@ Visit::populateLine(const Simulation& System,
   const Geometry::Vec3D longStep=
     (IMax==1) ? (YStep*XStep).unit()*XYZ[IMax] :
     (XStep*YStep).unit()*XYZ[IMax];
-  
+
   for(long int i=0;i<nA;i++)
     for(long int j=0;j<nB;j++)
       { 
@@ -236,7 +229,6 @@ Visit::populateLine(const Simulation& System,
 	OTrack.calculate(System);
 	OTrack.createCellPath(cellVec,distVec);
 
-	double aim=XYZ[IMax];
 	double T=0.0;
 	long int index(0);
 	for(size_t ii=0;ii<cellVec.size();ii++)
@@ -247,7 +239,6 @@ Visit::populateLine(const Simulation& System,
 	    
 	    for(long int cnt=0;cnt<mid;cnt++)
 	      getMeshUnit(IMax,index++,i,j)=mValue;
-
 	  }
       }
   
@@ -327,11 +318,11 @@ Visit::populatePoint(const Simulation& System,
     \param Active :: Active set of cells to use (ranged)
    */
 {
-  ELog::RegMethod RegA("Visit","populate(set)");
+  ELog::RegMethod RegA("Visit","populatePoint");
 
   MonteCarlo::Object* ObjPtr(0);
   Geometry::Vec3D aVec;
-  
+
   const bool aEmptyFlag=Active.empty();
 
   double stepXYZ[3];
@@ -349,12 +340,13 @@ Visit::populatePoint(const Simulation& System,
 	      aVec[2]=stepXYZ[2]*(0.5+static_cast<double>(k));
 	      const Geometry::Vec3D Pt=Origin+aVec;
 	      ObjPtr=System.findCell(Pt,ObjPtr);
-
+	      
 	      // Active Set Code:
 	      if (!aEmptyFlag)
 		{
 		  const std::string rangeStr=
 		    System.inRange(ObjPtr->getName());
+		  
 		  if (Active.find(rangeStr)!=Active.end())
 		    mesh[i][j][k]=getResult(ObjPtr);
 		  else
@@ -363,6 +355,8 @@ Visit::populatePoint(const Simulation& System,
 	      // OLD Code:
 	      else
 		{
+		  if (!ObjPtr)
+		    ELog::EM<<"Zero Cell == "<<Pt<<ELog::endErr;
 		  mesh[i][j][k]=getResult(ObjPtr);
 		}
 
@@ -391,7 +385,6 @@ Visit::populate(const Simulation& System,
   return;
 }
 
-
 void
 Visit::writeVTK(const std::string& FName) const
   /*!
@@ -409,7 +402,7 @@ Visit::writeVTK(const std::string& FName) const
     stepXYZ[i]=XYZ[i]/static_cast<double>(nPts[i]);
   
   OX<<"# vtk DataFile Version 2.0"<<std::endl;
-  OX<<"chipIR Data"<<std::endl;
+  OX<<"Geometry Data"<<std::endl;
   OX<<"ASCII"<<std::endl;
   OX<<"DATASET RECTILINEAR_GRID"<<std::endl;
   OX<<"DIMENSIONS "<<nPts[0]<<" "<<nPts[1]<<" "<<nPts[2]<<std::endl;
@@ -461,7 +454,7 @@ Visit::writeIntegerVTK(const std::string& FName) const
     stepXYZ[i]=XYZ[i]/static_cast<double>(nPts[i]);
   
   OX<<"# vtk DataFile Version 2.0"<<std::endl;
-  OX<<"chipIR Data"<<std::endl;
+  OX<<"Geometry Data"<<std::endl;
   OX<<"ASCII"<<std::endl;
   OX<<"DATASET RECTILINEAR_GRID"<<std::endl;
   OX<<"DIMENSIONS "<<nPts[0]<<" "<<nPts[1]<<" "<<nPts[2]<<std::endl;

@@ -3,7 +3,7 @@
  
  * File:   commonBeam/RingDoor.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,30 +35,20 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
 #include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "Quadratic.h"
 #include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -69,11 +59,10 @@
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
+#include "ContainedGroup.h"
 #include "ExternalCut.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "SurfMap.h"
-#include "SurInter.h"
 #include "RingDoor.h"
 
 
@@ -81,7 +70,7 @@ namespace xraySystem
 {
 
 RingDoor::RingDoor(const std::string& Key) :
-  attachSystem::ContainedComp(),
+  attachSystem::ContainedGroup("Door","Tubes"),
   attachSystem::FixedOffset(Key,6),
   attachSystem::CellMap(),
   attachSystem::ExternalCut()
@@ -113,6 +102,17 @@ RingDoor::populate(const FuncDataBase& Control)
   outerHeight=Control.EvalVar<double>(keyName+"OuterHeight");
   outerWidth=Control.EvalVar<double>(keyName+"OuterWidth");
 
+  tubeRadius=Control.EvalVar<double>(keyName+"TubeRadius");
+  tubeXStep=Control.EvalVar<double>(keyName+"TubeXStep");
+  tubeZStep=Control.EvalVar<double>(keyName+"TubeZStep");
+
+  underStepHeight=Control.EvalVar<double>(keyName+"UnderStepHeight");
+  underStepWidth=Control.EvalVar<double>(keyName+"UnderStepWidth");
+  underStepXSep=Control.EvalVar<double>(keyName+"UnderStepXSep");
+
+  underAMat=ModelSupport::EvalDefMat(Control,keyName+"UnderAMat",0);
+  underBMat=ModelSupport::EvalDefMat(Control,keyName+"UnderBMat",0);
+  tubeMat=ModelSupport::EvalMat<int>(Control,keyName+"TubeMat");
   doorMat=ModelSupport::EvalMat<int>(Control,keyName+"DoorMat");
   
   return;
@@ -140,10 +140,10 @@ RingDoor::createUnitVector(const attachSystem::FixedComp& FC,
   if (PPtr)
     {
       Geometry::Vec3D PAxis=PPtr->getNormal();
-      if (Y.dotProd(PAxis)*SN < 0)
+      if (Y.dotProd(PAxis)*SN < -Geometry::zeroTol)
 	PAxis*=-1;
       FixedComp::reOrientate(1,PAxis);
-    }  
+    }
   applyOffset();
   return;
 }
@@ -158,46 +158,67 @@ RingDoor::createSurfaces()
 
   // InnerWall and OuterWall MUST be set
   if (!ExternalCut::isActive("innerWall") ||
-      !ExternalCut::isActive("outerWall"))
+      !ExternalCut::isActive("outerWall") ||
+      !ExternalCut::isActive("floor"))
     throw ColErr::InContainerError<std::string>
-      ("InnerWall/OuterWall","Door:"+keyName);
+      ("InnerWall/OuterWall/floor","Door:"+keyName);
 
   // origin in on outer wall:
   
   ModelSupport::buildPlane(SMap,buildIndex+3,Origin-X*(innerWidth/2.0),X);
   ModelSupport::buildPlane(SMap,buildIndex+4,Origin+X*(innerWidth/2.0),X);
-  ModelSupport::buildPlane(SMap,buildIndex+5,Origin-Z*(innerHeight/2.0),Z);
-  ModelSupport::buildPlane(SMap,buildIndex+6,Origin+Z*(innerHeight/2.0),Z);
+  ExternalCut::makeShiftedSurf(SMap,"floor",buildIndex+6,Z,innerHeight);
 
   ModelSupport::buildPlane(SMap,buildIndex+13,
 			   Origin-X*(gapSpace+innerWidth/2.0),X);
   ModelSupport::buildPlane(SMap,buildIndex+14,
 			   Origin+X*(gapSpace+innerWidth/2.0),X);
-  ModelSupport::buildPlane(SMap,buildIndex+15,
-			   Origin-Z*(gapSpace+innerHeight/2.0),Z);
-  ModelSupport::buildPlane(SMap,buildIndex+16,
-			   Origin+Z*(innerTopGap+innerHeight/2.0),Z);
+  ExternalCut::makeShiftedSurf(SMap,"floor",buildIndex+16,Z,
+			       innerTopGap+innerHeight);
 
+  
   ModelSupport::buildPlane(SMap,buildIndex+23,Origin-X*(outerWidth/2.0),X);
   ModelSupport::buildPlane(SMap,buildIndex+24,Origin+X*(outerWidth/2.0),X);
-  ModelSupport::buildPlane(SMap,buildIndex+25,Origin-Z*(outerHeight/2.0),Z);
-  ModelSupport::buildPlane(SMap,buildIndex+26,Origin+Z*(outerHeight/2.0),Z);
 
+  ExternalCut::makeShiftedSurf(SMap,"floor",buildIndex+26,Z,outerHeight);
+  
   ModelSupport::buildPlane(SMap,buildIndex+33,
 			   Origin-X*(gapSpace+outerWidth/2.0),X);
   ModelSupport::buildPlane(SMap,buildIndex+34,
 			   Origin+X*(gapSpace+outerWidth/2.0),X);
-  ModelSupport::buildPlane(SMap,buildIndex+35,
-			   Origin-Z*(gapSpace+outerHeight/2.0),Z);
-  ModelSupport::buildPlane(SMap,buildIndex+36,
-			   Origin+Z*(outerTopGap+outerHeight/2.0),Z);
-
-
+  // ModelSupport::buildPlane(SMap,buildIndex+36,
+  // 			   Origin+Z*(outerTopGap+outerHeight/2.0),Z);
+  ExternalCut::makeShiftedSurf(SMap,"floor",buildIndex+36,Z,
+			       outerTopGap+outerHeight);
+  
+  // Y Points out of ring:
   ExternalCut::makeShiftedSurf
-    (SMap,"innerWall",buildIndex+200,-1,Y,innerThick);
+    (SMap,"innerWall",buildIndex+200,Y,innerThick);
   ExternalCut::makeShiftedSurf
-    (SMap,"innerWall",buildIndex+201,-1,Y,innerThick+gapSpace);
+    (SMap,"innerWall",buildIndex+201,Y,innerThick+gapSpace);
 
+  // lift step
+  ExternalCut::makeShiftedSurf
+    (SMap,"floor",buildIndex+1005,Z,underStepHeight);
+
+  ModelSupport::buildPlane
+    (SMap,buildIndex+1003,Origin-X*(underStepWidth+underStepXSep/2.0),X);
+  ModelSupport::buildPlane
+    (SMap,buildIndex+1004,Origin-X*(underStepXSep/2.0),X);
+  ModelSupport::buildPlane
+    (SMap,buildIndex+1013,Origin+X*(underStepXSep/2.0),X);
+  ModelSupport::buildPlane
+    (SMap,buildIndex+1014,Origin+X*(underStepWidth+underStepXSep/2.0),X);
+  
+  
+  // Tubes:
+  ModelSupport::buildCylinder
+    (SMap,buildIndex+507,Origin-X*tubeXStep+Z*tubeZStep,Y,tubeRadius);
+  ModelSupport::buildCylinder
+    (SMap,buildIndex+517,Origin+Z*tubeZStep,Y,tubeRadius);
+  ModelSupport::buildCylinder
+    (SMap,buildIndex+527,Origin+X*tubeXStep+Z*tubeZStep,Y,tubeRadius);
+    
   return;
 }
 
@@ -210,38 +231,65 @@ RingDoor::createObjects(Simulation& System)
 {
   ELog::RegMethod RegA("RingDoor","createObjects");
 
-  std::string Out;
-  const std::string innerStr=ExternalCut::getRuleStr("innerWall");
-  const std::string outerStr=ExternalCut::getRuleStr("outerWall");
+  HeadRule HR;
+  const HeadRule innerHR=ExternalCut::getRule("innerWall");
+  const HeadRule outerHR=ExternalCut::getRule("outerWall");
+  const HeadRule floorHR=ExternalCut::getRule("floor");
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,"200 3 -4 5 -6 ");
-  makeCell("InnerDoor",System,cellIndex++,doorMat,0.0,Out+innerStr);
+  HR=ModelSupport::getHeadRule
+    (SMap,buildIndex,"-200 3 -4 -6 (-1003:1004:1005) (-1013:1014:1005)");
+  makeCell("InnerDoor",System,cellIndex++,doorMat,0.0,HR*innerHR*floorHR);
 
-  Out=ModelSupport::getComposite
-    (SMap,buildIndex,"200 (-3:4:-5:6) 13 -14 15 -16 ");
-  makeCell("InnerGap",System,cellIndex++,0,0.0,Out+innerStr);
+  HR=ModelSupport::getHeadRule
+    (SMap,buildIndex,"-200 (-3:4:6) 13 -14 -16 ");
+  makeCell("InnerGap",System,cellIndex++,0,0.0,HR*innerHR*floorHR);
 
-  Out=ModelSupport::getComposite
-    (SMap,buildIndex,"200 (-13:14:-15:16) 33 -34 35 -36 ");
-  makeCell("InnerExtra",System,cellIndex++,doorMat,0.0,Out+innerStr);
+  HR=ModelSupport::getHeadRule
+    (SMap,buildIndex,"-200 (-13:14:16) 33 -34 -36 ");
+  makeCell("InnerExtra",System,cellIndex++,doorMat,0.0,HR*innerHR*floorHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,"-200 201 3 -4 5 -6 ");
-  makeCell("OuterStrip",System,cellIndex++,doorMat,0.0,Out+outerStr);
+  HR=ModelSupport::getHeadRule
+    (SMap,buildIndex,"200 -201 3 -4 -6 (-1003:1004:1005) (-1013:1014:1005) ");
+  makeCell("OuterStrip",System,cellIndex++,doorMat,0.0,HR*floorHR);
 
-  Out=ModelSupport::getComposite
-    (SMap,buildIndex,"-200 201 23 -24 25 -26 (-3:4:-5:6) ");
-  makeCell("MidGap",System,cellIndex++,0,0.0,Out+outerStr);
+  HR=ModelSupport::getHeadRule
+    (SMap,buildIndex,"200 -201 23 -24 -26 (-3:4:6) ");
+  makeCell("MidGap",System,cellIndex++,0,0.0,HR*floorHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,"-201 23 -24 25 -26 ");
-  makeCell("OuterDoor",System,cellIndex++,doorMat,0.0,Out+outerStr);
+  HR=ModelSupport::getHeadRule
+    (SMap,buildIndex,"201 23 -24 -26 (-1003:1004:1005) (-1013:1014:1005)");
+  makeCell("OuterDoor",System,cellIndex++,doorMat,0.0,HR*outerHR*floorHR);
 
-  Out=ModelSupport::getComposite
-    (SMap,buildIndex,"-200 (-23:24:-25:26) 33 -34 35 -36 ");
-  makeCell("OuterGap",System,cellIndex++,0,0.0,Out+outerStr);
+  HR=ModelSupport::getHeadRule
+    (SMap,buildIndex,"200 (-23:24:26) 33 -34 -36 ");
+  makeCell("OuterGap",System,cellIndex++,0,0.0,HR*outerHR*floorHR);
+
+  // Tubes
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," -507 ");
+  makeCell("OuterGap",System,cellIndex++,tubeMat,0.0,HR*outerHR*innerHR);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," -517 ");
+  makeCell("OuterGap",System,cellIndex++,tubeMat,0.0,HR*outerHR*innerHR);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," -527 ");
+  makeCell("OuterGap",System,cellIndex++,tubeMat,0.0,HR*outerHR*innerHR);
+
+  // Lift points
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," 1003 -1004 -1005 ");
+  makeCell("LiftA",System,cellIndex++,underAMat,
+	   0.0,HR*outerHR*innerHR*floorHR);
+
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," 1013 -1014 -1005 ");
+  makeCell("LiftB",System,cellIndex++,underBMat,
+	   0.0,HR*outerHR*innerHR*floorHR);
+
+
   
-  // needs to be group
-  Out=ModelSupport::getComposite(SMap,buildIndex," 33 -34 35 -36 ");
-  addOuterSurf(Out);
+  // main door
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," 33 -34 -36 ");
+  addOuterSurf("Door",HR);
+
+  // extra tubes
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," (-507 : -517 : -527) ");
+  addOuterSurf("Tubes",HR);
   return;
 }
 

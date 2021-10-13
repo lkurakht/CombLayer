@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   constructVarInc/VacBoxGenerator.h
+ * File:   constructVarInc/PipeTubeGenerator.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,9 +50,9 @@ class PipeTubeGenerator
   double ACap;                ///< Flange Cap A
   double BCap;                ///< Flange Cap B
     
-  std::string voidMat;          ///< Primary default mat
+  std::string voidMat;          ///< inner void mat
   std::string wallMat;          ///< Primary default mat
-  std::string capMat;          ///< Primary default mat
+  std::string capMat;           ///< Cap material
 
  public:
 
@@ -73,6 +73,7 @@ class PipeTubeGenerator
 
   void setAFlange(const double,const double);
   void setBFlange(const double,const double);
+  void setFlangeLength(const double,const double);
   void setFlangeCap(const double,const double);
   void setCap(const bool =1,const bool= 1);
 
@@ -81,10 +82,14 @@ class PipeTubeGenerator
   void setVoidMat(const std::string& M) { voidMat=M; }
   /// set wall material
   void setMat(const std::string& M) { wallMat=M; }
+  /// set wall material
+  void setCapMat(const std::string& M) { capMat=M; }
 
   
   void generateTube(FuncDataBase&,const std::string&,
-		    const double,const double) const;
+		    const double) const;
+  void generateBlank(FuncDataBase&,const std::string&,
+		    const double) const;
 
 };
 

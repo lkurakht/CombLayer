@@ -3,7 +3,7 @@
  
  * File:   essBuildInc/HighBay.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,10 +38,11 @@ namespace essSystem
   \brief Bunker wall 
 */
 
-class HighBay : public attachSystem::ContainedComp,
-  public attachSystem::FixedComp,
-  public attachSystem::CellMap,
-  public attachSystem::SurfMap
+class HighBay :
+    public attachSystem::ContainedComp,
+    public attachSystem::FixedComp,
+    public attachSystem::CellMap,
+    public attachSystem::SurfMap
 {
  private:
 
@@ -63,6 +64,8 @@ class HighBay : public attachSystem::ContainedComp,
   void createSurfaces(const Bunker&,const Bunker&);
   void createObjects(Simulation&,const Bunker&,const Bunker&);
 
+  void createAll(Simulation&,const FixedComp&,const long int) {}
+  
  public:
 
   HighBay(const std::string&);
@@ -73,7 +76,7 @@ class HighBay : public attachSystem::ContainedComp,
 
   /// set Curtain cut
   void setCurtainCut(const HeadRule& H) { curtainCut=H;}
-  void createAll(Simulation&,const Bunker&,const Bunker&);
+  void buildAll(Simulation&,const Bunker&,const Bunker&);
 
 
 };

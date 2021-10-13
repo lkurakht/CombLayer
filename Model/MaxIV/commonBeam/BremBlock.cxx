@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   maxpeem/BremBlock.cxx
+ * File:   commonBeam/BremBlock.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,30 +36,16 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -68,10 +54,11 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"  
 #include "FixedComp.h"
-#include "FixedOffset.h"
+#include "FixedRotate.h"
 #include "ContainedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 
 #include "BremBlock.h"
@@ -80,7 +67,7 @@ namespace xraySystem
 {
 
 BremBlock::BremBlock(const std::string& Key) :
-  attachSystem::FixedOffset(Key,2),
+  attachSystem::FixedRotate(Key,2),
   attachSystem::ContainedComp(),
   attachSystem::CellMap(),
   attachSystem::FrontBackCut()
@@ -105,41 +92,30 @@ BremBlock::populate(const FuncDataBase& Control)
 {
   ELog::RegMethod RegA("BremBlock","populate");
   
-  FixedOffset::populate(Control);
+  FixedRotate::populate(Control);
 
   // Void + Fe special:
-  radius=Control.EvalVar<double>(keyName+"Radius");
+  centreFlag=Control.EvalDefVar<int>(keyName+"CentreFlag",0);
+  width=Control.EvalVar<double>(keyName+"Width");
+  height=Control.EvalVar<double>(keyName+"Height");
+
   length=Control.EvalVar<double>(keyName+"Length");  
 
   holeXStep=Control.EvalDefVar<double>(keyName+"HoleXStep",0.0);
   holeZStep=Control.EvalDefVar<double>(keyName+"HoleZStep",0.0);
-  holeAHeight=Control.EvalPair<double>(keyName,"HoleAHeight","HoleHeight");
-  holeAWidth=Control.EvalPair<double>(keyName,"HoleAWidth","HoleWidth");
+  holeAHeight=Control.EvalHead<double>(keyName,"HoleAHeight","HoleHeight");
+  holeAWidth=Control.EvalHead<double>(keyName,"HoleAWidth","HoleWidth");
+  holeMidDist=Control.EvalDefVar<double>(keyName+"HoleMidDist",-1.0);
+  holeMidHeight=Control.EvalDefVar<double>(keyName+"HoleMidHeight",-1.0);
+  holeMidWidth=Control.EvalDefVar<double>(keyName+"HoleMidWidth",-1.0);
   holeBHeight=Control.EvalDefVar<double>(keyName+"HoleBHeight",holeAHeight);
   holeBWidth=Control.EvalDefVar<double>(keyName+"HoleBWidth",holeAWidth);
   
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   mainMat=ModelSupport::EvalMat<int>(Control,keyName+"MainMat");
 
   return;
 }
-
-void
-BremBlock::createUnitVector(const attachSystem::FixedComp& FC,
-			   const long int sideIndex)
-  /*!
-    Create the unit vectors
-    \param FC :: Fixed component to link to
-    \param sideIndex :: Link point and direction [0 for origin]
-  */
-{
-  ELog::RegMethod RegA("BremBlock","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
-  return;
-}
-
 
 void
 BremBlock::createSurfaces()
@@ -163,33 +139,88 @@ BremBlock::createSurfaces()
 
   // hole [front]:
   const Geometry::Vec3D holeFront=Origin+X*holeXStep+Z*holeZStep;
+  const Geometry::Vec3D holeMid=
+    Origin+X*holeXStep+Z*holeZStep+Y*holeMidDist;
   const Geometry::Vec3D holeBack=
     Origin+X*holeXStep+Z*holeZStep+Y*length;
 
-  ModelSupport::buildPlane(SMap,buildIndex+1003,
-			   holeFront-X*(holeAWidth/2.0),
-			   holeBack-X*(holeBWidth/2.0),
-			   holeBack-X*(holeBWidth/2.0)+Z,
-			   X);
-  ModelSupport::buildPlane(SMap,buildIndex+1004,
-			   holeFront+X*(holeAWidth/2.0),
-			   holeBack+X*(holeBWidth/2.0),
-			   holeBack+X*(holeBWidth/2.0)+Z,
-			   X);
-  ModelSupport::buildPlane(SMap,buildIndex+1005,
-			   holeFront-Z*(holeAHeight/2.0),
-			   holeBack-Z*(holeBHeight/2.0),
-			   holeBack-Z*(holeBHeight/2.0)+X,
-			   Z);
-  ModelSupport::buildPlane(SMap,buildIndex+1006,
-			   holeFront+Z*(holeAHeight/2.0),
-			   holeBack+Z*(holeBHeight/2.0),
-			   holeBack+Z*(holeBHeight/2.0)+X,
-			   Z);
+	 
+  if (holeMidDist>Geometry::zeroTol &&
+      length-holeMidDist>Geometry::zeroTol)
+    {
+       ModelSupport::buildPlane(SMap,buildIndex+1001,holeMid,Y);
+       ModelSupport::buildPlane(SMap,buildIndex+1003,
+				holeFront-X*(holeAWidth/2.0),
+				holeMid-X*(holeMidWidth/2.0),
+				holeMid-X*(holeMidWidth/2.0)+Z,
+				X);
+       ModelSupport::buildPlane(SMap,buildIndex+1004,
+				holeFront+X*(holeAWidth/2.0),
+				holeMid+X*(holeMidWidth/2.0),
+				holeMid+X*(holeMidWidth/2.0)+Z,
+				X);
+       ModelSupport::buildPlane(SMap,buildIndex+1005,
+				holeFront-Z*(holeAHeight/2.0),
+				holeMid-Z*(holeMidHeight/2.0),
+				holeMid-Z*(holeMidHeight/2.0)+X,
+				Z);
+       ModelSupport::buildPlane(SMap,buildIndex+1006,
+				holeFront+Z*(holeAHeight/2.0),
+				holeMid+Z*(holeMidHeight/2.0),
+				holeMid+Z*(holeMidHeight/2.0)+X,
+				Z);
+
+       ModelSupport::buildPlane(SMap,buildIndex+2003,
+				holeMid-X*(holeMidWidth/2.0),
+				holeBack-X*(holeBWidth/2.0),
+				holeBack-X*(holeBWidth/2.0)+Z,
+				X);
+       ModelSupport::buildPlane(SMap,buildIndex+2004,
+				holeMid+X*(holeMidWidth/2.0),
+				holeBack+X*(holeBWidth/2.0),
+				holeBack+X*(holeBWidth/2.0)+Z,
+				X);
+       ModelSupport::buildPlane(SMap,buildIndex+2005,
+				holeMid-Z*(holeMidHeight/2.0),
+				holeBack-Z*(holeBHeight/2.0),
+				holeBack-Z*(holeBHeight/2.0)+X,
+				Z);
+       ModelSupport::buildPlane(SMap,buildIndex+2006,
+				holeMid+Z*(holeMidHeight/2.0),
+				holeBack+Z*(holeBHeight/2.0),
+				holeBack+Z*(holeBHeight/2.0)+X,
+				Z);
+     }
+  else
+    {
+      ModelSupport::buildPlane(SMap,buildIndex+1003,
+			       holeFront-X*(holeAWidth/2.0),
+			       holeBack-X*(holeBWidth/2.0),
+			       holeBack-X*(holeBWidth/2.0)+Z,
+			       X);
+      ModelSupport::buildPlane(SMap,buildIndex+1004,
+			       holeFront+X*(holeAWidth/2.0),
+			       holeBack+X*(holeBWidth/2.0),
+			       holeBack+X*(holeBWidth/2.0)+Z,
+			       X);
+      ModelSupport::buildPlane(SMap,buildIndex+1005,
+			       holeFront-Z*(holeAHeight/2.0),
+			       holeBack-Z*(holeBHeight/2.0),
+			       holeBack-Z*(holeBHeight/2.0)+X,
+			       Z);
+      ModelSupport::buildPlane(SMap,buildIndex+1006,
+			       holeFront+Z*(holeAHeight/2.0),
+			       holeBack+Z*(holeBHeight/2.0),
+			       holeBack+Z*(holeBHeight/2.0)+X,
+			       Z);
+    }
   
 
 
-  ModelSupport::buildCylinder(SMap,buildIndex+7,Origin,Y,radius);
+  ModelSupport::buildPlane(SMap,buildIndex+3,Origin-X*(width/2.0),X);
+  ModelSupport::buildPlane(SMap,buildIndex+4,Origin+X*(width/2.0),X);
+  ModelSupport::buildPlane(SMap,buildIndex+5,Origin-Z*(height/2.0),Z);
+  ModelSupport::buildPlane(SMap,buildIndex+6,Origin+Z*(height/2.0),Z);
   return;
 }
 
@@ -206,17 +237,35 @@ BremBlock::createObjects(Simulation& System)
   const std::string backSurf(backRule());
 
   std::string Out;
-  
-  Out=ModelSupport::getComposite(SMap,buildIndex," 1003 -1004 1005 -1006 ");
-  makeCell("Void",System,cellIndex++,voidMat,0.0,frontSurf+backSurf+Out);
-  
-  Out=ModelSupport::getComposite
-    (SMap,buildIndex," -7 (-1003: 1004 : -1005: 1006)");
-  makeCell("Shield",System,cellIndex++,mainMat,0.0,Out+frontSurf+backSurf);
 
+  if (holeMidDist>Geometry::zeroTol &&
+      length-holeMidDist>Geometry::zeroTol)
+    {
+      Out=ModelSupport::getComposite
+	(SMap,buildIndex," -1001 1003 -1004 1005 -1006 ");
+      makeCell("Void",System,cellIndex++,voidMat,0.0,frontSurf+Out);
+      Out=ModelSupport::getComposite
+	(SMap,buildIndex," 1001 2003 -2004 2005 -2006 ");
+      makeCell("Void",System,cellIndex++,voidMat,0.0,backSurf+Out);
+      Out=ModelSupport::getSetComposite
+	(SMap,buildIndex," -1001 3 -4 5 -6 -7 (-1003: 1004 : -1005: 1006)");
+      makeCell("Shield",System,cellIndex++,mainMat,0.0,Out+frontSurf);
+      Out=ModelSupport::getSetComposite
+	(SMap,buildIndex," 1001 3 -4 5 -6 -7 (-2003: 2004 : -2005: 2006)");
+      makeCell("Shield",System,cellIndex++,mainMat,0.0,Out+backSurf);
+    }
+  else
+    {
+      Out=ModelSupport::getComposite(SMap,buildIndex," 1003 -1004 1005 -1006 ");
+      makeCell("Void",System,cellIndex++,voidMat,0.0,frontSurf+backSurf+Out);
+      
+      Out=ModelSupport::getSetComposite
+	(SMap,buildIndex," 3 -4 5 -6 -7 (-1003: 1004 : -1005: 1006)");
+      makeCell("Shield",System,cellIndex++,mainMat,0.0,Out+frontSurf+backSurf);
+    }
   // If front back set then don't add to exclude --
   // thus buildIndex+1 or buildIndex+2 will not exist.
-  Out=ModelSupport::getSetComposite(SMap,buildIndex,"1 -2 -7 ");
+  Out=ModelSupport::getSetComposite(SMap,buildIndex,"1 -2 -7 3 -4 5 -6 ");
   addOuterSurf(Out);
 
   return;
@@ -255,7 +304,11 @@ BremBlock::createAll(Simulation& System,
   ELog::RegMethod RegA("BremBlock","createAll(FC)");
 
   populate(System.getDataBase());
-  createUnitVector(FC,FIndex);
+  if (centreFlag)
+    createCentredUnitVector(FC,FIndex,-length/2.0);
+  else
+    createUnitVector(FC,FIndex);
+  
   createSurfaces();    
   createObjects(System);
   

@@ -3,7 +3,7 @@
  
  * File:   construct/WallCut.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,35 +33,19 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "localRotate.h"
-#include "masterRotate.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -69,12 +53,12 @@
 #include "generateSurf.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
-#include "SimProcess.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
 #include "LinkSupport.h"
+#include "ExternalCut.h"
 #include "WallCut.h"
 
 
@@ -83,7 +67,7 @@ namespace constructSystem
 
 WallCut::WallCut(const std::string& Key,const size_t ID)  :
   attachSystem::FixedOffset(Key+std::to_string(ID),6),
-  attachSystem::ContainedComp(),
+  attachSystem::ContainedComp(),attachSystem::ExternalCut(),
   baseName(Key)
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -94,8 +78,10 @@ WallCut::WallCut(const std::string& Key,const size_t ID)  :
 
 WallCut::WallCut(const WallCut& A) : 
   attachSystem::FixedOffset(A),attachSystem::ContainedComp(A),
+  attachSystem::ExternalCut(A),
   baseName(A.baseName),insertKey(A.insertKey),
-  height(A.height),width(A.width),length(A.length)
+  height(A.height),width(A.width),length(A.length),
+  mat(A.mat),matTemp(A.matTemp)
   /*!
     Copy constructor
     \param A :: WallCut to copy
@@ -114,10 +100,13 @@ WallCut::operator=(const WallCut& A)
     {
       attachSystem::FixedOffset::operator=(A);
       attachSystem::ContainedComp::operator=(A);
+      attachSystem::ExternalCut::operator=(A);
       insertKey=A.insertKey;
       height=A.height;
       width=A.width;
       length=A.length;
+      mat=A.mat;
+      matTemp=A.matTemp;
     }
   return *this;
 }
@@ -138,7 +127,7 @@ WallCut::populateKey(const FuncDataBase& Control)
 {  
   ELog::RegMethod RegA("WallCut","populateKey");
   
-  insertKey=Control.EvalPair<std::string>(keyName,baseName,"InsertKey");
+  insertKey=Control.EvalTail<std::string>(keyName,baseName,"InsertKey");
   return;
 }
   
@@ -153,14 +142,14 @@ WallCut::populate(const FuncDataBase& Control)
 
   FixedOffset::populate(baseName,Control);
 
-  height=Control.EvalPair<double>(keyName,baseName,"Height");
-  width=Control.EvalPair<double>(keyName,baseName,"Width");
-  length=Control.EvalPair<double>(keyName,baseName,"Length");
+  height=Control.EvalTail<double>(keyName,baseName,"Height");
+  width=Control.EvalTail<double>(keyName,baseName,"Width");
+  length=Control.EvalTail<double>(keyName,baseName,"Length");
 
 
-  mat=ModelSupport::EvalDefMat<int>(Control,keyName+"Mat",
+  mat=ModelSupport::EvalDefMat(Control,keyName+"Mat",
 				    baseName+"Mat",0);
-  matTemp=Control.EvalDefPair<double>
+  matTemp=Control.EvalDefTail<double>
     (keyName,baseName,"MatTemp",0.0);
   
   return;
@@ -219,8 +208,7 @@ WallCut::createSurfaces()
 
 
 void
-WallCut::createObjects(Simulation& System,
-		       const HeadRule& wallBoundary)
+WallCut::createObjects(Simulation& System)
   /*!
     Adds the main component
     \param System :: Simulation to create objects in
@@ -229,6 +217,9 @@ WallCut::createObjects(Simulation& System,
 {
   ELog::RegMethod RegA("WallCut","createObjects");
 
+  const HeadRule& wallBoundary=
+    ExternalCut::getRule("WallBoundary");
+  
   std::string Out;
   Out=ModelSupport::getSetComposite(SMap,buildIndex,"1 -2 3 -4 5 -6 ");
   addOuterSurf(Out);
@@ -239,14 +230,16 @@ WallCut::createObjects(Simulation& System,
 }
 
 void
-WallCut::createLinks(const HeadRule& wallBoundary)
+WallCut::createLinks()
   /*!
     Create linkes
-    \param wallBoundary :: Wall boundary rule
   */
 {
   ELog::RegMethod RegA("WallCut","createLinks");
-  
+
+  const HeadRule& wallBoundary=
+    ExternalCut::getRule("WallBoundary");
+    
   if (length>Geometry::zeroTol)
     {
       FixedComp::setLinkSurf(0,-SMap.realSurf(buildIndex+1));
@@ -294,8 +287,7 @@ WallCut::createLinks(const HeadRule& wallBoundary)
 void
 WallCut::createAll(Simulation& System,
 		   const attachSystem::FixedComp& FC,
-		   const long int sideIndex,
-		   const HeadRule& wallBoundary)
+		   const long int sideIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation to create objects in
@@ -309,8 +301,8 @@ WallCut::createAll(Simulation& System,
   populate(System.getDataBase());
   createUnitVector(FC,sideIndex);
   createSurfaces();
-  createObjects(System,wallBoundary);
-  createLinks(wallBoundary);
+  createObjects(System);
+  createLinks();
   insertObjects(System);
   
   return;

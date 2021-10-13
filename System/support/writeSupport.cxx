@@ -3,7 +3,7 @@
  
  * File:   support/writeSupport.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,6 @@
 #include <iostream>
 #include <iterator>
 #include <iomanip>
-#include <cstdio>
-#include <cstring>
 #include <fstream>
 #include <sstream>
 #include <cctype>
@@ -36,13 +34,9 @@
 #include <boost/format.hpp>
 
 #include "Exception.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
 
 #include "support.h"
-#include "writeSupport.h"
 
 /*! 
   \file writeSupport.cxx 
@@ -70,7 +64,7 @@ flukaNum(const long int I)
 }
 
 std::string
-flukaNum(const double D)
+flukaNum(const double D,const double zeroTol)
   /*!
     Process a number into a fluka style string
     \param D :: Number to use
@@ -79,32 +73,46 @@ flukaNum(const double D)
   static boost::format FMTnum("%1$10.5f");
   static boost::format FMTlnum("%1$10.5g");
   //  static boost::format FMTnegLnum("%1$10.4g");
-  static boost::format FMTnegNum("%1$10.4f");
-  static boost::format FMTnegLNum("%1$10.4g");
+  static boost::format FMTnegNum("%1$10.5f");
+  static boost::format FMTcutNum("%1$10.4f");
+  static boost::format FMTnegLNum("%1$10.5g");  // allow for sign
+  static boost::format FMTcutLNum("%1$10.4g");  // allow for sign
 
+  if (D>-zeroTol && D<zeroTol)  // float point limits
+    return (FMTnum % 0.0).str();
+  
   if (D < 1e5 && D > 1e-5)      // +ve low range
     {
       // test if 1 dp sufficiently accurate
       if (std::abs(std::round(D*10000.0)-D*10000.0)
-	  <Geometry::zeroTol) 
+	  <Geometry::zeroTol)
 	return (FMTnum % D).str();
     }
   if (D> -1e5 && D< -1e-5)        // -ve low range
     {
       // test if 1 dp sufficiently accurate
-      if (std::abs(std::round(D*10000.0)-D*10000.0)
-	  <Geometry::zeroTol) 
-	return (FMTnegNum % D).str();
-    }
-  if (D<0.0)
-    return (FMTnegLNum % D).str();
 
-  return (FMTlnum % D).str();
-  
+      if (std::abs(std::round(D*10000.0)-D*10000.0)
+	  <Geometry::zeroTol)
+	{
+	  std::string out= (FMTnegNum % D).str();
+	  if (out.size()>10)
+	    out= (FMTcutNum % D).str();
+	  return out;
+	}
+    }
+  std::string out=(FMTnegLNum % D).str();
+  if (out.size()>10)
+    out=(FMTcutLNum % D).str();
+
+  if (out.size()>10)
+    std::cerr<<"ERROR With number"<<out<<std::endl;
+  return out;
 }
 
 void
-writeFLUKA(const std::string& Line,std::ostream& OX)
+writeFLUKA(const std::string& Line,std::ostream& OX,
+	   const double zeroTol)
   /*!
     Write out the line in the fixed FLUKA format WHAT(1-6).
     Replace " - " by space to write empty WHAT cards.
@@ -131,11 +139,13 @@ writeFLUKA(const std::string& Line,std::ostream& OX)
 	  if (StrFunc::convert(w,I))
 	    OX<<flukaNum(I);
 	  else if (StrFunc::convert(w,D))
-	    OX<<flukaNum(D);
-	  else if (w.size()>10)
-	    throw ColErr::InvalidLine(w,"String to long for FLUKA");
+	    OX<<flukaNum(D,zeroTol);
 	  else
 	    {
+	      if (w.size()>2 && w.size()<12 && w[0]=='%')
+		w=w.substr(1);
+	      else if (w.size()>10)
+		throw ColErr::InvalidLine(w,"String to long for FLUKA");
 	      if (i % 8==1)
 		OX<<std::setw(10)<<std::left<<w;	
 	      else
@@ -190,7 +200,6 @@ writeFLUKAhead(const std::string& HeadUnit,
   
   return;
 }
-
 
 void
 writeMCNPX(const std::string& Line,std::ostream& OX)
@@ -249,7 +258,7 @@ writeControl(const std::string& Line,std::ostream& OX,
     {
       pos+=posB+1;
       if (!isspace(X[posB])) posB++;  // skip pass comma 
-      X=fullBlock(X.substr(0,posB));
+      X=removeOuterSpace(X.substr(0,posB));
       if (!isEmpty(X))
 	OX<<std::string(spcLen,' ')<<X<<std::endl;
 
@@ -258,7 +267,7 @@ writeControl(const std::string& Line,std::ostream& OX,
       posB=X.find_last_of(" ,");
     }
     
-  X=fullBlock(X);
+  X=removeOuterSpace(X);
   if (!isEmpty(X))
     OX<<std::string(spcLen,' ')<<X<<std::endl;
   return;

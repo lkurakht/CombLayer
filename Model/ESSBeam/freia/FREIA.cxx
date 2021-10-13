@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   essBuild/FREIA.cxx
+ * File:   ESSBeam/freia/FREIA.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,24 +35,13 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -64,32 +53,29 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "World.h"
 #include "AttachSupport.h"
 #include "beamlineSupport.h"
 #include "GuideItem.h"
-#include "Jaws.h"
 #include "GuideLine.h"
 #include "DiskChopper.h"
-#include "VacuumBox.h"
 #include "VacuumPipe.h"
-#include "ChopperHousing.h"
 #include "Bunker.h"
 #include "BunkerInsert.h"
 #include "ChopperPit.h"
 #include "SingleChopper.h"
-#include "DetectorTank.h"
-#include "CylSample.h"
 #include "LineShield.h"
 #include "HoleShape.h"
 #include "JawSet.h"
@@ -102,7 +88,7 @@ namespace essSystem
 FREIA::FREIA(const std::string& keyName) :
   attachSystem::CopiedComp("freia",keyName),
   startPoint(0),stopPoint(0),
-  freiaAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  freiaAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
 
   BendA(new beamlineSystem::GuideLine(newName+"BA")),
 
@@ -166,8 +152,11 @@ FREIA::FREIA(const std::string& keyName) :
   ModelSupport::objectRegister& OR=
     ModelSupport::objectRegister::Instance();
 
+<<<<<<< HEAD
   // This is necessary as not directly constructed:
   // OR.cell(newName+"Axis");
+=======
+>>>>>>> origin/master
   OR.addObject(freiaAxis);
 
   OR.addObject(BendA);
@@ -247,13 +236,13 @@ FREIA::buildBunkerUnits(Simulation& System,
   ELog::RegMethod RegA("FREIA","buildBunkerUnits");
   const Geometry::Vec3D& ZVert(World::masterOrigin().getZ());  
 
-  VPipeB->addInsertCell(bunkerVoid);
+  VPipeB->addAllInsertCell(bunkerVoid);
   VPipeB->createAll(System,FA,startIndex);
 
   BendB->addInsertCell(VPipeB->getCells("Void"));
   BendB->createAll(System,*VPipeB,0,*VPipeB,0);
   
-  VPipeC->addInsertCell(bunkerVoid);
+  VPipeC->addAllInsertCell(bunkerVoid);
   VPipeC->createAll(System,BendB->getKey("Guide0"),2);
 
   BendC->addInsertCell(VPipeC->getCells("Void"));
@@ -282,7 +271,7 @@ FREIA::buildBunkerUnits(Simulation& System,
   WFMDisk->createAll(System,ChopperB->getKey("Main"),0);
   ChopperB->insertAxle(System,*WFMDisk);
   
-  VPipeD->addInsertCell(bunkerVoid);
+  VPipeD->addAllInsertCell(bunkerVoid);
   VPipeD->createAll(System,ChopperB->getKey("Beam"),2);
 
   BendD->addInsertCell(VPipeD->getCells("Void"));
@@ -298,7 +287,7 @@ FREIA::buildBunkerUnits(Simulation& System,
   FOCDiskC->createAll(System,ChopperC->getKey("Main"),0);
   ChopperC->insertAxle(System,*FOCDiskC);
   
-  VPipeE->addInsertCell(bunkerVoid);
+  VPipeE->addAllInsertCell(bunkerVoid);
   VPipeE->createAll(System,ChopperC->getKey("Beam"),2);
 
   BendE->addInsertCell(VPipeE->getCells("Void"));
@@ -314,7 +303,7 @@ FREIA::buildBunkerUnits(Simulation& System,
   WBC2Disk->createAll(System,ChopperD->getKey("Main"),0);
   ChopperD->insertAxle(System,*WBC2Disk);
   
-  VPipeF->addInsertCell(bunkerVoid);
+  VPipeF->addAllInsertCell(bunkerVoid);
   VPipeF->createAll(System,ChopperD->getKey("Beam"),2);
 
   BendF->addInsertCell(VPipeF->getCells("Void"));
@@ -402,7 +391,7 @@ FREIA::buildOutGuide(Simulation& System,
   ShieldA->createAll(System,OutPitA->getKey("Inner"),0);
   //  ShieldA->insertComponent(System,"Void",*VPipeOutA)
 
-  VPipeOutA->addInsertCell(ShieldA->getCell("Void"));
+  VPipeOutA->addAllInsertCell(ShieldA->getCell("Void"));
   VPipeOutA->createAll(System,ChopperOutA->getKey("Beam"),2);
 
   FocusOutA->addInsertCell(VPipeOutA->getCells("Void"));
@@ -474,7 +463,7 @@ FREIA::buildIsolated(Simulation& System,const int voidCell)
 
   if (startPoint<2)
     {
-      VPipeWall->addInsertCell(voidCell);
+      VPipeWall->addAllInsertCell(voidCell);
       VPipeWall->createAll(System,*FStart,startIndex);
       
       FocusWall->addInsertCell(VPipeWall->getCell("Void"));
@@ -540,7 +529,8 @@ FREIA::build(Simulation& System,
   if (stopPoint==2) return;                      // STOP At bunker edge
   // IN WALL
   // Make bunker insert
-  BInsert->createAll(System,ChopperE->getKey("Beam"),2,bunkerObj);
+  BInsert->setBunkerObject(bunkerObj);
+  BInsert->createAll(System,ChopperE->getKey("Beam"),2);
   attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsert);  
 
     // using 7 : mid point 

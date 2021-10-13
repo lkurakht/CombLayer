@@ -3,7 +3,7 @@
  
  * File:   sourceInc/BeamSource.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ namespace SDef
 */
 
 class BeamSource : 
-  public attachSystem::FixedOffset,
+  public attachSystem::FixedRotateUnit,
   public SourceBase
 {
  private:
@@ -48,8 +48,6 @@ class BeamSource :
   double angleSpread;           ///< Angle spread [deg]
   
   void populate(const ITYPE&);
-  void createUnitVector(const attachSystem::FixedComp&,
-			const long int);
 
  public:
 
@@ -63,6 +61,8 @@ class BeamSource :
   void setRadius(const double R) { radius=R; }
   void createAll(const ITYPE&,const attachSystem::FixedComp&,
 		 const long int);
+  void createAll(const ITYPE&,const Geometry::Vec3D&,
+		 const Geometry::Vec3D&,const Geometry::Vec3D&);
   void createAll(const attachSystem::FixedComp&,
 		 const long int);
 

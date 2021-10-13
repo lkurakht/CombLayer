@@ -3,7 +3,7 @@
  
  * File:   bibBuild/GuideShield.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,38 +33,19 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDivide.h"
-#include "surfDIter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "HeadRule.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
-#include "ReadFunctions.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -74,7 +55,7 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
+#include "ExternalCut.h"
 #include "ContainedComp.h"
 
 #include "GuideShield.h"
@@ -85,6 +66,7 @@ namespace bibSystem
 GuideShield::GuideShield(const std::string& Key,const size_t Index)  :
   attachSystem::ContainedComp(),
   attachSystem::FixedComp(Key+std::to_string(Index),4),
+  attachSystem::ExternalCut(),
   baseName(Key),innerWidth(0.0),innerHeight(0.0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -94,7 +76,9 @@ GuideShield::GuideShield(const std::string& Key,const size_t Index)  :
 {}
 
 GuideShield::GuideShield(const GuideShield& A) : 
-  attachSystem::ContainedComp(A),attachSystem::FixedComp(A),
+  attachSystem::ContainedComp(A),
+  attachSystem::FixedComp(A),
+  attachSystem::ExternalCut(A),
   baseName(A.baseName),innerWidth(A.innerWidth),
   innerHeight(A.innerHeight),nLayers(A.nLayers),
   Height(A.Height),Width(A.Width),Mat(A.Mat)
@@ -116,6 +100,7 @@ GuideShield::operator=(const GuideShield& A)
     {
       attachSystem::ContainedComp::operator=(A);
       attachSystem::FixedComp::operator=(A);
+      attachSystem::ExternalCut::operator=(A);
       cellIndex=A.cellIndex;
       innerWidth=A.innerWidth;
       innerHeight=A.innerHeight;
@@ -135,30 +120,28 @@ GuideShield::~GuideShield()
 {}
 
 void
-GuideShield::populate(const Simulation& System)
+GuideShield::populate(const FuncDataBase& Control)
  /*!
    Populate all the variables
-   \param System :: Simulation to use
+   \param Control :: DataBase to use
  */
 {
   ELog::RegMethod RegA("GuideShield","populate");
-  
-  const FuncDataBase& Control=System.getDataBase();
 
   Height.clear();
   Width.clear();
-  nLayers=Control.EvalPair<size_t>(keyName,baseName,"NLayer");
+  nLayers=Control.EvalTail<size_t>(keyName,baseName,"NLayer");
   double W(innerWidth),H(innerHeight);
   int M;
   for(size_t i=0;i<nLayers;i++)
     {
-      W+=Control.EvalPair<double>(keyName,baseName,
-				 StrFunc::makeString("Width",i+1));
-      H+=Control.EvalPair<double>(keyName,baseName,
-				 StrFunc::makeString("Height",i+1));
+      W+=Control.EvalTail<double>
+	(keyName,baseName,"Width"+std::to_string(i+1));
+      H+=Control.EvalTail<double>
+	(keyName,baseName,"Height"+std::to_string(i+1));
       M=ModelSupport::EvalMat<int>
-	(Control,keyName+StrFunc::makeString("Mat",i+1),
-	 baseName+StrFunc::makeString("Mat",i+1));
+	(Control,keyName+"Mat"+std::to_string(i+1),
+	 baseName+"Mat"+std::to_string(i+1));
 
       Height.push_back(H);
       Width.push_back(W);
@@ -166,19 +149,7 @@ GuideShield::populate(const Simulation& System)
     }
   return;
 }
-  
-void
-GuideShield::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    \param FC :: Linked object
-  */
-{
-  ELog::RegMethod RegA("protonpipe","createUnitVector");
-  attachSystem::FixedComp::createUnitVector(FC);
-  return;
-}
-  
+    
 void
 GuideShield::createSurfaces()
  /*!
@@ -202,26 +173,20 @@ GuideShield::createSurfaces()
 }
 
 void
-GuideShield::createObjects(Simulation& System,
-			   const attachSystem::ContainedComp* CC,
-			   const attachSystem::FixedComp& InnerFC,
-			   const long int innerSide,
-			   const attachSystem::FixedComp& OuterFC,
-			   const long int outerSide)
+GuideShield::createObjects(Simulation& System)
   /*!
     Adds the all the components
     \param System :: Simulation to create objects in
-    \param CC :: Container for this object
-    \param InnerFC :: Inner connection
-    \param innerSide :: Index of link point
-    \param OuterFC :: Inner connection
-    \param outerSide :: Index of link point
   */
 {
   ELog::RegMethod RegA("GuideShield","createObjects");
 
   std::string Out;
 
+  const std::string inner=ExternalCut::getRuleStr("Inner");
+  const std::string front=ExternalCut::getRuleStr("Front");
+  const std::string back=ExternalCut::getRuleStr("Back");
+  
   int SI(buildIndex);
   for(size_t i=0;i<nLayers;i++)
     {
@@ -229,11 +194,11 @@ GuideShield::createObjects(Simulation& System,
 				     "1 3M -4M 5M -6M ");
       if (i)
 	Out+=ModelSupport::getComposite(SMap,SI-10,"(-3:4:-5:6)");
-      else if (CC)
-	Out+=CC->getExclude();
+      else 
+	Out+=inner;  // CC->getExclude();
 
-      Out+=InnerFC.getLinkString(innerSide);
-      Out+=OuterFC.getLinkString(outerSide);
+      Out+=front; // InnerFC.getLinkString(innerSide);
+      Out+=back; // OuterFC.getLinkString(outerSide);
 
       System.addCell(MonteCarlo::Object(cellIndex++,Mat[i],0.0,Out));
       SI+=10;
@@ -293,32 +258,21 @@ GuideShield::calcInnerDimensions(const attachSystem::FixedComp& GO)
 void
 GuideShield::createAll(Simulation& System,
 		       const attachSystem::FixedComp& GO,
-		       const attachSystem::FixedComp& InnerFC,
-		       const long int innerIndex,
-		       const attachSystem::FixedComp& OuterFC,
-		       const long int outerIndex)
+		       const long int sideIndex)
   /*!
     Extrenal build everything
     \param System :: Simulation
     \param GO :: Guide object to wrap
-    \param InnerFC :: Inner boundary layer
-    \param innerIndex :: Inner Side index
-    \param OuterFC :: Outer boundary layer
-    \param outerIndex :: Outer Side index
    */
 {
   ELog::RegMethod RegA("GuideShield","createAll");
 
   calcInnerDimensions(GO);
-  populate(System);
+  populate(System.getDataBase());
 
-  createUnitVector(GO);
-  const attachSystem::ContainedComp* CC=
-    System.getObject<attachSystem::ContainedComp>(GO.getKeyName());
-    
+  createUnitVector(GO,sideIndex);
   createSurfaces();
-  createObjects(System,CC,InnerFC,innerIndex,
-		OuterFC,outerIndex);
+  createObjects(System);
   createLinks();
   insertObjects(System);
 

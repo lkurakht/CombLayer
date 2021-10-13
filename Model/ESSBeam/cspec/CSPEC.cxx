@@ -3,7 +3,7 @@
  
  * File:   ESSBeam/cspec/CSPEC.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,24 +35,13 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -64,34 +53,26 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "World.h"
-#include "AttachSupport.h"
 #include "beamlineSupport.h"
 #include "GuideItem.h"
-#include "Jaws.h"
 #include "GuideLine.h"
 #include "DiskChopper.h"
-#include "VacuumBox.h"
 #include "VacuumPipe.h"
-#include "ChopperHousing.h"
 #include "Bunker.h"
-#include "BunkerInsert.h"
-#include "ChopperPit.h"
 #include "SingleChopper.h"
-#include "DreamHut.h"
-#include "DetectorTank.h"
-#include "CylSample.h"
-#include "LineShield.h"
 
 #include "CSPEC.h"
 
@@ -101,7 +82,7 @@ namespace essSystem
 CSPEC::CSPEC(const std::string& keyName) :
   attachSystem::CopiedComp("cspec",keyName),
   stopPoint(0),
-  cspecAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  cspecAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
 
   FocusA(new beamlineSystem::GuideLine(newName+"FA")),
 
@@ -128,8 +109,11 @@ CSPEC::CSPEC(const std::string& keyName) :
   ModelSupport::objectRegister& OR=
     ModelSupport::objectRegister::Instance();
 
+<<<<<<< HEAD
   // This is necessary as not directly constructed:
   //  // OR.cell(newName+"Axis");
+=======
+>>>>>>> origin/master
   OR.addObject(cspecAxis);
 
   OR.addObject(FocusA);
@@ -189,13 +173,13 @@ CSPEC::build(Simulation& System,
 
   if (stopPoint==1) return;                      // STOP At monolith
                                                  // edge
-  VPipeB->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeB->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeB->createAll(System,FocusA->getKey("Guide0"),2);
 
   FocusB->addInsertCell(VPipeB->getCells("Void"));
   FocusB->createAll(System,*VPipeB,0,*VPipeB,0);
 
-  VPipeC->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeC->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeC->createAll(System,FocusB->getKey("Guide0"),2);
 
   
@@ -211,7 +195,7 @@ CSPEC::build(Simulation& System,
   BWDiskA->createAll(System,ChopperA->getKey("Main"),0);
   ChopperA->insertAxle(System,*BWDiskA);
   
-  VPipeD->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeD->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeD->createAll(System,ChopperA->getKey("Beam"),2);
 
   BendD->addInsertCell(VPipeD->getCells("Void"));

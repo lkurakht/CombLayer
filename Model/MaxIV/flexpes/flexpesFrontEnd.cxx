@@ -3,7 +3,7 @@
  
  * File: flexpes/flexpesFrontEnd.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,39 +34,19 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
-#include "Code.h"
-#include "varList.h"
-#include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedGroup.h"
 #include "FixedOffset.h"
-#include "FixedOffsetGroup.h"
 #include "FixedRotate.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
@@ -74,33 +54,11 @@
 #include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "CopiedComp.h"
-#include "InnerZone.h"
-#include "World.h"
-#include "AttachSupport.h"
-#include "ModelSupport.h"
-#include "generateSurf.h"
+#include "BlockZone.h"
 
-#include "VacuumPipe.h"
-#include "OffsetFlangePipe.h"
-#include "insertObject.h"
-#include "insertCylinder.h"
-#include "SplitFlangePipe.h"
-#include "Bellows.h"
-#include "GateValve.h"
-#include "VacuumBox.h"
-#include "portItem.h"
-#include "PipeTube.h"
-#include "PortTube.h"
-#include "CrossPipe.h"
 #include "UTubePipe.h"
 #include "Undulator.h"
-#include "SquareFMask.h"
-#include "FlangeMount.h"
-#include "BeamMount.h"
-#include "HeatDump.h"
-#include "BremBlock.h"
 
-#include "LCollimator.h"
 #include "R1FrontEnd.h"
 #include "flexpesFrontEnd.h"
 
@@ -133,9 +91,8 @@ flexpesFrontEnd::~flexpesFrontEnd()
 
 const attachSystem::FixedComp&
 flexpesFrontEnd::buildUndulator(Simulation& System,
-				MonteCarlo::Object* masterCell,
 				const attachSystem::FixedComp& preFC,
-				const long int preSideIndex)
+				const std::string& preSide)
   /*!
     Build all the objects relative to the main FC
     point.
@@ -146,20 +103,25 @@ flexpesFrontEnd::buildUndulator(Simulation& System,
   */
 {
   ELog::RegMethod RegA("flexpesFrontEnd","buildUndulator");
-
   int outerCell;
-  undulatorPipe->createAll(System,preFC,preSideIndex);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*undulatorPipe,2);
+
+  undulatorPipe->createAll(System,preFC,preSide);
+  outerCell=buildZone.createUnit(System,*undulatorPipe,2);
 
   CellMap::addCell("UndulatorOuter",outerCell);
-  undulatorPipe->insertInCell("FFlange",System,outerCell);
-  undulatorPipe->insertInCell("BFlange",System,outerCell);
-  undulatorPipe->insertInCell("Pipe",System,outerCell);
 
   undulator->addInsertCell(outerCell);
+  undulator->setCutSurf("front",*undulatorPipe,"-front");
+  undulator->setCutSurf("back",*undulatorPipe,"-back");
   undulator->createAll(System,*undulatorPipe,0);
+  
   undulatorPipe->insertInCell("Pipe",System,undulator->getCell("Void"));
+  undulatorPipe->insertInCell("FFlange",System,undulator->getCell("FrontVoid"));
+  undulatorPipe->insertInCell("Pipe",System,undulator->getCell("FrontVoid"));
+  undulatorPipe->insertInCell("BFlange",System,undulator->getCell("BackVoid"));
+  undulatorPipe->insertInCell("Pipe",System,undulator->getCell("BackVoid"));
 
+  ELog::EM<<"Undulater Centre - "<<undulatorPipe->getCentre()<<ELog::endDiag;
   return *undulatorPipe;
 }
 
@@ -171,8 +133,8 @@ flexpesFrontEnd::createLinks()
 {
   ELog::RegMethod RegA("flexpesFrontEnd","createLinks");
 
-  setLinkSignedCopy(0,*undulatorPipe,1); 
-  setLinkSignedCopy(1,*lastComp,2);
+  setLinkCopy(0,*undulatorPipe,1); 
+  setLinkCopy(1,*lastComp,2);
   return;
 }
 

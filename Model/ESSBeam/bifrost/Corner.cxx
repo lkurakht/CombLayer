@@ -230,9 +230,9 @@ Corner::populate(const FuncDataBase& Control)
   voidDepth=Control.EvalVar<double>(keyName+"VoidDepth");
   voidFront=Control.EvalVar<double>(keyName+"VoidFront");
   
-  defMat=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMat",0);
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
-  spacingMat=ModelSupport::EvalDefMat<int>(Control,keyName+"SpacingMat",0);
+  defMat=ModelSupport::EvalDefMat(Control,keyName+"DefMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
+  spacingMat=ModelSupport::EvalDefMat(Control,keyName+"SpacingMat",0);
   //  int B4CMat;
 
 
@@ -259,7 +259,7 @@ Corner::populate(const FuncDataBase& Control)
 
   OuterB4CThick=
         Control.EvalPair<double>(keyName+"OuterB4CLayerThick","DefaultTileThick");
-   B4CMat=ModelSupport::EvalDefMat<int>(Control,keyName+"B4CTileMat",0);
+   B4CMat=ModelSupport::EvalDefMat(Control,keyName+"B4CTileMat",0);
 
 
   

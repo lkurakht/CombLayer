@@ -3,7 +3,7 @@
  
  * File:   support/Exception.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,15 +30,12 @@
 #include <cmath>
 
 #include "TypeString.h"
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
+#include "Exception.h"
 
 namespace ColErr
 {
@@ -603,6 +600,7 @@ DimensionError<ndim,T>::DimensionError(const std::vector<T>& A,
     }
   setOutLine();
 }
+
 
 template<unsigned int ndim,typename T>
 DimensionError<ndim,T>::DimensionError(const DimensionError<ndim,T>& A) :
@@ -1462,6 +1460,7 @@ namespace Geometry {
   class Vec3D;
 }
  
+namespace attachSystem { class LayerComp; }
 namespace SDef { class SrcBase; }
 namespace TimeData { class WorkSpace; }
 namespace mainSystem { class IItemBase; }
@@ -1478,6 +1477,7 @@ template class ColErr::EmptyValue<MonteCarlo::Object*>;
 template class ColErr::EmptyValue<Geometry::Surface*>;
 template class ColErr::EmptyValue<Geometry::Face*>;
 template class ColErr::EmptyValue<Geometry::Edge*>;
+template class ColErr::EmptyValue<attachSystem::LayerComp*>;
 template class ColErr::EmptyValue<objectGroups*>;
 template class ColErr::EmptyValue<void>;
 template class ColErr::EmptyValue<int>;
@@ -1515,6 +1515,7 @@ template class ColErr::MisMatch<long int>;
 template class ColErr::MisMatch<unsigned long int>;
 template class ColErr::ArrayError<2>;
 template class ColErr::DimensionError<4,long int>;
+template class ColErr::DimensionError<3,size_t>;
 template class ColErr::CastError<mainSystem::IItemBase>;
 template class ColErr::CastError<TimeData::WorkSpace>;
 template class ColErr::CastError<SDef::SrcBase>;

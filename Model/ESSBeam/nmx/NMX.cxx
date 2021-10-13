@@ -3,7 +3,7 @@
  
  * File:   ESSBeam/nmx/NMX.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,24 +35,13 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -63,34 +52,28 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
-#include "World.h"
-#include "AttachSupport.h"
 #include "GuideItem.h"
-#include "Jaws.h"
 #include "GuideLine.h"
-#include "DiskChopper.h"
-#include "VacuumBox.h"
 #include "VacuumPipe.h"
 #include "Bunker.h"
 #include "BunkerInsert.h"
 #include "BeamShutter.h"
-#include "ChopperPit.h"
 #include "LineShield.h"
 #include "PipeCollimator.h"
 #include "AttachSupport.h"
 #include "beamlineSupport.h"
-#include "insertObject.h"
-#include "insertPlate.h"
 
 #include "NMX.h"
 
@@ -100,7 +83,7 @@ namespace essSystem
 NMX::NMX(const std::string& keyName) :
   attachSystem::CopiedComp("nmx",keyName),
   stopPoint(0),
-  nmxAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  nmxAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
   FocusA(new beamlineSystem::GuideLine(newName+"FA")),
   VPipeA(new constructSystem::VacuumPipe(newName+"PipeA")),
   BendA(new beamlineSystem::GuideLine(newName+"BA")),
@@ -126,8 +109,11 @@ NMX::NMX(const std::string& keyName) :
   ModelSupport::objectRegister& OR=
     ModelSupport::objectRegister::Instance();
 
+<<<<<<< HEAD
   // This necessary:
   // OR.cell(newName+"Axis");
+=======
+>>>>>>> origin/master
   OR.addObject(nmxAxis);
 
   OR.addObject(FocusA);
@@ -190,7 +176,7 @@ NMX::build(Simulation& System,
 
 
   // PIPE after gamma shield
-  VPipeA->addInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeA->addAllInsertCell(bunkerObj.getCell("MainVoid"));
   VPipeA->createAll(System,FocusA->getKey("Guide0"),2);
 
   BendA->addInsertCell(VPipeA->getCells("Void"));
@@ -198,8 +184,8 @@ NMX::build(Simulation& System,
 
 
   // PIPE from 10m to 14m
-  VPipeB->addInsertCell(bunkerObj.getCell("MainVoid"));
-  VPipeB->setFront(*VPipeA,2,true);
+  VPipeB->addAllInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeB->setJoinFront(*VPipeA,2);
   VPipeB->createAll(System,BendA->getKey("Guide0"),2);
 
   BendB->addInsertCell(VPipeB->getCells("Void"));
@@ -207,8 +193,8 @@ NMX::build(Simulation& System,
 		   BendA->getKey("Guide0"),2);
 
   // PIPE from 14m to 18m
-  VPipeC->addInsertCell(bunkerObj.getCell("MainVoid"));
-  VPipeC->setFront(*VPipeB,2,true);
+  VPipeC->addAllInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeC->setJoinFront(*VPipeB,2);
   VPipeC->createAll(System,BendB->getKey("Guide0"),2);
 
   BendC->addInsertCell(VPipeC->getCells("Void"));
@@ -216,8 +202,8 @@ NMX::build(Simulation& System,
 		   BendB->getKey("Guide0"),2);
 
   // PIPE from 18m to 22m
-  VPipeD->addInsertCell(bunkerObj.getCell("MainVoid"));
-  VPipeD->setFront(*VPipeC,2,true);
+  VPipeD->addAllInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeD->setJoinFront(*VPipeC,2);
   VPipeD->createAll(System,BendC->getKey("Guide0"),2);
 
   BendD->addInsertCell(VPipeD->getCells("Void"));
@@ -225,8 +211,8 @@ NMX::build(Simulation& System,
 		   BendC->getKey("Guide0"),2);
 
   // PIPE from 22m to Wall
-  VPipeE->addInsertCell(bunkerObj.getCell("MainVoid"));
-  VPipeE->setFront(*VPipeD,2,true);
+  VPipeE->addAllInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeE->setJoinFront(*VPipeD,2);
   VPipeE->createAll(System,BendD->getKey("Guide0"),2);
 
   BendE->addInsertCell(VPipeE->getCells("Void"));
@@ -243,7 +229,8 @@ NMX::build(Simulation& System,
   if (stopPoint==2) return;                      // STOP At bunker edge
 
   // First collimator [In WALL]
-  BInsert->createAll(System,BendE->getKey("Guide0"),2,bunkerObj);
+  BInsert->setBunkerObject(bunkerObj);
+  BInsert->createAll(System,BendE->getKey("Guide0"),2);
   attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsert);
 
     // using 7 : mid point

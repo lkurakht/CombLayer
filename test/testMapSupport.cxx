@@ -30,11 +30,9 @@
 #include <algorithm>
 #include <tuple>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "support.h"
 #include "MapSupport.h"
@@ -286,10 +284,10 @@ testMapSupport::testMapWrite()
   std::ostringstream CX;
   for_each(MX.begin(),MX.end(),
 	   MapSupport::mapWrite<std::map<std::string,int> >(CX));
-  if (StrFunc::removeSpace(CX.str())!="a1b2c3d4e5")
+  if (StrFunc::removeAllSpace(CX.str())!="a1b2c3d4e5")
     {
       ELog::EM<<"Out == "<<ELog::endDiag;
-      ELog::EM<<StrFunc::removeSpace(CX.str())<<ELog::endDiag;      
+      ELog::EM<<StrFunc::removeAllSpace(CX.str())<<ELog::endDiag;      
       return -1;
     }
   return 0;

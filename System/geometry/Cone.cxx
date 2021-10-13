@@ -3,7 +3,7 @@
  
  * File:   geometry/Cone.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,10 +31,7 @@
 #include <stack>
 #include <string>
 #include <algorithm>
-#include <boost/multi_array.hpp>
 
-#include "Exception.h"
-#include "GTKreport.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
@@ -43,11 +40,8 @@
 #include "BaseModVisit.h"
 #include "support.h"
 #include "writeSupport.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Line.h"
 #include "Surface.h"
 #include "Quadratic.h"
 #include "Cone.h"
@@ -228,6 +222,7 @@ Cone::setBaseEqn()
 {
   const double c2(cangle*cangle);
   const double CdotN(Centre.dotProd(Normal));
+  
   BaseEqn[0]=c2-Normal[0]*Normal[0];     // A x^2
   BaseEqn[1]=c2-Normal[1]*Normal[1];     // B y^2
   BaseEqn[2]=c2-Normal[2]*Normal[2];     // C z^2 
@@ -258,7 +253,7 @@ void
 Cone::rotate(const Geometry::Quaternion& QA) 
   /*!
     Rotate both the centre and the normal direction 
-    \param QA :: rotate usig Quaterion
+    \param QA :: rotate using Quaternion
   */
 {
   QA.rotate(Centre);
@@ -286,6 +281,9 @@ Cone::setCone(const Geometry::Vec3D& C,const Geometry::Vec3D& A,
 	      const double angle)
   /*!
     Set the cone
+    \param C :: Centre point
+    \param A :: Axis direction
+    \param angle :: Angle [deg]
   */
 {
   Centre=C;
@@ -327,8 +325,8 @@ void
 Cone::setAngle(const double A) 
   /*!
     Set the angle of the cone.
-    \param A :: Angle in degrees.
     Resets the base equation
+    \param A :: Angle in degrees.
   */
 {
   alpha=A;
@@ -356,7 +354,7 @@ Cone::distance(const Geometry::Vec3D& Pt) const
   /*!
     Calculates the distance from the point to the Cone
     does not calculate the point on the cone that is closest
-    \param Pt :: Point to calcuate from
+    \param Pt :: Point to calculate from
 
     - normalise to a cone vertex at the origin
     - calculate the angle between the axis and the Point
@@ -369,12 +367,10 @@ Cone::distance(const Geometry::Vec3D& Pt) const
   if(Px.abs()<Geometry::parallelTol)
     return Px.abs();
   double Pangle=Px.dotProd(Normal)/Px.abs();
-  if (Pangle<0.0)
-    Pangle=acos(-Pangle);
-  else
-    Pangle=acos(Pangle);
-  
+
+  Pangle=acos(std::abs(Pangle));
   Pangle-=M_PI*alpha/180.0;
+  
   return Px.abs()*sin(Pangle);
 }
 
@@ -397,7 +393,7 @@ Cone::side(const Geometry::Vec3D& Pt) const
     Calculate if the point R is within the cone 
     \param Pt :: Point to determine if in/out of cone
     \retval -1  :: within the cone
-    \retval 0 :: on teh cone
+    \retval 0 :: on the cone
     \retval 1 :: outside the cone
   */
 {
@@ -412,7 +408,7 @@ Cone::side(const Geometry::Vec3D& Pt) const
   if (rptAngle<0.0) 
     rptAngle*=-1.0;
   // touch test
-  if (fabs(rptAngle-cangle)<Geometry::zeroTol) return 0;
+  if (std::abs(rptAngle-cangle)<Geometry::zeroTol) return 0;
   return (rptAngle>cangle) ? -1 : 1;  
 }
 
@@ -430,8 +426,6 @@ Cone::onSurface(const Geometry::Vec3D& R) const
 {
   return (side(R)==0) ? 1 : 0;
 }
-
-
   
 void
 Cone::write(std::ostream& OX) const

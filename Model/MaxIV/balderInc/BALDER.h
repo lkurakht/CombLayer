@@ -3,7 +3,7 @@
  
  * File:   balderInc/BALDER.h
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,8 +32,8 @@ namespace constructSystem
   class VacuumBox;
   class portItem;
   class PortTube;
-  class GateValve;
-  class JawValve;
+  class GateValveCube;
+  class JawValveCube;
 }
 
 namespace xraySystem
@@ -41,16 +41,17 @@ namespace xraySystem
   class BeamMount;
   class OpticsHutch;
   class ExperimentalHutch;
-  class ExptBeamline;
-  class OpticsBeamline;
+  class balderExptLine;
   class R3FrontEndCave;
   class R3FrontEnd;
-  class ConnectZone;
-  class balderFrontEnd;
   class PipeShield;
   class WallLead;
 
   class balderFrontEnd;
+  class balderOpticsHutch;
+  class balderOpticsLine;
+  class balderConnectZone;  
+
   /*!
     \class BALDER
     \version 1.0
@@ -59,16 +60,9 @@ namespace xraySystem
     \brief General constructor for the xray system
   */
 
-class BALDER : public attachSystem::CopiedComp
+class BALDER : public R3Beamline
 {
  private:
-
-  std::string startPoint;       ///< Start point
-  std::string stopPoint;        ///< End point
-  /// Front end cave volume
-  std::shared_ptr<R3FrontEndCave> ringCaveA;
-  // Joining front cave
-  std::shared_ptr<R3FrontEndCave> ringCaveB;
 
   /// the components in the front end
   std::shared_ptr<balderFrontEnd> frontBeam;
@@ -83,7 +77,7 @@ class BALDER : public attachSystem::CopiedComp
   std::shared_ptr<OpticsHutch> opticsHut;
   
   /// Beamline
-  std::shared_ptr<OpticsBeamline> opticsBeam;
+  std::shared_ptr<balderOpticsLine> opticsBeam;
 
   /// Pipe joining optics hut to outer 
   std::shared_ptr<constructSystem::LeadPipe> joinPipeB;
@@ -99,7 +93,7 @@ class BALDER : public attachSystem::CopiedComp
   std::shared_ptr<xraySystem::PipeShield> outerShield;
   
   /// Connection between hutches
-  std::shared_ptr<xraySystem::ConnectZone> connectZone;
+  std::shared_ptr<xraySystem::balderConnectZone> connectZone;
 
   /// Pipe joining optics hut to outer 
   std::shared_ptr<constructSystem::LeadPipe> joinPipeC;
@@ -108,7 +102,7 @@ class BALDER : public attachSystem::CopiedComp
   std::shared_ptr<xraySystem::ExperimentalHutch> exptHut;
 
   /// Beamline for experimental hutch
-  std::shared_ptr<ExptBeamline> exptBeam;
+  std::shared_ptr<balderExptLine> exptBeam;
 
   
  public:
@@ -116,12 +110,10 @@ class BALDER : public attachSystem::CopiedComp
   BALDER(const std::string&);
   BALDER(const BALDER&);
   BALDER& operator=(const BALDER&);
-  ~BALDER();
+  virtual ~BALDER();
 
-  /// set stop point(s)
-  void setStopPoint(const std::string& SP)  { stopPoint=SP; }
-  void build(Simulation&,const attachSystem::FixedComp&,
-	     const long int);
+  virtual  void build(Simulation&,const attachSystem::FixedComp&,
+		      const long int);
 
 };
 

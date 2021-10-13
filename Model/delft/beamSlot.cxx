@@ -3,7 +3,7 @@
  
  * File:   delft/beamSlot.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,46 +34,31 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "SimProcess.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
+#include "FixedRotate.h"
 #include "ContainedComp.h"
+#include "ExternalCut.h"
 #include "beamSlot.h"
 
 namespace delftSystem
@@ -81,7 +66,8 @@ namespace delftSystem
 
 beamSlot::beamSlot(const std::string& Key,const int SN)  :
   attachSystem::ContainedComp(),
-  attachSystem::FixedOffset(Key+std::to_string(SN),6),
+  attachSystem::FixedRotate(Key+std::to_string(SN),6),
+  attachSystem::ExternalCut(),
   baseName(Key)
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -91,7 +77,8 @@ beamSlot::beamSlot(const std::string& Key,const int SN)  :
 {}
 
 beamSlot::beamSlot(const beamSlot& A) : 
-  attachSystem::ContainedComp(A),attachSystem::FixedOffset(A),
+  attachSystem::ContainedComp(A),attachSystem::FixedRotate(A),
+  attachSystem::ExternalCut(A),
   baseName(A.baseName),xSize(A.xSize),
   zSize(A.zSize)
   /*!
@@ -111,7 +98,8 @@ beamSlot::operator=(const beamSlot& A)
   if (this!=&A)
     {
       attachSystem::ContainedComp::operator=(A);
-      attachSystem::FixedOffset::operator=(A);
+      attachSystem::FixedRotate::operator=(A);
+      attachSystem::ExternalCut::operator=(A);
       xSize=A.xSize;
       zSize=A.zSize;
     }
@@ -133,25 +121,17 @@ beamSlot::populate(const FuncDataBase& Control)
  */
 {
   ELog::RegMethod RegA("beamSlot","populate");
-  FixedOffset::populate(Control);
+  FixedRotate::populate(Control);
   
   // First get inner widths:
-  axisAngle=Control.EvalPair<double>(keyName+"AxisAngle",keyName+"AxisAngle");
   
-  xStep=Control.EvalPair<double>(keyName+"XStep",baseName+"XStep");
-  zStep=Control.EvalPair<double>(keyName+"ZStep",baseName+"ZStep");
-  xyAngle=Control.EvalPair<double>(keyName+"XYAngle",baseName+"XYAngle");
-  zAngle=Control.EvalPair<double>(keyName+"ZAngle",baseName+"ZAngle");
+  xSize=Control.EvalTail<double>(keyName,baseName,"XSize");
+  zSize=Control.EvalTail<double>(keyName,baseName,"ZSize");
 
-  
-  xSize=Control.EvalPair<double>(keyName+"XSize",baseName+"XSize");
-  zSize=Control.EvalPair<double>(keyName+"ZSize",baseName+"ZSize");
+  endThick=Control.EvalTail<double>(keyName,baseName,"EndThick");
+  divideThick=Control.EvalTail<double>(keyName,baseName,"DivideThick");
 
-  endThick=Control.EvalPair<double>(keyName+"EndThick",baseName+"EndThick");
-  divideThick=Control.EvalPair<double>(keyName+"DivideThick",
-				       baseName+"DivideThick");
-
-  NChannels=Control.EvalPair<size_t>(keyName,baseName,"NChannels");
+  NChannels=Control.EvalTail<size_t>(keyName,baseName,"NChannels");
 
   glassMat=ModelSupport::EvalMat<int>(Control,keyName+"GlassMat",
 				      baseName+"GlassMat");
@@ -159,45 +139,6 @@ beamSlot::populate(const FuncDataBase& Control)
   return;
 }
   
-void
-beamSlot::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    - Y Points towards the beamline
-    - X Across the Face
-    - Z up (towards the target)
-    \param FC :: A Contained FixedComp to use as basis set
-  */
-{
-  ELog::RegMethod RegA("beamSlot","createUnitVector");
-
-  FixedComp::createUnitVector(FC);
-
-  // PROCESS Origin of a point
-  Origin+=X*xStep+Z*zStep;
-
-  if (fabs(axisAngle)>Geometry::zeroTol || 
-      fabs(xyAngle)>Geometry::zeroTol || 
-      fabs(zAngle)>Geometry::zeroTol)
-    {
-      const Geometry::Quaternion Qaxis=
-	Geometry::Quaternion::calcQRotDeg(axisAngle,Y);
-      const Geometry::Quaternion Qz=
-	Geometry::Quaternion::calcQRotDeg(zAngle,X);
-      const Geometry::Quaternion Qxy=
-	Geometry::Quaternion::calcQRotDeg(xyAngle,Z);
-  
-      Qaxis.rotate(X);
-      Qaxis.rotate(Z);
-      Qz.rotate(X);
-      Qz.rotate(Y);
-      Qz.rotate(Z);
-      Qxy.rotate(Y);
-      Qxy.rotate(X);
-      Qxy.rotate(Z); 
-    }
-  return;
-}
 
 void
 beamSlot::createSurfaces(const attachSystem::FixedComp& FC)
@@ -312,7 +253,8 @@ beamSlot::createLinks()
 
 void
 beamSlot::createAll(Simulation& System,
-		    const attachSystem::FixedComp& FC)
+		    const attachSystem::FixedComp& FC,
+		    const long int sideIndex)
   /*!
     Global creation of the vac-vessel
     \param System :: Simulation to add slot to
@@ -322,7 +264,7 @@ beamSlot::createAll(Simulation& System,
   ELog::RegMethod RegA("beamSlot","createAll");
   populate(System.getDataBase());
 
-  createUnitVector(FC);
+  createUnitVector(FC,sideIndex);
   createSurfaces(FC);
   createObjects(System);
   createLinks();

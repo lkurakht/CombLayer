@@ -3,7 +3,7 @@
  
  * File:   source/SynchrotonBeam.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,27 +33,18 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Source.h"
-#include "SrcItem.h"
-#include "SrcData.h"
 #include "surfRegister.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
-#include "particleConv.h"
+#include "FixedOffsetUnit.h"
 #include "inputSupport.h"
 #include "SourceBase.h"
 #include "SynchrotonBeam.h"
@@ -62,7 +53,7 @@ namespace SDef
 {
 
 SynchrotonBeam::SynchrotonBeam(const std::string& keyName) : 
-  FixedOffset(keyName,0),SourceBase()
+  FixedOffsetUnit(keyName,0),SourceBase()
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param keyName :: main name
@@ -70,7 +61,7 @@ SynchrotonBeam::SynchrotonBeam(const std::string& keyName) :
 {}
 
 SynchrotonBeam::SynchrotonBeam(const SynchrotonBeam& A) : 
-  attachSystem::FixedOffset(A),SourceBase(A),
+  attachSystem::FixedOffsetUnit(A),SourceBase(A),
   electronEnergy(A.electronEnergy),magneticField(A.magneticField),
   lowEnergyLimit(A.lowEnergyLimit),arcLength(A.arcLength),
   beamXYZ(A.beamXYZ)
@@ -177,7 +168,7 @@ SynchrotonBeam::rotate(const localRotate& LR)
 }
   
 void
-SynchrotonBeam::createSource(SDef::Source& sourceCard) const
+SynchrotonBeam::createSource(SDef::Source&) const
   /*!
     Creates a simple beam sampled uniformly in a
     circle
@@ -240,7 +231,7 @@ SynchrotonBeam::write(std::ostream& OX) const
 }
 
 void
-SynchrotonBeam::writePHITS(std::ostream& OX) const
+SynchrotonBeam::writePHITS(std::ostream&) const
   /*!
     Write out as a PHITS source system
     \param OX :: Output stream
@@ -250,7 +241,7 @@ SynchrotonBeam::writePHITS(std::ostream& OX) const
 }
 
 void
-SynchrotonBeam::writeFLUKA(std::ostream& OX) const
+SynchrotonBeam::writeFLUKA(std::ostream&) const
   /*!
     Write out as a FLUKA source system
     \param OX :: Output stream
@@ -258,7 +249,7 @@ SynchrotonBeam::writeFLUKA(std::ostream& OX) const
 {
   ELog::RegMethod RegA("SynchrotonBeam","writeFLUKA");
 
-  const particleConv& PC=particleConv::Instance();
+  //  const particleConv& PC=particleConv::Instance();
   
 
   // beam : -energy X X X X X  : Partiles

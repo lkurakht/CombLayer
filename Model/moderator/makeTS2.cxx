@@ -3,7 +3,7 @@
  
  * File:   moderator/makeTS2.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,47 +35,17 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "MatrixBase.h"
-#include "Matrix.h"
-#include "Vec3D.h"
 #include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
-#include "Code.h"
-#include "varList.h"
-#include "FuncDataBase.h"
-#include "HeadRule.h"
-#include "Object.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
-#include "LinkUnit.h"
-#include "FixedComp.h"
-#include "FixedGroup.h"
-#include "LayerComp.h"
-#include "ContainedComp.h"
-#include "ContainedGroup.h"
 
-#include "shutterBlock.h"
-#include "GeneralShutter.h"
-#include "BulkInsert.h"
-#include "FBBlock.h"
-#include "makeChipIR.h"
-#include "makeZoom.h"
 
-#include "makeIMat.h"
 #include "makeTS2Bulk.h"
+#include "makeReflector.h"
 
 #include "makeTS2.h"
 
@@ -107,25 +77,17 @@ makeTS2::build(Simulation* SimPtr,
   // For output stream
   ELog::RegMethod RControl("makeTS2","build");
 
+  int excludeCell(74123);
   moderatorSystem::makeTS2Bulk bulkObj;
-  hutchSystem::makeChipIR chipObj;
-  zoomSystem::makeZoom zoomObj;
-  imatSystem::makeIMat imatObj;
+  moderatorSystem::makeReflector refObj;
   
-  if (IParam.flag("isolate") && IParam.compValue("I",std::string("chipIR")))
-    {
-      chipObj.buildIsolated(*SimPtr,IParam);
-      return;
-    }
 
-  if (IParam.flag("isolate") && IParam.compValue("I",std::string("zoom")))
-    {
-      zoomObj.buildIsolated(*SimPtr);
-      return;
-    }
+  bulkObj.build(SimPtr,IParam,excludeCell);
+  refObj.build(*SimPtr,IParam,excludeCell);
+  
 
-  bulkObj.build(SimPtr,IParam);
-
+  // this needs to be SELECTED
+  /*
   if (!IParam.flag("exclude") ||
       (!IParam.compValue("E",std::string("Bulk"))) ) 
     {
@@ -133,11 +95,10 @@ makeTS2::build(Simulation* SimPtr,
 	chipObj.build(SimPtr,IParam,*bulkObj.getBulkShield());
       if (!IParam.compValue("E",std::string("zoom")))  
 	zoomObj.build(*SimPtr,IParam,*bulkObj.getBulkShield());
-      if (!IParam.compValue("E",std::string("imat")))
-	imatObj.build(SimPtr,IParam,*bulkObj.getBulkShield());
     }
+  */
   // Insert pipes [make part of makeTS2Bulk]
-  bulkObj.insertPipeObjects(SimPtr,IParam);
+  refObj.insertPipeObjects(*SimPtr,IParam);
 
   return;
 }

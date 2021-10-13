@@ -3,7 +3,7 @@
  
  * File:   attachCompInc/SurfMap.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,11 @@
 
 class Simulation;
 class HeadRule;
+
+namespace ModelSupport
+{
+  class surfRegister;
+}
 
 namespace attachSystem
 {
@@ -53,7 +58,11 @@ class SurfMap : public BaseMap
     Rename transform functions to BaseMap
     \param K :: Key name 
     \param CN :: Offset index
-  */  
+  */
+  
+  bool hasSurf(const std::string& K,const size_t index =0) const
+  { return BaseMap::hasItem(K,index); }
+
   void setSurf(const std::string& K,const int CN)
     { BaseMap::setItem(K,CN); }
       
@@ -86,13 +95,38 @@ class SurfMap : public BaseMap
 
   Geometry::Surface*
     getSurfPtr(const std::string&,const size_t =0) const;
+  template<typename T>
+    T* realPtr(const std::string&,const size_t =0) const;
   
   HeadRule getSurfRules(const std::string&) const;
   HeadRule getSurfRule(const std::string&,const size_t =0) const;
-  HeadRule combine(const std::set<std::string>&) const;
+  HeadRule getLastSurfRule(const std::string&) const;
+  HeadRule combine(const std::string&) const;  
 
+  std::string getSurfStringOrNumber(const std::string&) const;
+  std::string getSurfComplementOrNumber(const std::string&) const;
   std::string getSurfString(const std::string&) const;
   std::string getSurfComplement(const std::string&) const;
+
+
+  void makeShiftedPlane(const std::string&,ModelSupport::surfRegister&,
+			const int,const std::string&,
+			const Geometry::Vec3D&,const double);
+  void makeShiftedPlane(const std::string&,ModelSupport::surfRegister&,
+			const int,const int,
+			const Geometry::Vec3D&,const double);
+  
+  void makePlane(const std::string&,ModelSupport::surfRegister&,
+		 const int,const Geometry::Vec3D&,const Geometry::Vec3D&);
+  void makeCylinder(const std::string&,ModelSupport::surfRegister&,
+		    const int,const Geometry::Vec3D&,
+		    const Geometry::Vec3D&,const double);
+  
+  void createLink(const std::string&,attachSystem::FixedComp&,
+		  const size_t,const Geometry::Vec3D&,
+		  const Geometry::Vec3D&) const;
+
+  
 };
 
 }

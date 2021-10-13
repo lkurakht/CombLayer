@@ -33,34 +33,19 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "localRotate.h"
-#include "masterRotate.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -143,24 +128,6 @@ Bucket::populate(const FuncDataBase& Control)
   return;
 }
   
-
-void
-Bucket::createUnitVector(const attachSystem::FixedComp& CUnit,
-			 const long int sideIndex)
-  /*!
-    Create the unit vectors
-    \param CUnit :: Fixed unit that it is connected to 
-    \param sideIndex ::: link point
-  */
-{
-  ELog::RegMethod RegA("Bucket","createUnitVector");
-
-  FixedComp::createUnitVector(CUnit,sideIndex);
-  applyOffset();
-
-  return;
-}
-
 void
 Bucket::createSurfaces()
   /*!

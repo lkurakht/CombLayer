@@ -3,7 +3,11 @@
 
  * File:   essBuild/ProtonTube.cxx
  *
+<<<<<<< HEAD
  * Copyright (c) 2004-2018 by Stuart Ansell / Konstantin Batkov
+=======
+ * Copyright (c) 2004-2019 by Stuart Ansell
+>>>>>>> origin/master
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,52 +37,30 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ModelSupport.h"
-#include "MaterialSupport.h"
-#include "generateSurf.h"
-#include "SimProcess.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
-#include "FrontBackCut.h"
+#include "FixedOffsetUnit.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "AttachSupport.h"
 #include "BaseMap.h"
 #include "CellMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "CopiedComp.h"
 
@@ -93,7 +75,7 @@ namespace essSystem
 ProtonTube::ProtonTube(const std::string& Key) :
   attachSystem::CopiedComp(Key,Key),
   attachSystem::ContainedGroup(),
-  attachSystem::FixedOffset(newName,2),
+  attachSystem::FixedOffsetUnit(newName,2),
   attachSystem::FrontBackCut(),
   tube(new TelescopicPipe(newName+"Pipe")),
   pbw(new PBW(newName+"PBW"))
@@ -113,7 +95,7 @@ ProtonTube::ProtonTube(const std::string& Key) :
 ProtonTube::ProtonTube(const ProtonTube& A) :
   attachSystem::CopiedComp(A),
   attachSystem::ContainedGroup(A),
-  attachSystem::FixedOffset(A),
+  attachSystem::FixedOffsetUnit(A),
   attachSystem::FrontBackCut(A),
   engActive(A.engActive),
   tube(A.tube->clone()),
@@ -155,7 +137,7 @@ ProtonTube::populate(const FuncDataBase& Control)
   */
 {
   ELog::RegMethod RegA("ProtonTube","populate");
-  engActive=Control.EvalPair<int>(keyName,"","EngineeringActive");
+  engActive=Control.EvalTail<int>(keyName,"","EngineeringActive");
 
   return;
 }

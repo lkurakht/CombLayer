@@ -220,12 +220,12 @@ D03BaseBlock::populate(const FuncDataBase& Control)
   hup=Control.EvalDefVar<double>(keyName+"HeightUp",100);
   hlow=Control.EvalDefVar<double>(keyName+"HeightLow",50);
   
-  defMatf=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMatF",144);
-  defMatb=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMatB",144);
-  gapMat=ModelSupport::EvalDefMat<int>(Control,keyName+"GapMat",60);
-  B4CMat=ModelSupport::EvalDefMat<int>(Control,keyName+"B4CTileMat",147);
-  B4CMatF=ModelSupport::EvalDefMat<int>(Control,keyName+"B4CTileMatF",B4CMat);
-  B4CMatB=ModelSupport::EvalDefMat<int>(Control,keyName+"B4CTileMatB",B4CMat);
+  defMatf=ModelSupport::EvalDefMat(Control,keyName+"DefMatF","LimestoneConcrete");
+  defMatb=ModelSupport::EvalDefMat(Control,keyName+"DefMatB","LimestoneConcrete");
+  gapMat=ModelSupport::EvalDefMat(Control,keyName+"GapMat",60);
+  B4CMat=ModelSupport::EvalDefMat(Control,keyName+"B4CTileMat",147);
+  B4CMatF=ModelSupport::EvalDefMat(Control,keyName+"B4CTileMatF",B4CMat);
+  B4CMatB=ModelSupport::EvalDefMat(Control,keyName+"B4CTileMatB",B4CMat);
 
 
   InnerB4CThick=

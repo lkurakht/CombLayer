@@ -1,9 +1,9 @@
-/********************************************************************* 
+/*********************************************************************
   CombLayer : MCNP(X) Input builder
- 
+
  * File:   species/TankMonoVessel.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  ****************************************************************************/
 #include <fstream>
@@ -36,42 +36,29 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "LinkUnit.h"  
+#include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
+#include "FixedRotate.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "BaseMap.h"
 #include "CellMap.h"
+#include "SurfMap.h"
 #include "ExternalCut.h"
 #include "portItem.h"
 
@@ -81,8 +68,10 @@ namespace xraySystem
 {
 
 TankMonoVessel::TankMonoVessel(const std::string& Key) :
-  attachSystem::FixedOffset(Key,6),
-  attachSystem::ContainedComp(),attachSystem::CellMap(),
+  attachSystem::FixedRotate(Key,6),
+  attachSystem::ContainedComp(),
+  attachSystem::CellMap(),
+  attachSystem::SurfMap(),
   attachSystem::ExternalCut(),
   centreOrigin(0),delayPortBuild(0)
   /*!
@@ -92,7 +81,7 @@ TankMonoVessel::TankMonoVessel(const std::string& Key) :
   */
 {}
 
-TankMonoVessel::~TankMonoVessel() 
+TankMonoVessel::~TankMonoVessel()
   /*!
     Destructor
   */
@@ -106,8 +95,8 @@ TankMonoVessel::populate(const FuncDataBase& Control)
   */
 {
   ELog::RegMethod RegA("TankMonoVessel","populate");
-  
-  FixedOffset::populate(Control);
+
+  FixedRotate::populate(Control);
 
   // Void + Fe special:
   voidRadius=Control.EvalVar<double>(keyName+"VoidRadius");
@@ -143,7 +132,7 @@ TankMonoVessel::populate(const FuncDataBase& Control)
   portBTubeRadius=Control.EvalPair<double>(keyName+"PortBTubeRadius",
 					   keyName+"PortTubeRadius");
 
-  
+
   flangeARadius=Control.EvalPair<double>(keyName+"FlangeARadius",
 					 keyName+"FlangeRadius");
   flangeALength=Control.EvalPair<double>(keyName+"FlangeALength",
@@ -171,68 +160,28 @@ TankMonoVessel::populate(const FuncDataBase& Control)
       (flangeBRadius,portBWallThick+portBTubeRadius,
        "Flange to small for "+keyName+" port B");
 
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   wallMat=ModelSupport::EvalMat<int>(Control,keyName+"WallMat");
 
-  
+
   const size_t NPorts=Control.EvalVar<size_t>(keyName+"NPorts");
   const std::string portBase=keyName+"Port";
-  double L,R,W,FR,FT,PT;
-  int PMat;
-  int OFlag;
   for(size_t i=0;i<NPorts;i++)
     {
       const std::string portName=portBase+std::to_string(i);
-      constructSystem::portItem windowPort(portName);
+      constructSystem::portItem windowPort(portBase,portName);
+      windowPort.populate(Control);
       const Geometry::Vec3D Centre=
 	Control.EvalVar<Geometry::Vec3D>(portName+"Centre");
       const Geometry::Vec3D Axis=
-	Control.EvalPair<Geometry::Vec3D>(portName,portBase,"Axis");
-      
-      L=Control.EvalPair<double>(portName,portBase,"Length");
-      R=Control.EvalPair<double>(portName,portBase,"Radius");
-      W=Control.EvalPair<double>(portName,portBase,"Wall");
-      FR=Control.EvalPair<double>(portName,portBase,"FlangeRadius");
-      FT=Control.EvalPair<double>(portName,portBase,"FlangeLength");
-      PT=Control.EvalDefPair<double>(portName,portBase,"PlateThick",0.0);
-      PMat=ModelSupport::EvalDefMat<int>
-	(Control,portName+"PlateMat",portBase+"PlateMat",wallMat);
-
-      OFlag=Control.EvalDefVar<int>(portName+"OuterVoid",0);
-
-      if (OFlag) windowPort.setWrapVolume();
-      windowPort.setMain(L,R,W);
-      windowPort.setFlange(FR,FT);
-      windowPort.setCoverPlate(PT,PMat);
-      windowPort.setMaterial(voidMat,wallMat);
+	Control.EvalTail<Geometry::Vec3D>(portName,portBase,"Axis");
 
       PCentre.push_back(Centre);
       PAxis.push_back(Axis);
       Ports.push_back(windowPort);
-    }					    
-
-  
+    }
 
   outerSize=Control.EvalDefVar<double>(keyName+"OuterSize",voidRadius+20.0);
-  
-
-  return;
-}
-
-void
-TankMonoVessel::createUnitVector(const attachSystem::FixedComp& FC,
-			    const long int sideIndex)
-  /*!
-    Create the unit vectors
-    \param FC :: Fixed component to link to
-    \param sideIndex :: Link point and direction [0 for origin]
-  */
-{
-  ELog::RegMethod RegA("TankMonoVessel","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
-  Origin+=Y*(portATubeLength+wallThick+voidRadius);
   return;
 }
 
@@ -262,26 +211,28 @@ TankMonoVessel::createSurfaces()
   // mid-line
 
   const double maxPortWidth
-    (std::max(std::abs(portAXStep)+flangeARadius,
+    (1.01*std::max(std::abs(portAXStep)+flangeARadius,
 	      std::abs(portBXStep)+flangeBRadius));
   // mid layer divider
   ModelSupport::buildPlane(SMap,buildIndex+1000,Origin,Y);
-  
+
   ModelSupport::buildPlane(SMap,buildIndex+1003,Origin-X*outerSize,X);
-  ModelSupport::buildPlane(SMap,buildIndex+1004,Origin+X*outerSize,X);  
+  ModelSupport::buildPlane(SMap,buildIndex+1004,Origin+X*outerSize,X);
   ModelSupport::buildPlane(SMap,buildIndex+1005,Origin-Z*outerSize,Z);
-  ModelSupport::buildPlane(SMap,buildIndex+1006,Origin+Z*outerSize,Z);  
+  ModelSupport::buildPlane(SMap,buildIndex+1006,Origin+Z*outerSize,Z);
 
   ModelSupport::buildPlane(SMap,buildIndex+1013,Origin-X*maxPortWidth,X);
   ModelSupport::buildPlane(SMap,buildIndex+1014,Origin+X*maxPortWidth,X);
-  
-  
+
+
   // Inner void
   ModelSupport::buildPlane(SMap,buildIndex+5,Origin-Z*voidDepth,Z);
-  ModelSupport::buildPlane(SMap,buildIndex+6,Origin+Z*voidHeight,Z);  
-  ModelSupport::buildCylinder(SMap,buildIndex+7,Origin,Z,voidRadius);
+  ModelSupport::buildPlane(SMap,buildIndex+6,Origin+Z*voidHeight,Z);
+  SurfMap::makeCylinder("VoidCyl",SMap,buildIndex+7,Origin,Z,voidRadius);
   setCutSurf("innerRadius",-SMap.realSurf(buildIndex+7));
-  ModelSupport::buildCylinder(SMap,buildIndex+17,Origin,Z,voidRadius+wallThick);
+
+  SurfMap::makeCylinder
+    ("OuterCyl",SMap,buildIndex+17,Origin,Z,voidRadius+wallThick);
 
   ModelSupport::buildCylinder(SMap,buildIndex+27,Origin,Z,lidRadius);
   ModelSupport::buildPlane(SMap,buildIndex+25,
@@ -321,12 +272,13 @@ TankMonoVessel::createSurfaces()
   ModelSupport::buildCylinder(SMap,buildIndex+607,BCentre,Y,portBTubeRadius);
   ModelSupport::buildCylinder(SMap,buildIndex+617,BCentre,Y,
 			      portBTubeRadius+portBWallThick);
+
   const Geometry::Vec3D BFCentre(BCentre+X*flangeBXStep+Z*flangeBZStep);
   ModelSupport::buildCylinder(SMap,buildIndex+627,BFCentre,Y,flangeBRadius);
 
   // Flange cut
-  ExternalCut::makeShiftedSurf(SMap,"front",buildIndex+511,1,Y,flangeALength);
-  ExternalCut::makeShiftedSurf(SMap,"back",buildIndex+611,-1,Y,flangeBLength);
+  ExternalCut::makeShiftedSurf(SMap,"front",buildIndex+511,Y,flangeALength);
+  ExternalCut::makeShiftedSurf(SMap,"back",buildIndex+611,Y,-flangeBLength);
 
   return;
 }
@@ -340,93 +292,90 @@ TankMonoVessel::createObjects(Simulation& System)
 {
   ELog::RegMethod RegA("TankMonoVessel","createObjects");
 
-  std::string Out;
+  HeadRule HR;
 
-  const std::string FPortStr(ExternalCut::getRuleStr("front"));
-  const std::string BPortStr(ExternalCut::getRuleStr("back"));
+  const HeadRule FPortHR(ExternalCut::getRule("front"));
+  const HeadRule BPortHR(ExternalCut::getRule("back"));
 
-  
-  // Main Void 
-  Out=ModelSupport::getComposite(SMap,buildIndex," (5:-208) (-6:-108) -7 ");
-  CellMap::makeCell("Void",System,cellIndex++,voidMat,0.0,Out);
+  // Main Void
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," (5:-208) (-6:-108) -7 ");
+  CellMap::makeCell("Void",System,cellIndex++,voidMat,0.0,HR);
 
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"  -17 6 -118 108 ");
+  CellMap::makeCell("TopPlate",System,cellIndex++,wallMat,0.0,HR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,"  -17 6 -118 108 ");
-  CellMap::makeCell("TopPlate",System,cellIndex++,wallMat,0.0,Out);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"  17 -27 25 -26 ");
+  CellMap::makeCell("TopFlange",System,cellIndex++,wallMat,0.0,HR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,"  17 -27 25 -26 ");
-  CellMap::makeCell("TopFlange",System,cellIndex++,wallMat,0.0,Out);
-
-  Out=ModelSupport::getComposite(SMap,buildIndex,
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,
 				 "  5 -6 7 -17 (507:1000) (607:-1000)");
-  CellMap::makeCell("Wall",System,cellIndex++,wallMat,0.0,Out);
+  CellMap::makeCell("Wall",System,cellIndex++,wallMat,0.0,HR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,"  -17 -5 -218 208 ");
-  CellMap::makeCell("BasePlate",System,cellIndex++,wallMat,0.0,Out);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"  -17 -5 -218 208 ");
+  CellMap::makeCell("BasePlate",System,cellIndex++,wallMat,0.0,HR);
 
   // Front/Back port
 
   // PORTS:
   // front port
-  Out=ModelSupport::getComposite(SMap,buildIndex," -1000 7 -507 ");
-  CellMap::makeCell("PortAVoid",System,cellIndex++,voidMat,0.0,Out+FPortStr);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," -1000 7 -507 ");
+  CellMap::makeCell("PortAVoid",System,cellIndex++,voidMat,0.0,HR*FPortHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," -1000 17 507 -517 ");
-  CellMap::makeCell("PortAWall",System,cellIndex++,wallMat,0.0,Out+FPortStr);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," -1000 17 507 -517 ");
+  CellMap::makeCell("PortAWall",System,cellIndex++,wallMat,0.0,HR*FPortHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," -511 517 -527 ");
-  CellMap::makeCell("PortAFlange",System,cellIndex++,wallMat,0.0,Out+FPortStr);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," -511 517 -527 ");
+  CellMap::makeCell("PortAFlange",System,cellIndex++,wallMat,0.0,HR*FPortHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," -1000 17 511 517 -527 ");
-  CellMap::makeCell("PortAScreen",System,cellIndex++,voidMat,0.0,Out);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," -1000 17 511 517 -527 ");
+  CellMap::makeCell("PortAScreen",System,cellIndex++,voidMat,0.0,HR);
 
   // back port
-  Out=ModelSupport::getComposite(SMap,buildIndex," 1000 7 -607 ");
-  CellMap::makeCell("PortBVoid",System,cellIndex++,voidMat,0.0,Out+BPortStr);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," 1000 7 -607 ");
+  CellMap::makeCell("PortBVoid",System,cellIndex++,voidMat,0.0,HR*BPortHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," 1000 17 607 -617 ");
-  CellMap::makeCell("PortBWall",System,cellIndex++,wallMat,0.0,Out+BPortStr);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," 1000 17 607 -617 ");
+  CellMap::makeCell("PortBWall",System,cellIndex++,wallMat,0.0,HR*BPortHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," 611 617 -627 ");
-  CellMap::makeCell("PortBFlange",System,cellIndex++,wallMat,0.0,Out+BPortStr);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," 611 617 -627 ");
+  CellMap::makeCell("PortBFlange",System,cellIndex++,wallMat,0.0,HR*BPortHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," 1000 17 -611 617 -627 ");
-  CellMap::makeCell("PortBScreen",System,cellIndex++,voidMat,0.0,Out);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," 1000 17 -611 617 -627 ");
+  CellMap::makeCell("PortBScreen",System,cellIndex++,voidMat,0.0,HR);
 
   // OUTER VOID SPACE
-  const std::string fbCut=FPortStr+BPortStr;
-  Out=ModelSupport::getComposite(SMap,buildIndex,
+  const HeadRule fbCut=FPortHR*BPortHR;
+
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,
 				 "527 1013 -1014 5 -25 17 -1000 ");
-  CellMap::makeCell("OuterFrontVoid",System,cellIndex++,0,0.0,Out+FPortStr);
+  CellMap::makeCell("OuterFrontVoid",System,cellIndex++,0,0.0,HR*FPortHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,
 				 " 627 1013 -1014 5 -25 17 1000");
-  CellMap::makeCell("OuterBackVoid",System,cellIndex++,0,0.0,Out+BPortStr);
+  CellMap::makeCell("OuterBackVoid",System,cellIndex++,0,0.0,HR*BPortHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," 1003 -1013 5 -25 17 ");
-  CellMap::makeCell("OuterLeftVoid",System,cellIndex++,0,0.0,Out+fbCut);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," 1003 -1013 5 -25 17 ");
+  CellMap::makeCell("OuterLeftVoid",System,cellIndex++,0,0.0,HR*fbCut);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," -1004 1014 5 -25 17 ");
-  CellMap::makeCell("OuterRightVoid",System,cellIndex++,0,0.0,Out+fbCut);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," -1004 1014 5 -25 17 ");
+  CellMap::makeCell("OuterRightVoid",System,cellIndex++,0,0.0,HR*fbCut);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,
 				 " 1003 -1004 1005 -1006 25 -26 27 ");
-  CellMap::makeCell("OuterFlangeVoid",System,cellIndex++,0,0.0,Out+fbCut);
+  CellMap::makeCell("OuterFlangeVoid",System,cellIndex++,0,0.0,HR*fbCut);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,
 				 " 1003 -1004 26 (118:17) -1006 ");
-  CellMap::makeCell("OuterTopVoid",System,cellIndex++,0,0.0,Out+fbCut);
+  CellMap::makeCell("OuterTopVoid",System,cellIndex++,0,0.0,HR*fbCut);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,
 				 " 1003 -1004 -5 (218:17) 1005 ");
-  CellMap::makeCell("OuterBaseVoid",System,cellIndex++,0,0.0,Out+fbCut);
+  CellMap::makeCell("OuterBaseVoid",System,cellIndex++,0,0.0,HR*fbCut);
 
-  
-  
   // Main exclusion box
-  Out=ModelSupport::getComposite(SMap,buildIndex," 1003 -1004 1005 -1006 ");
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," 1003 -1004 1005 -1006 ");
 
-  addOuterSurf(Out+fbCut);
+  addOuterSurf(HR*fbCut);
 
   return;
 }
@@ -448,7 +397,16 @@ TankMonoVessel::createLinks()
   ExternalCut::createLink("front",*this,0,ACentre,-Y);
   ExternalCut::createLink("back",*this,1,BCentre,Y);
 
-  
+  const double xPlus=
+    (voidRadius*voidRadius-topGap*topGap)/(2.0*topGap);
+  const double topRadius=
+    (voidRadius*voidRadius+topGap*topGap)/(2.0*topGap);
+  const Geometry::Vec3D topCent=Origin-Z*(xPlus-voidHeight-topRadius);
+
+  FixedComp::setConnect(2,topCent,Z);
+  FixedComp::setLinkSurf(2,SMap.realSurf(buildIndex+108));
+
+
   return;
 }
 
@@ -459,8 +417,8 @@ TankMonoVessel::createPorts(Simulation& System)
     \param System :: Simulation to use
    */
 {
-   ELog::RegMethod RegA("TankMonoVessel","createPorts");
-  
+  ELog::RegMethod RegA("TankMonoVessel","createPorts");
+
   for(size_t i=0;i<Ports.size();i++)
     {
 
@@ -468,11 +426,44 @@ TankMonoVessel::createPorts(Simulation& System)
 	Ports[i].addOuterCell(CN);
 
       Ports[i].setCentLine(*this,PCentre[i],PAxis[i]);
-      Ports[i].constructTrack(System);
+
+      const HeadRule innerSurf(SurfMap::getSurfRules("VoidCyl"));
+      const HeadRule outerSurf(SurfMap::getSurfRules("OuterCyl"));
+
+      MonteCarlo::Object* OPtr=
+	CellMap::getCellObject(System,"Wall");
+      if (PAxis[i].dotProd(X)<0.0)
+	Ports[i].addInsertCell(CellMap::getCell("OuterLeftVoid"));
+      else
+	Ports[i].addInsertCell(CellMap::getCell("OuterRightVoid"));
+
+      Ports[i].constructTrack(System,OPtr,innerSurf,outerSurf);
+      Ports[i].insertObjects(System);
     }
   return;
 }
 
+
+void
+TankMonoVessel::insertPortInCell(Simulation& System,
+				 const size_t pIndex,
+				 const int cellN) const
+  /*!
+    Insert a given port in a cell
+    \param pIndex :: port index
+    \param System :: Simulation to use 
+    \param cellN :: cell number
+   */
+{
+  ELog::RegMethod RegA("TankMonoVessel","insertPort");
+
+  if (Ports.size()>=pIndex)
+    throw ColErr::SizeError<size_t>(pIndex,Ports.size(),"Ports index");
+  
+  Ports[pIndex].insertInCell(System,cellN);
+
+  return;
+}
 
 void
 TankMonoVessel::createAll(Simulation& System,
@@ -488,17 +479,18 @@ TankMonoVessel::createAll(Simulation& System,
   ELog::RegMethod RegA("TankMonoVessel","createAll(FC)");
 
   populate(System.getDataBase());
-  createUnitVector(FC,FIndex);
-  createSurfaces();    
+  createCentredUnitVector(FC,FIndex,
+			  portATubeLength+wallThick+voidRadius);
+  createSurfaces();
   createObjects(System);
-  
+
   createLinks();
-  insertObjects(System);   
+  insertObjects(System);
 
   if (!delayPortBuild)
     createPorts(System);
-  
+
   return;
 }
-  
+
 }  // NAMESPACE xraySystem

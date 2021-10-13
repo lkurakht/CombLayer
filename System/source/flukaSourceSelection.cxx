@@ -3,7 +3,7 @@
  
  * File:   source/flukaSourceSelector.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,44 +36,28 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "doubleErr.h"
-#include "Triple.h"
-#include "NRange.h"
-#include "NList.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "Source.h"
-#include "SrcItem.h"
-#include "SrcData.h"
 #include "surfRegister.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "LinkSupport.h"
+#include "FixedUnit.h"
 #include "inputParam.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "inputSupport.h"
 #include "SourceCreate.h"
-#include "localRotate.h"
-#include "masterRotate.h"
-#include "objectRegister.h"
-#include "particleConv.h"
 #include "SourceBase.h"
 #include "World.h"
+#include "sourceDataBase.h"
 #include "flukaSourceSelector.h"
 
 namespace SDef
@@ -89,10 +73,27 @@ flukaSourceSelection(Simulation& System,
     \param IParam :: Input parameter
   */
 {
-  ELog::RegMethod RegA("SourceSelector[F]","flukaSourceSelection");
+  ELog::RegMethod RegA("flukaSourceSelector[F]","flukaSourceSelection");
   
-
   const mainSystem::MITYPE inputMap=IParam.getMapItems("sdefMod");
+
+  attachSystem::FixedUnit beamAxis("beamAxis");
+  const bool axisFlag(IParam.flag("sdefVec"));
+  if (axisFlag)
+    {
+      size_t itemCnt(0);
+      const Geometry::Vec3D Org=
+	mainSystem::getDefNamedPoint(System,IParam,"sdefVec",
+				     0,itemCnt,Geometry::Vec3D(0,0,0));
+      
+      const Geometry::Vec3D Axis=
+	mainSystem::getDefNamedAxis(System,IParam,"sdefVec",
+				     1,itemCnt,Geometry::Vec3D(0,1,0));
+      const Geometry::Vec3D ZAxis=
+	mainSystem::getDefNamedAxis(System,IParam,"sdefVec",
+				    2,itemCnt,Geometry::Vec3D(0,0,1));
+      beamAxis.createUnitVector(Org,Axis,ZAxis);
+    }
   
   const std::string DObj=IParam.getDefValue<std::string>("","sdefObj",0);
   const std::string DSnd=IParam.getDefValue<std::string>("","sdefObj",1);
@@ -104,8 +105,8 @@ flukaSourceSelection(Simulation& System,
       StrFunc::convert(Dist,D))
     DOffsetStep[1]=D;
   
-  const attachSystem::FixedComp& FC=
-    (DObj.empty()) ?  World::masterOrigin() :
+  const attachSystem::FixedComp& FC= (DObj.empty()) ?
+    ((axisFlag) ? beamAxis : World::masterOrigin()) :
     *(System.getObjectThrow<attachSystem::FixedComp>(DObj,"Object not found"));
 
   const long int linkIndex=(DSnd.empty()) ? 0 :  FC.getSideIndex(DSnd);
@@ -127,31 +128,73 @@ flukaSourceSelection(Simulation& System,
       
       else if (sdefType=="Beam" || sdefType=="beam")
 	sName=SDef::createBeamSource(inputMap,"beamSource",FC,linkIndex);
+
       
       else if (sdefType=="external" || sdefType=="External" ||
 	       sdefType=="source" || sdefType=="Source")
 	eName=SDef::createFlukaSource(inputMap,"flukaSource",FC,linkIndex);
-      
+	 
       else
 	{
 	  ELog::EM<<"sdefType :\n"
 	    "Beam :: Test Beam [Radial] source \n"
 	    "Wiggler :: Wiggler Source for balder \n"
-	    "External/Sourece :: External source from source.f \n"
-	    
+	    "External/Source :: External source from source.f \n"
 		  <<ELog::endBasic;
 	}
     }
-  ELog::EM<<"Source name == "<<sName<<ELog::endDiag;
-
+  
+  ELog::EM<<"Source name(s) == "<<sName<<" "<<eName<<ELog::endDiag;
+  processPolarization(inputMap,sName);
+  
   if (!IParam.flag("sdefVoid") && !sName.empty())
     System.setSourceName(sName);
   if (!eName.empty())
-    System.setExtraSourceName(eName);
+    {
+      if (sName.empty())
+	throw ColErr::EmptyValue<std::string>
+	  ("sourceName empty and extraName valid:"+eName);
+      
+      System.setExtraSourceName(eName);
+    }
   
   return;
 }
-  
+
+void
+processPolarization(const mainSystem::MITYPE& inputMap,
+		    const std::string& sourceName)
+  /*!
+    Process the polarization vector
+    \param inputMap :: IParam input stream
+  */
+{
+  ELog::RegMethod RegA("SourceSelector[F]","processPolarization");
+
+  sourceDataBase& SDB=sourceDataBase::Instance();
+
+  SDef::SourceBase* SPtr=SDB.getSource<SDef::SourceBase>(sourceName);
+  if (SPtr)
+    {
+      mainSystem::MITYPE::const_iterator mc=inputMap.find("polarization");
+      if (mc!=inputMap.end())
+	{
+	  ELog::EM<<"POLAR"<<ELog::endDiag;
+	  Geometry::Vec3D PVec;
+
+	  const std::vector<std::string>& IVec=mc->second;
+	  if (!IVec.empty() && StrFunc::convert(IVec.front(),PVec))
+	    {
+	      double Pfrac(1.0);
+	      if (IVec.size()>1)
+		StrFunc::convert(IVec[1],Pfrac);
+
+	      SPtr->setPolarization(PVec,Pfrac);		  
+	    }
+	}
+    }
+  return;
+}
   
 
   

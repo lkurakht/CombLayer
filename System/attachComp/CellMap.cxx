@@ -3,7 +3,7 @@
  
  * File:   attachComp/CellMap.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,23 +35,15 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Surface.h"
-#include "SurInter.h"
-#include "Rules.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
-#include "Line.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
@@ -61,8 +53,8 @@
 #include "surfRegister.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "AttachSupport.h"
 #include "ContainedComp.h"
+#include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 
@@ -165,8 +157,8 @@ CellMap::insertComponent(Simulation& System,
     Insert a component into a cell
     \param System :: Simulation to obtain cell from
     \param cutKey :: Items in the Cell map to slice
-    \param CM :: Items that will cut this
-    \param holdKey :: Items in the Cell map to be inserted
+    \param CM :: Items that will cut this cellMap
+    \param holdKey :: Items in the Cell map to used to insert.
    */
 {
   ELog::RegMethod RegA("CellMap","insertComponent(CellMap)");
@@ -192,13 +184,31 @@ CellMap::insertComponent(Simulation& System,
     Insert a component into a cell
     \param System :: Simulation to obtain cell from
     \param Key :: KeyName for cell
-    \param CC :: Contained Component ot insert 
+    \param CC :: Contained Component to insert 
    */
 {
   ELog::RegMethod RegA("CellMap","insertComponent(CC)");
   
   if (CC.hasOuterSurf())
     insertComponent(System,Key,CC.getExclude());
+
+  return;
+}
+
+void
+CellMap::insertComponent(Simulation& System,
+			  const std::string& Key,
+			  const ContainedGroup& CG) const
+  /*!
+    Insert a component into a cell
+    \param System :: Simulation to obtain cell from
+    \param Key :: KeyName for cell
+    \param CG :: Contained Component to insert 
+   */
+{
+  ELog::RegMethod RegA("CellMap","insertComponent(CG)");
+  
+  insertComponent(System,Key,CG.getAllExclude());
 
   return;
 }
@@ -324,7 +334,7 @@ CellMap::insertComponent(Simulation& System,
   /*!
     Insert an exclude component into a cell
     \param System :: Simulation to obtain cell from
-    \param Key :: keyName for cell
+    \param Key :: keyName for cel
     \param index :: Index on this cell [to be inserted]
     \param CM :: Cell map to extract obbject for insertion
     \param CMKey :: Key of cell map to insert
@@ -342,6 +352,31 @@ CellMap::insertComponent(Simulation& System,
   HeadRule HR=otherObj->getHeadRule();
   HR.makeComplement();
   insertComponent(System,Key,index,HR);
+  return;
+}
+
+void
+CellMap::insertComponent(Simulation& System,
+			 const std::string& Key,
+			 const size_t index,
+			 const FixedComp& FC,
+			 const long int sideIndex) const
+  /*!
+    Insert an exclude component into a cell
+    \param System :: Simulation to obtain cell from
+    \param Key :: KeyName for cell
+    \param index :: Index on this cell [to be inserted]
+    \param FC :: FixedComp for link surface
+    \param sideIndex :: signed direction side
+   */
+{
+  ELog::RegMethod RegA("CellMap","insertComponent(FC,index)");
+
+  if (!sideIndex)
+    throw ColErr::InContainerError<long int>
+      (0,"Zero line surface not defined for : "+FC.getKeyName());
+
+  insertComponent(System,Key,index,FC.getLinkString(sideIndex));
   return;
 }
 
@@ -388,6 +423,28 @@ CellMap::makeCell(const std::string& Key,Simulation& System,
   addCell(Key,cellIndex);
   return;
 }
+
+void
+CellMap::makeCell(const std::string& Key,Simulation& System,
+		  const int cellIndex,const int matNumber,
+		  const double matTemp,const HeadRule& HR)
+
+  /*!
+    Builds a new cell in Simulation and registers it with the CellMap
+    \param System :: Simulation to obtain cell from
+    \param Key :: KeyName for cell
+    \param cellIndex :: Cell index
+    \param matNumber :: Material number
+    \param matTemp :: Temperature
+    \param Out :: Boolean surface string
+  */
+{
+  ELog::RegMethod RegA("CellMap","makeCell");
+  System.addCell(cellIndex,matNumber,matTemp,HR);
+  addCell(Key,cellIndex);
+  return;
+}
+
 void
 CellMap::deleteCell(Simulation& System,
 		    const std::string& Key,
@@ -434,6 +491,29 @@ CellMap::getCellsHR(const Simulation& System,
   return Out;
 }
 
+MonteCarlo::Object*
+CellMap::getCellObject(Simulation& System,
+		       const std::string& Key,
+		       const size_t Index) const
+  /*!
+    Get the main head rules for all the cells [UNION]
+    \param System :: Simulation to get cell from 
+    \param Key :: cell key name
+    \param index :: Index name
+   */
+
+{
+  ELog::RegMethod RegA("CellMap","getCellObject");
+
+  const int cellN=getCell(Key,Index);
+  MonteCarlo::Object* cellObj=System.findObject(cellN);
+
+  if (!cellObj)
+    throw ColErr::InContainerError<int>(cellN,"cellN on found");
+
+  return cellObj;
+}
+
 const HeadRule&
 CellMap::getCellHR(const Simulation& System,
 		   const std::string& Key,
@@ -476,9 +556,31 @@ CellMap::deleteCellWithData(Simulation& System,
   if (!ObjPtr)
     throw ColErr::InContainerError<int>(CN,"Cell Ptr zero");
 
-  std::pair<int,double> Out(ObjPtr->getMat(),ObjPtr->getTemp());
+  std::pair<int,double> Out(ObjPtr->getMatID(),ObjPtr->getTemp());
   System.removeCell(CN);  // too complex to handle from ObjPtr
   return Out;
+}
+
+int
+CellMap::getCellMat(const Simulation& System,
+		    const std::string& Key,
+		    const size_t Index) const
+    /*!
+    Obtain the material for a cell
+    \param System :: Simulation to obtain cell from
+    \param Key :: KeyName for cell
+    \param Index :: Cell index
+    \return material number
+  */
+{
+  ELog::RegMethod RegA("CellMap","getCellMat");
+  
+  const int cellN=getCell(Key,Index);
+  const MonteCarlo::Object* cellObj=System.findObject(cellN);
+  if (!cellObj)
+    throw ColErr::InContainerError<int>(cellN,"cellN on found");
+
+  return cellObj->getMatID();  
 }
 
 void

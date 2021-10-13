@@ -3,7 +3,7 @@
  
  * File:   commonBeam/CollGenerator.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,22 +37,14 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 
-#include "CFFlanges.h"
 #include "CollGenerator.h"
 
 namespace setVariable
@@ -127,6 +119,60 @@ CollGenerator::setMinSize(const double L,
   minHeight=H;
   return;
 }
+
+void
+CollGenerator::setMinAngleSize(const double L,
+			       const double Dist,
+			       const double angX,
+			       const double angZ)
+  
+  /*!
+    Set min length/width/height
+    \param L :: Length 
+    \param Dist :: distance from undulator centre 
+    \param angX :: angle full opening [urad]
+    \param angZ :: angle full opening [urad]
+   */
+{
+  minLength = L;
+  minWidth  = 2.0*Dist*tan(1e-6*angX/2.0);
+  minHeight = 2.0*Dist*tan(1e-6*angZ/2.0);
+  return;
+}
+
+void
+CollGenerator::setFrontAngleSize(const double Dist,
+				const double angX,
+				const double angZ)
+  
+  /*!
+    Set min length/width/height
+    \param Dist :: distance from undulator centre 
+    \param angX :: angle full opening [urad]
+    \param angZ :: angle full opening [urad]
+   */
+{
+  AWidth= 2.0*Dist*tan(1e-6*angX/2.0);
+  AHeight= 2.0*Dist*tan(1e-6*angZ/2.0);
+  return;
+}
+
+void
+CollGenerator::setBackAngleSize(const double Dist,
+				const double angX,
+				const double angZ)
+  
+  /*!
+    Set min length/width/height
+    \param Dist :: distance from undulator centre 
+    \param angX :: angle full opening [urad]
+    \param angZ :: angle full opening [urad]
+   */
+{
+  BWidth= 2.0*Dist*tan(1e-6*angX/2.0);
+  BHeight= 2.0*Dist*tan(1e-6*angZ/2.0);
+  return;
+}
   
 void
 CollGenerator::setMain(const double R,const std::string& M,
@@ -169,7 +215,17 @@ CollGenerator::setBackGap(const double W,const double H)
   BHeight=H;
   return;
 }
-				  
+
+void
+CollGenerator::setMat(const std::string& M)
+  /*!
+    Set the main material
+    \param M :: Material string
+   */
+{
+  mat=M;
+}
+  
 void
 CollGenerator::generateColl(FuncDataBase& Control,
 			    const std::string& keyName,
@@ -184,7 +240,7 @@ CollGenerator::generateColl(FuncDataBase& Control,
   */
 {
   ELog::RegMethod RegA("CollGenerator","generateColl");
-  
+
   Control.addVariable(keyName+"YStep",yStep);
 
   Control.addVariable(keyName+"Radius",radius);
@@ -194,6 +250,10 @@ CollGenerator::generateColl(FuncDataBase& Control,
   const double MW=(minWidth<0.0) ? -minWidth*AWidth : minWidth;
   const double MH=(minHeight<0.0) ? -minHeight*AHeight : minHeight;
 
+  if (ML>len+Geometry::zeroTol)
+    throw ColErr::SizeError<double>
+      (ML,len,"Length/Min Gap lengths wrong order");
+  
   Control.addVariable(keyName+"MinLength",ML);
     
   Control.addVariable(keyName+"innerMinWidth",MW);

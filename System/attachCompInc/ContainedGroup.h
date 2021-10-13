@@ -3,7 +3,7 @@
  
  * File:   attachCompInc/ContainedGroup.h
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #define attachSystem_ContainedGroup_h
 
 class Simulation;
+class HeadRule;
 
 namespace Geometry
 {
@@ -52,6 +53,16 @@ class ContainedGroup
   /// Named Container
   CTYPE CMap;
 
+public:
+
+  // To be removed:
+  void addBoundarySurf(const std::string&,const int);
+  void addBoundarySurf(const std::string&,const std::string&);
+  void addBoundaryUnionSurf(const std::string&,const int);
+  void addBoundaryUnionSurf(const std::string&,const std::string&);
+
+  bool hasBoundary(const std::string&) const;
+  
  public:
 
   ContainedGroup();
@@ -64,32 +75,38 @@ class ContainedGroup
   ContainedGroup(const std::string&,const std::string&,
 		 const std::string&,const std::string&,
 		 const std::string&);
+  ContainedGroup(const std::string&,const std::string&,
+		 const std::string&,const std::string&,
+		 const std::string&,const std::string&);
   ContainedGroup(const ContainedGroup&);
   ContainedGroup& operator=(const ContainedGroup&);
   virtual ~ContainedGroup();
 
+  virtual std::string getAllExclude() const;
+  
   virtual const HeadRule& getOuterSurf(const std::string&) const;
+  virtual const HeadRule& getBoundary(const std::string&) const;
+
   virtual std::string getExclude(const std::string&) const;
   virtual std::string getContainer(const std::string&) const;
   virtual std::string getCompExclude(const std::string&) const;
   virtual std::string getCompContainer(const std::string&) const;
 
   void clearRules();
+  void clearRule(const std::string&);
   /// Test if has rule
   bool hasOuterSurf(const std::string&) const;
-  bool hasBoundary(const std::string&) const;
+
   
   void addOuterSurf(const std::string&,const int);
   void addOuterSurf(const std::string&,const std::string&);
+  void addOuterSurf(const std::string&,const HeadRule&);
   void addOuterSurf(const std::string&,const ContainedComp&);
 
   void addOuterUnionSurf(const std::string&,const std::string&);
+  void addOuterUnionSurf(const std::string&,const HeadRule&);
   void addOuterUnionSurf(const std::string&,const ContainedComp&);
 
-  void addBoundarySurf(const std::string&,const int);
-  void addBoundarySurf(const std::string&,const std::string&);
-  void addBoundaryUnionSurf(const std::string&,const int);
-  void addBoundaryUnionSurf(const std::string&,const std::string&);
 
   // Determine the surface that the line intersect first 
   // and its sign.
@@ -102,17 +119,21 @@ class ContainedGroup
   void addInsertCell(const std::string&,const int);
   void addInsertCell(const std::string&,const std::vector<int>&);
   void addInsertCell(const std::string&,const ContainedComp&);
-  
+
   void setInsertCell(const std::string&,const int);
   void setAllInsertCell(const int);
 
 
   void insertObjects(Simulation&);
 
-  virtual void insertAllInCell(Simulation&,const int);
-  
-  void insertInCell(const std::string&,Simulation&,const int);
-  void insertInCell(const std::string&,Simulation&,const std::vector<int>&);
+  virtual void insertAllInCell(Simulation&,const int) const;
+  virtual void insertAllInCell(Simulation&,const std::vector<int>&) const;
+
+  void insertInCell(const std::string&,Simulation&,const int) const;
+  void insertInCell(const std::string&,Simulation&,
+		    const std::vector<int>&) const;
+  void insertInCell(const std::string&,MonteCarlo::Object&) const;
+
 
   /// Size accessor
   size_t nGroups() const { return CMap.size(); } 

@@ -3,7 +3,7 @@
  
  * File:   bibBuild/makeBib.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,42 +36,22 @@
 #include <memory>
 #include <boost/format.hpp>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "HeadRule.h"
-#include "Code.h"
-#include "varList.h"
-#include "FuncDataBase.h"
-#include "Object.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
-#include "LayerComp.h"
+#include "ExternalCut.h"
 #include "World.h"
-#include "FlightLine.h"
 #include "AttachSupport.h"
 
 #include "RotorWheel.h"
@@ -81,7 +61,6 @@
 #include "ColdH2Mod.h"
 #include "FilterBox.h"
 #include "GuideBox.h"
-#include "NiGuide.h"
 #include "ConcreteWall.h"
 #include "GuideShield.h"
 
@@ -181,9 +160,10 @@ makeBib::buildGuideArray(Simulation& System,const int voidCell)
   for(size_t i=0;i<2;i++)
     {
       std::shared_ptr<GuideBox> GA
-	(new GuideBox(StrFunc::makeString("Guide",i+1)));
+	(new GuideBox("Guide"+std::to_string(i+1)));
       GA->addInsertCell(voidCell);
-      GA->createAll(System,*ColdMod,2,*BeFilterForward,2);      
+      GA->setCutSurf("Limit",BeFilterForward->getLinkString(2));      
+      GA->createAll(System,*ColdMod,2);
       OR.addObject(GA);
       
       attachSystem::addToInsertForced(System,*RefObj,*GA);
@@ -196,9 +176,10 @@ makeBib::buildGuideArray(Simulation& System,const int voidCell)
   for(size_t i=0;i<3;i++)
     {
       std::shared_ptr<GuideBox> GA
-	(new GuideBox(StrFunc::makeString("Guide",i+3)));
+	(new GuideBox("Guide"+std::to_string(i+3)));
       GA->addInsertCell(voidCell);
-      GA->createAll(System,*ColdMod2,2,*BeFilterBackward,2);      
+      GA->setCutSurf("Limit",BeFilterBackward->getLinkString(2));      
+      GA->createAll(System,*ColdMod2,2);
       OR.addObject(GA);
       
       attachSystem::addToInsertForced(System,*RefObj,*GA);
@@ -227,7 +208,10 @@ makeBib::buildShieldArray(Simulation& System)
       std::shared_ptr<GuideShield> GS
 	(new GuideShield("GShield",i+1));
       GS->addInsertCell(CWall->getInnerCell());
-      GS->createAll(System,*GuideArray[i],*RefObj,3,*CWall,1);      
+      GS->setCutSurf("Front",RefObj->getFullRule(3));
+      GS->setCutSurf("Back",CWall->getFullRule(1));
+      GS->setCutSurf("Inner",GuideArray[i]->getExclude());
+      GS->createAll(System,*GuideArray[i],0);
       OR.addObject(GS);      
       ShieldArray.push_back(GS);
     }
@@ -237,7 +221,7 @@ makeBib::buildShieldArray(Simulation& System)
 
 void 
 makeBib::build(Simulation& System,
-	       const mainSystem::inputParam& IParam)
+	       const mainSystem::inputParam&)
   /*!
     Carry out the full build
     \param System :: Simulation system
@@ -250,7 +234,7 @@ makeBib::build(Simulation& System,
   int voidCell(74123);  // This number gets updated for things like a 
                         // void vessel
 
-  Rotor->createAll(System,World::masterOrigin());
+  Rotor->createAll(System,World::masterOrigin(),0);
 
   RefObj->createAll(System,*Rotor,9);
   attachSystem::addToInsertSurfCtrl(System,*RefObj,
@@ -258,12 +242,16 @@ makeBib::build(Simulation& System,
   attachSystem::addToInsertForced(System,*RefObj,
 				 Rotor->getCC("Body"));
   CWall->addInsertCell(voidCell);
-  CWall->createAll(System,*Rotor,8,*RefObj,2);
+  CWall->setCutSurf("Outer",RefObj->getFullRule(3));
+  CWall->setCutSurf("Front",RefObj->getFullRule(1));
+  CWall->setCutSurf("Back",RefObj->getFullRule(2));
+  CWall->createAll(System,*Rotor,9);
   attachSystem::addToInsertSurfCtrl(System,*CWall,
 				    Rotor->getCC("Body"));
   
   // first moderator
-  ColdMod->createAll(System,*Rotor,12,1);
+  ColdMod->setCutSurf("FrontFace",Rotor->getLinkString(2));
+  ColdMod->createAll(System,*Rotor,13);
 
   attachSystem::addToInsertControl(System,*RefObj,*ColdMod);
 
@@ -272,11 +260,12 @@ makeBib::build(Simulation& System,
 
 
   ProtonObj->addInsertCell(voidCell);
-  ProtonObj->createAll(System,*Rotor,13);
+  ProtonObj->createAll(System,*Rotor,14);
   attachSystem::addToInsertForced(System,*RefObj,*ProtonObj);
 
   // Second moderator
-  ColdMod2->createAll(System,*Rotor,12,11);
+  ColdMod2->setCutSurf("FrontFace",Rotor->getLinkString(12));
+  ColdMod2->createAll(System,*Rotor,13);
   attachSystem::addToInsertControl(System,*RefObj,*ColdMod2);
   attachSystem::addToInsertSurfCtrl(System,*ColdMod2,Rotor->getCC("Target"));
   attachSystem::addToInsertForced(System,*ProtonObj,*ColdMod2);

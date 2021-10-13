@@ -1,9 +1,9 @@
-/********************************************************************* 
+/*********************************************************************
   CombLayer : MCNP(X) Input builder
- 
+
  * File:   commonBeam/Mirror.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  ****************************************************************************/
 #include <fstream>
@@ -33,38 +33,24 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "inputParam.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedRotate.h"
@@ -89,7 +75,7 @@ Mirror::Mirror(const std::string& Key) :
   */
 {}
 
-Mirror::Mirror(const Mirror& A) : 
+Mirror::Mirror(const Mirror& A) :
   attachSystem::ContainedComp(A),attachSystem::FixedRotate(A),
   attachSystem::CellMap(A),attachSystem::SurfMap(A),
   theta(A.theta),phi(A.phi),radius(A.radius),width(A.width),
@@ -153,12 +139,12 @@ Mirror::populate(const FuncDataBase& Control)
 
   theta=Control.EvalVar<double>(keyName+"Theta");
   phi=Control.EvalDefVar<double>(keyName+"Phi",0.0);
-  
+
   radius=Control.EvalDefVar<double>(keyName+"Radius",0.0);
   width=Control.EvalVar<double>(keyName+"Width");
   thick=Control.EvalVar<double>(keyName+"Thick");
   length=Control.EvalVar<double>(keyName+"Length");
-  
+
   baseTop=Control.EvalVar<double>(keyName+"BaseTop");
   baseDepth=Control.EvalVar<double>(keyName+"BaseDepth");
   baseOutWidth=Control.EvalVar<double>(keyName+"BaseOutWidth");
@@ -170,22 +156,6 @@ Mirror::populate(const FuncDataBase& Control)
   return;
 }
 
-void
-Mirror::createUnitVector(const attachSystem::FixedComp& FC,
-                               const long int sideIndex)
-  /*!
-    Create the unit vectors.
-    Note that it also set the view point that neutrons come from
-    \param FC :: FixedComp for origin
-    \param sideIndex :: direction for link
-  */
-{
-  ELog::RegMethod RegA("Mirror","createUnitVector");
-  attachSystem::FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
-
-  return;
-}
 
 void
 Mirror::createSurfaces()
@@ -195,7 +165,7 @@ Mirror::createSurfaces()
 {
   ELog::RegMethod RegA("Mirror","createSurfaces");
 
-  // main xstal CENTRE AT ORIGIN 
+  // main xstal CENTRE AT ORIGIN
   const Geometry::Quaternion QXA
     (Geometry::Quaternion::calcQRotDeg(-theta,X));
 
@@ -211,7 +181,7 @@ Mirror::createSurfaces()
 
   QYA.rotate(PX);
   QYA.rotate(PZ);
-  
+
   ModelSupport::buildPlane(SMap,buildIndex+101,Origin-PY*(length/2.0),PY);
   ModelSupport::buildPlane(SMap,buildIndex+102,Origin+PY*(length/2.0),PY);
   ModelSupport::buildPlane(SMap,buildIndex+103,Origin-PX*(width/2.0),PX);
@@ -236,7 +206,7 @@ Mirror::createSurfaces()
       ModelSupport::buildPlane(SMap,buildIndex+105,Origin-PZ*thick,PZ);
       ModelSupport::buildPlane(SMap,buildIndex+106,Origin,PZ);
     }
-  
+
 
   // support
   ModelSupport::buildPlane(SMap,buildIndex+203,
@@ -249,7 +219,16 @@ Mirror::createSurfaces()
 
   ModelSupport::buildPlane(SMap,buildIndex+216,Origin-PZ*(thick+baseGap),PZ);
 
-  return; 
+  /// create the link point towards the reflected beam
+  // (do it here to avoid re-definition of variables in createLinks()
+
+  Geometry::Vec3D Yrefl(PY);
+  Geometry::Quaternion::calcQRotDeg(-theta,X).rotate(Yrefl);
+
+  FixedComp::setConnect(1,Origin+PZ*baseTop,Yrefl);
+  FixedComp::setLinkSurf(1,-SMap.realSurf(buildIndex+205));
+
+  return;
 }
 
 void
@@ -261,40 +240,40 @@ Mirror::createObjects(Simulation& System)
 {
   ELog::RegMethod RegA("Mirror","createObjects");
 
-  std::string Out;
+  HeadRule HR;
   // xstal
   if (std::abs(radius)<Geometry::zeroTol)
-    Out=ModelSupport::getComposite(SMap,buildIndex,
+    HR=ModelSupport::getHeadRule(SMap,buildIndex,
 				   " 101 -102 103 -104 105 -106 ");
   else
-    Out=ModelSupport::getComposite
-      (SMap,buildIndex," 103 -104 107 -117 105 ");    
-  
-  makeCell("Mirror",System,cellIndex++,mirrMat,0.0,Out);
+    HR=ModelSupport::getHeadRule
+      (SMap,buildIndex," 103 -104 107 -117 105 ");
+
+  makeCell("Mirror",System,cellIndex++,mirrMat,0.0,HR);
 
   // Make sides
-  Out=ModelSupport::getComposite(SMap,buildIndex," 101 -102 -103 203 -205 206 ");
-  makeCell("LeftSide",System,cellIndex++,baseMat,0.0,Out);
-  Out=ModelSupport::getComposite(SMap,buildIndex," 101 -102 104 -204 -205 206 ");
-  makeCell("RightSide",System,cellIndex++,baseMat,0.0,Out);
-  Out=ModelSupport::getComposite(SMap,buildIndex,
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," 101 -102 -103 203 -205 206 ");
+  makeCell("LeftSide",System,cellIndex++,baseMat,0.0,HR);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," 101 -102 104 -204 -205 206 ");
+  makeCell("RightSide",System,cellIndex++,baseMat,0.0,HR);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,
 				 " 101 -102 103 -104 -216 206 ");
-  makeCell("Base",System,cellIndex++,baseMat,0.0,Out);
+  makeCell("Base",System,cellIndex++,baseMat,0.0,HR);
 
   // vacuum units:
-  Out=ModelSupport::getComposite
-    (SMap,buildIndex," 101 -102 103 -104 -105 216" ); 
-  makeCell("BaseVac",System,cellIndex++,0,0.0,Out);
+  HR=ModelSupport::getHeadRule
+    (SMap,buildIndex," 101 -102 103 -104 -105 216" );
+  makeCell("BaseVac",System,cellIndex++,0,0.0,HR);
 
-  Out=ModelSupport::getComposite
-    (SMap,buildIndex," 101 -102 103 -104 -205 106 " ); 
-  makeCell("TopVac",System,cellIndex++,0,0.0,Out);
+  HR=ModelSupport::getHeadRule
+    (SMap,buildIndex," 101 -102 103 -104 -205 106 " );
+  makeCell("TopVac",System,cellIndex++,0,0.0,HR);
 
-  Out=ModelSupport::getComposite
-    (SMap,buildIndex," 101 -102 203 -204 -205 206" ); 
-  addOuterSurf(Out);
-  
-  return; 
+  HR=ModelSupport::getHeadRule
+    (SMap,buildIndex," 101 -102 203 -204 -205 206" );
+  addOuterSurf(HR);
+
+  return;
 }
 
 void
@@ -304,7 +283,9 @@ Mirror::createLinks()
   */
 {
   ELog::RegMethod RegA("Mirror","createLinks");
-  
+
+  // link points are defined in the end of createSurfaces
+
   return;
 }
 
@@ -326,7 +307,7 @@ Mirror::createAll(Simulation& System,
   createSurfaces();
   createObjects(System);
   createLinks();
-  insertObjects(System);       
+  insertObjects(System);
 
   return;
 }

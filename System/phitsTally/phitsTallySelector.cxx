@@ -3,7 +3,7 @@
  
  * File:   phitsTally/phitsTallySelector.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,30 +38,42 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "support.h"
 
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "MainProcess.h"
 #include "inputParam.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "SimPHITS.h"
-
-#include "userBinConstruct.h"
+#include "particleConv.h"
 
 #include "phitsTallyModification.h"
-#include "phitsTallySelector.h"
 
+std::string
+convertTallyParticle(const std::string& TParticle)
+  /*!
+    Construct to convert words into an index
+    \param TParticle :: incoming value / particle
+    \return particle name [upper case] or string of number
+  */
+{
+  ELog::RegMethod RegA("phitsTallySelector[F]","convertTallyParticle");
+  const particleConv& pConv=particleConv::Instance();
+  
+  if (TParticle=="help" || TParticle=="help") return "help";
+        
+  std::ostringstream cx;
+  
+  if (pConv.hasName(TParticle))
+    return pConv.nameToPHITS(TParticle);
+
+  throw ColErr::InContainerError<std::string>(TParticle,"Unknown Particle");
+}
 
 void
 tallyModification(SimPHITS& System,
@@ -90,13 +102,21 @@ tallyModification(SimPHITS& System,
       if(key=="help")
 	{
 	  ELog::EM<<"TMod Help "
+	    "  -- binary : tallyName/Number  \n"
 	    "  -- particle ::tallyName/Number particle \n"
 	    "  -- energy : tallyName/Number Emin Emax NPts LinearFlag  \n"
 	    "  -- angle : tallyName/Number Amin Amax NPts LogFlag  \n"
+	    "  -- vtk : tallyName/Number  \n"
 		  <<ELog::endBasic
 		  <<ELog::endErr;
           return;
 	}
+      else if(key=="binary")
+        {
+	  const std::string tName=IParam.getValueError<std::string>
+	    ("TMod",i,1,"No tally name for "+key);
+          phitsSystem::setBinaryOutput(System,tName);
+        }
       else if(key=="particle")
         {
 	  const std::string tName=IParam.getValueError<std::string>
@@ -131,9 +151,13 @@ tallyModification(SimPHITS& System,
 	    ("TMod",i,3,"Amax for "+key);
 	  const size_t NA=IParam.getValueError<size_t>
 	    ("TMod",i,4,"NPTS for "+key);
-
-	  const int AFlag=IParam.getDefValue<int>(0,"TMod",i,5);
-          phitsSystem::setAngle(System,tName,AA,AB,NA,AFlag);
+          phitsSystem::setAngle(System,tName,AA,AB,NA);
+        }
+      else if(key=="vtk")
+        {
+	  const std::string tName=IParam.getValueError<std::string>
+	    ("TMod",i,1,"No tally name for "+key);
+          phitsSystem::setVTKout(System,tName);
         }
       else
 	ELog::EM<<"Currently no modification possible for:"<<key<<ELog::endDiag;

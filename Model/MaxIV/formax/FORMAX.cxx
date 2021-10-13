@@ -3,7 +3,7 @@
  
  * File: formax/FORMAX.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,84 +34,58 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
-#include "Code.h"
-#include "varList.h"
-#include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
-#include "FixedGroup.h"
-#include "FixedOffsetGroup.h"
+#include "FixedRotate.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
-#include "FrontBackCut.h"
 #include "CopiedComp.h"
 #include "ExternalCut.h"
-#include "InnerZone.h"
-#include "World.h"
-#include "AttachSupport.h"
+#include "FrontBackCut.h"
+#include "BlockZone.h"
 
 #include "VacuumPipe.h"
-#include "SplitFlangePipe.h"
-#include "Bellows.h"
-#include "LeadPipe.h"
-#include "VacuumBox.h"
-#include "portItem.h"
-#include "PipeTube.h"
-#include "PortTube.h"
-
+#include "PipeShield.h"
 #include "OpticsHutch.h"
 #include "ExperimentalHutch.h"
-#include "FlangeMount.h"
-#include "BeamMount.h"
-#include "R3FrontEndCave.h"
 #include "WallLead.h"
+#include "R3Ring.h"
 #include "R3FrontEnd.h"
 #include "formaxFrontEnd.h"
 #include "formaxOpticsLine.h"
-#include "ConnectZone.h"
-#include "PipeShield.h"
-#include "ExptBeamline.h"
+#include "formaxExptLine.h"
+#include "formaxDetectorTube.h"
+
+#include "R3Beamline.h"
 #include "FORMAX.h"
 
 namespace xraySystem
 {
 
 FORMAX::FORMAX(const std::string& KN) :
-  attachSystem::CopiedComp("Formax",KN),
-  ringCaveA(new R3FrontEndCave(newName+"RingCaveA")),
-  ringCaveB(new R3FrontEndCave(newName+"RingCaveB")),
+  R3Beamline("Balder",KN),
   frontBeam(new formaxFrontEnd(newName+"FrontBeam")),
   wallLead(new WallLead(newName+"WallLead")),
   joinPipe(new constructSystem::VacuumPipe(newName+"JoinPipe")),
   opticsHut(new OpticsHutch(newName+"OpticsHut")),
-  opticsBeam(new formaxOpticsLine(newName+"OpticsLine"))
+  opticsBeam(new formaxOpticsLine(newName+"OpticsLine")),
+  exptHut(new ExperimentalHutch(newName+"ExptHut")),
+  joinPipeB(new constructSystem::VacuumPipe(newName+"JoinPipeB")),
+  pShield(new xraySystem::PipeShield(newName+"PShield")),
+  exptBeam(new formaxExptLine(newName+"ExptLine")),
+  detectorTube(new xraySystem::formaxDetectorTube(newName+"DetectorTube"))
   /*!
     Constructor
     \param KN :: Keyname
@@ -120,14 +94,15 @@ FORMAX::FORMAX(const std::string& KN) :
   ModelSupport::objectRegister& OR=
     ModelSupport::objectRegister::Instance();
 
-  OR.addObject(ringCaveA);
-  OR.addObject(ringCaveB);
   OR.addObject(frontBeam);
   OR.addObject(wallLead);
   OR.addObject(joinPipe);
   
   OR.addObject(opticsHut);
   OR.addObject(opticsBeam);
+  OR.addObject(exptHut);
+  OR.addObject(joinPipeB);
+  OR.addObject(exptBeam);
 }
 
 FORMAX::~FORMAX()
@@ -149,62 +124,88 @@ FORMAX::build(Simulation& System,
 {
   ELog::RegMethod RControl("FORMAX","build");
 
-  const int voidCell(74123);
+  const size_t NS=r3Ring->getNInnerSurf();
+  const size_t PIndex=static_cast<size_t>(std::abs(sideIndex)-1);
+  const size_t SIndex=(PIndex+1) % NS;
+  const size_t prevIndex=(NS+PIndex-1) % NS;
+
+  const std::string exitLink="ExitCentre"+std::to_string(PIndex);
+
   frontBeam->setStopPoint(stopPoint);
-  
-  ringCaveA->addInsertCell(voidCell);
-  ringCaveA->createAll(System,FCOrigin,sideIndex);
+  frontBeam->setCutSurf("REWall",-r3Ring->getSurf("BeamInner",PIndex));
+  frontBeam->deactivateFM3();
+  frontBeam->addInsertCell(r3Ring->getCell("InnerVoid",SIndex));
 
-  ringCaveB->addInsertCell(voidCell);
-  ringCaveB->setCutSurf("front",*ringCaveA,"connectPt");
-  ringCaveB->createAll(System,*ringCaveA,
-		       ringCaveA->getSideIndex("connectPt"));
+  frontBeam->setBack(-r3Ring->getSurf("BeamInner",PIndex));
+  frontBeam->createAll(System,FCOrigin,sideIndex);
 
-  frontBeam->setFront(ringCaveA->getSurf("BeamFront"));
-  frontBeam->setBack(ringCaveA->getSurf("BeamInner"));
-
-  const HeadRule caveVoid=ringCaveA->getCellHR(System,"Void");
-  frontBeam->addInsertCell(ringCaveA->getCell("Void"));
-  frontBeam->createAll(System,*ringCaveA,-1);
-
-  wallLead->addInsertCell(ringCaveA->getCell("FrontWall"));
-  wallLead->setFront(-ringCaveA->getSurf("BeamInner"));
-  wallLead->setBack(-ringCaveA->getSurf("BeamOuter"));
+  wallLead->addInsertCell(r3Ring->getCell("FrontWall",PIndex));
+  wallLead->setFront(r3Ring->getSurf("BeamInner",PIndex));
+  wallLead->setBack(-r3Ring->getSurf("BeamOuter",PIndex));    
   wallLead->createAll(System,FCOrigin,sideIndex);
 
-  if (stopPoint=="frontEnd" || stopPoint=="Dipole") return;
+  
+  if (stopPoint=="frontEnd" || stopPoint=="Dipole"
+      || stopPoint=="FM1" || stopPoint=="FM2")
+    return;
+  
 
-  opticsHut->addInsertCell(voidCell);
-  opticsHut->setCutSurf("ringWall",*ringCaveB,"outerWall");
-  opticsHut->createAll(System,*ringCaveA,2);
-
-  // Ugly HACK to get the two objects to merge
-  const std::string OH=opticsHut->SurfMap::getSurfString("ringFlat");
-  ringCaveB->insertComponent
-    (System,"OuterWall",*opticsHut,opticsHut->getSideIndex("frontCut"));
-  ringCaveB->insertComponent
-    (System,"FloorA",*opticsHut,opticsHut->getSideIndex("floorCut"));
-  ringCaveB->insertComponent
-    (System,"RoofA",*opticsHut,opticsHut->getSideIndex("roofCut"));
+  buildOpticsHutch(System,opticsHut,PIndex,exitLink);
 
   if (stopPoint=="opticsHut") return;
-  
-  joinPipe->addInsertCell(frontBeam->getCell("MasterVoid"));
-  joinPipe->addInsertCell(wallLead->getCell("Void"));
-  joinPipe->addInsertCell(opticsHut->getCell("Inlet"));
+
+  joinPipe->addAllInsertCell(frontBeam->getCell("MasterVoid"));
+  joinPipe->addInsertCell("Main",wallLead->getCell("Void"));
   joinPipe->createAll(System,*frontBeam,2);
-  
   // new
+
+  opticsBeam->setInnerMat(opticsHut->getCellMat(System,"Void"));
   opticsBeam->addInsertCell(opticsHut->getCell("Void"));
   opticsBeam->setCutSurf("front",*opticsHut,
 			 opticsHut->getSideIndex("innerFront"));
   opticsBeam->setCutSurf("back",*opticsHut,
 			 opticsHut->getSideIndex("innerBack"));
-  opticsBeam->setCutSurf("floor",opticsHut->getSurf("Floor"));
+  opticsBeam->setCutSurf("floor",r3Ring->getSurf("Floor"));
+  opticsBeam->setPreInsert(joinPipe);
   opticsBeam->createAll(System,*joinPipe,2);
 
-  joinPipe->insertInCell(System,opticsBeam->getCell("OuterVoid",0));
+  
+  exptHut->setCutSurf("floor",r3Ring->getSurf("Floor"));
+  exptHut->setCutSurf("frontWall",*opticsHut,"back");
+  exptHut->addInsertCell(r3Ring->getCell("OuterSegment",PIndex));
+  exptHut->addInsertCell(r3Ring->getCell("OuterSegment",prevIndex));
+  exptHut->createAll(System,*opticsHut,"back");
 
+  joinPipeB->addAllInsertCell(opticsBeam->getCell("LastVoid"));  
+  joinPipeB->addInsertCell("Main",opticsHut->getCell("ExitHole"));
+  joinPipeB->setFront(*opticsBeam,2);
+  joinPipeB->createAll(System,*opticsBeam,2);
+
+  // pipe shield goes around joinPipeB:
+
+  pShield->addAllInsertCell(opticsBeam->getCell("LastVoid"));
+  pShield->setCutSurf("inner",*joinPipeB,"outerPipe");
+  pShield->createAll(System,*opticsHut,"innerBack");
+
+  if (stopPoint=="exptHut") return;
+  exptBeam->addInsertCell(exptHut->getCell("Void"));
+  exptBeam->setCutSurf("front",*exptHut,
+			 exptHut->getSideIndex("innerFront"));
+  exptBeam->setCutSurf("back",*exptHut,
+			 exptHut->getSideIndex("innerBack"));
+  exptBeam->setCutSurf("floor",r3Ring->getSurf("Floor"));
+  exptBeam->setPreInsert(joinPipeB);
+  exptBeam->createAll(System,*joinPipeB,2);
+
+
+  detectorTube->addInsertCell(exptHut->getCell("Void"));
+  detectorTube->setCutSurf("front",*exptBeam,"back");
+  detectorTube->setCutSurf("back",*exptHut,
+			   exptHut->getSideIndex("innerBack"));
+  detectorTube->createAll(System,*joinPipeB,2);
+
+  exptBeam->insertSample(System,detectorTube->getCell("FirstVoid"));
+  
   return;
 }
 

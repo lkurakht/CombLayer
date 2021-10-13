@@ -3,7 +3,7 @@
  
  * File:   attachCompInc/FrontBackCut.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,22 +37,9 @@ namespace attachSystem
   System to add this to components that need to be cut
 */
 
-class FrontBackCut 
+class FrontBackCut :
+  public ExternalCut
 {
- private:
-  
-  bool activeFront;             ///< Front cut is active
-  HeadRule frontCut;            ///< Front cut
-  HeadRule frontDivider;        ///< Front divider
-
-  bool activeBack;             ///< Back cut is active
-  HeadRule backCut;            ///< Back cut
-  HeadRule backDivider;        ///< Back divider
-
-  static void getShiftedSurf(ModelSupport::surfRegister&,
-			     const HeadRule&,const int,
-			     const int,const Geometry::Vec3D&,const double);
-  
  public:
 
   FrontBackCut();
@@ -60,14 +47,18 @@ class FrontBackCut
   FrontBackCut& operator=(const FrontBackCut&);
   virtual ~FrontBackCut();
 
-  void setFront(const FrontBackCut&);
-  void setBack(const FrontBackCut&);
+  void setFront(const ExternalCut&);
+  void setBack(const ExternalCut&);
   void setFront(const int);
   void setBack(const int);
   void setFront(const std::string&);
   void setBack(const std::string&);
+  void setFront(const HeadRule&);
+  void setBack(const HeadRule&);
   void setFront(const attachSystem::FixedComp&,const long int);
   void setBack(const attachSystem::FixedComp&,const long int);
+  void setFront(const attachSystem::FixedComp&,const std::string&);
+  void setBack(const attachSystem::FixedComp&,const std::string&);
 
   void setFrontDivider(const std::string&);
   void setBackDivider(const std::string&);
@@ -82,9 +73,11 @@ class FrontBackCut
 		   const Geometry::Vec3D&,const Geometry::Vec3D&);
 
   /// Flag accessor
-  bool frontActive() const { return activeFront; }
+  bool frontActive() const { return isActive("front"); }
   /// Flag accessor
-  bool backActive() const { return activeBack; }
+  bool backActive() const { return isActive("back"); }
+
+
   std::string frontRule() const;
   std::string backRule() const;
 
@@ -95,18 +88,18 @@ class FrontBackCut
   std::string backBridgeRule() const;
 
   void getShiftedFront(ModelSupport::surfRegister&,const int,
-		       const int,const Geometry::Vec3D&,const double) const;
-  void getShiftedBack(ModelSupport::surfRegister&,const int ,
-		      const int,const Geometry::Vec3D&,const double) const;
+		       const Geometry::Vec3D&,const double) const;
+  void getShiftedBack(ModelSupport::surfRegister&,const int,
+		      const Geometry::Vec3D&,const double) const;
   
   /// accessor
-  const HeadRule& getFrontRule() const { return frontCut; }
+  const HeadRule& getFrontRule() const { return getRule("front"); }
   /// accessor
-  const HeadRule& getBackRule() const { return backCut; }
+  const HeadRule& getBackRule() const { return getRule("back"); }
   /// accessor
-  const HeadRule& getFrontBridgeRule() const { return frontDivider; }
+  const HeadRule& getFrontBridgeRule() const { return getDivider("front"); }
   /// accessor
-  const HeadRule& getBackBridgeRule() const { return backDivider; }
+  const HeadRule& getBackBridgeRule() const { return getDivider("back"); }
 
   Geometry::Vec3D frontInterPoint(const Geometry::Vec3D&,
 				  const Geometry::Vec3D&) const;

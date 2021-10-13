@@ -3,7 +3,7 @@
  
  * File: formax/formaxFrontEnd.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,36 +34,18 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
-#include "Code.h"
-#include "varList.h"
-#include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedGroup.h"
 #include "FixedOffset.h"
 #include "FixedRotate.h"
-#include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
@@ -72,29 +54,8 @@
 #include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "CopiedComp.h"
-#include "InnerZone.h"
-#include "World.h"
-#include "AttachSupport.h"
-#include "generateSurf.h"
-#include "ModelSupport.h"
+#include "BlockZone.h"
 
-#include "VacuumPipe.h"
-#include "insertObject.h"
-#include "insertCylinder.h"
-#include "SplitFlangePipe.h"
-#include "Bellows.h"
-#include "LCollimator.h"
-#include "GateValve.h"
-#include "OffsetFlangePipe.h"
-#include "VacuumBox.h"
-#include "portItem.h"
-#include "PipeTube.h"
-#include "PortTube.h"
-#include "CrossPipe.h"
-#include "Wiggler.h"
-#include "SqrCollimator.h"
-#include "BeamMount.h"
-#include "HeatDump.h"
 #include "UTubePipe.h"
 #include "Undulator.h"
 #include "R3FrontEnd.h"
@@ -129,17 +90,25 @@ formaxFrontEnd::~formaxFrontEnd()
    */
 {}
 
+void
+formaxFrontEnd::createLinks()
+  /*!
+    Create a front/back link
+   */
+{
+  setLinkCopy(0,*undulator,1);
+  setLinkCopy(1,*lastComp,2);
+  return;
+}
 
 const attachSystem::FixedComp&
 formaxFrontEnd::buildUndulator(Simulation& System,
-				MonteCarlo::Object* masterCell,
-				const attachSystem::FixedComp& preFC,
-				const long int preSideIndex)
+			       const attachSystem::FixedComp& preFC,
+			       const long int preSideIndex)
   /*!
     Build all the objects relative to the main FC
     point.
     \param System :: Simulation to use
-    \param masterCell :: Main cell with all components in
     \param preFC :: Initial cell
     \param preSideIndex :: Initial side index
     \return link object 
@@ -149,7 +118,7 @@ formaxFrontEnd::buildUndulator(Simulation& System,
 
   int outerCell;
   undulatorPipe->createAll(System,preFC,preSideIndex);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*undulatorPipe,2);
+  outerCell=buildZone.createUnit(System,*undulatorPipe,2);
 
   CellMap::addCell("UndulatorOuter",outerCell);
   undulatorPipe->insertInCell("FFlange",System,outerCell);
@@ -160,24 +129,10 @@ formaxFrontEnd::buildUndulator(Simulation& System,
   undulator->createAll(System,*undulatorPipe,0);
   undulatorPipe->insertInCell("Pipe",System,undulator->getCell("Void"));
 
-  dipolePipe->setFront(*undulatorPipe,2);
-  dipolePipe->createAll(System,*undulatorPipe,2);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*dipolePipe,2);
-  dipolePipe->insertInCell(System,outerCell);
 
-  return *dipolePipe;
+  return *undulatorPipe;
 }
 
-void
-formaxFrontEnd::createLinks()
-  /*!
-    Create a front/back link
-   */
-{
-  setLinkSignedCopy(0,*undulator,1);
-  setLinkSignedCopy(1,*lastComp,2);
-  return;
-}
   
 }   // NAMESPACE xraySystem
 

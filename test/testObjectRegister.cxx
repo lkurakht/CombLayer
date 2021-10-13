@@ -1,9 +1,9 @@
 /********************************************************************* 
-  CombLayer : MNCPX Input builder
+  CombLayer : MCNP(X) Input builder
  
  * File:   test/testObjectRegister.cxx
  *
- * Copyright (c) 2004-2014 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,25 +34,11 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
-#include "Vec3D.h"
-#include "surfIndex.h"
-#include "HeadRule.h"
-#include "Object.h"
-#include "surfRegister.h"
-#include "LinkUnit.h"
-#include "FixedComp.h"
-#include "objectRegister.h"
 
 #include "testFunc.h"
 #include "testObjectRegister.h"
@@ -89,12 +75,10 @@ testObjectRegister::applyTest(const int extra)
   testPtr TPtr[]=
     {
       &testObjectRegister::testExcludeItem,
-      &testObjectRegister::testGetObject
     };
   const std::string TestName[]=
     {
-      "ExcludeItem",
-      "GetObject"
+      "ExcludeItem"
     };
   
   const int TSize(sizeof(TPtr)/sizeof(testPtr));
@@ -138,27 +122,6 @@ testObjectRegister::testExcludeItem()
 }
 
 
-int
-testObjectRegister::testGetObject()
-  /*!
-    Test the getting of different types of objects
-    \retval 0 :: success
-  */
-{
-  ELog::RegMethod RegA("testObjectRegister","testGetObject");
-
-  ModelSupport::objectRegister& OR=
-    ModelSupport::objectRegister::Instance();
-  //  OR.reset();
-
-  std::shared_ptr<attachSystem::FixedComp> 
-    A(new attachSystem::FixedComp("A",3));
-  OR.cell("A");
-  OR.addObject(A);
-
-
-  return 0;
-}
 
 
 

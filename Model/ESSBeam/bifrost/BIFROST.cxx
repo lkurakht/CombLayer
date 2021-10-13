@@ -3,7 +3,7 @@
  
  * File:   ESSBuild/bifrost/BIFROST.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include <memory>
 #include <array>
 
+<<<<<<< HEAD
 
 
 
@@ -48,12 +49,17 @@
 
 
 #include "Exception.h"
+=======
+>>>>>>> origin/master
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
+<<<<<<< HEAD
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
+=======
+>>>>>>> origin/master
 #include "Vec3D.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
@@ -70,6 +76,8 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
@@ -78,6 +86,7 @@
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "AttachSupport.h"
 #include "beamlineSupport.h"
@@ -115,8 +124,12 @@
 
 #include "SimpleBoxChopper.h"
 #include "ChopperPit.h"
+<<<<<<< HEAD
 #include "LineShieldPlus.h"
 #include "InnerShield.h"
+=======
+#include "LineShield.h"
+>>>>>>> origin/master
 #include "HoleShape.h"
 #include "BifrostHut.h"
 
@@ -138,9 +151,14 @@ namespace essSystem
 
 BIFROST::BIFROST(const std::string& keyName) :
   attachSystem::CopiedComp("bifrost",keyName),
+<<<<<<< HEAD
   nGuideSection(5),nSndSection(10),nEllSection(6),stopPoint(0),
   //  nShutterPlate(5),nShutterB4CPlate(5),
   bifrostAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+=======
+  nGuideSection(8),nSndSection(7),nEllSection(4),stopPoint(0),
+  bifrostAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
+>>>>>>> origin/master
   FocusA(new beamlineSystem::GuideLine(newName+"FA")),
 
   VPipeB(new constructSystem::VacuumPipe(newName+"PipeB")),
@@ -392,6 +410,7 @@ BIFROST::BIFROST(const std::string& keyName) :
       OR.addObject(EllPipe[i]);
       OR.addObject(EllFocus[i]);
     }
+<<<<<<< HEAD
   /*
   for (size_t t=0; i<nShutterPlate;i++){
       const std::string strNum(std::to_string(i));
@@ -408,6 +427,9 @@ BIFROST::BIFROST(const std::string& keyName) :
   
   // This is necessary as not directly constructed:
   //  OR.cell(newName+"Axis");
+=======
+
+>>>>>>> origin/master
   OR.addObject(bifrostAxis);
 
   OR.addObject(FocusA);
@@ -690,6 +712,7 @@ BIFROST::build(Simulation& System,
   
   if (stopPoint==1) return;                      // STOP At monolith
 
+<<<<<<< HEAD
   
   int lastBunkerVoidPiece =  buildBunkerUnits(System,FASplit[19]->getKey("Guide0"),2,
                    bunkerObj.getCell("MainVoid"));
@@ -704,6 +727,10 @@ BIFROST::build(Simulation& System,
   // Make bunker insert
   // BInsert->addInsertCell(bunkerObj.getCell("MainVoid"));
 
+=======
+  VPipeB->addAllInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeB->createAll(System,GItem.getKey("Beam"),2);
+>>>>>>> origin/master
 
  // TPipeWall->setFront(-sIndex[11]);
 
@@ -717,10 +744,18 @@ BIFROST::build(Simulation& System,
   */
   //  WallCut->setFront(*BInsert,2);
   
+<<<<<<< HEAD
  
   /*  // Example of accessing sectors in the bunker wall doesn't work: getRegister removed from ObjectRegister definition
  ModelSupport::objectRegister& OR=
     ModelSupport::objectRegister::Instance();
+=======
+  // Elliptic 4m section
+  VPipeC->addAllInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeC->createAll(System,ChopperA->getKey("Beam"),2);
+  FocusC->addInsertCell(VPipeC->getCells("Void"));
+  FocusC->createAll(System,*VPipeC,0,*VPipeC,0);
+>>>>>>> origin/master
 
  attachSystem::FixedComp* CPtr=OR.getObject<attachSystem::FixedComp>("ABunkerWall");
   const BunkerWall* WllPtr= dynamic_cast<const BunkerWall*>(CPtr);
@@ -766,15 +801,37 @@ BIFROST::build(Simulation& System,
   //  BInsert->createAll(System,*VPipeBE,2,bunkerObj);
     //  attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsert);
   
+<<<<<<< HEAD
      TPipeWall->setFront(bunkerObj,-1);
   //  TPipeWall->setBack(*BInsert,8);
    
   TPipeWall->createAll(System,BenderE->getKey("Guide0"),2,BenderE->getKey("Guide0"),2);
 
+=======
+  // Rectangle 6m section
+  VPipeD->addAllInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeD->createAll(System,ChopperB->getKey("Beam"),2);
+  FocusD->addInsertCell(VPipeD->getCells("Void"));
+  FocusD->createAll(System,*VPipeD,0,*VPipeD,0);
+
+  // Rectangle 4m section
+  VPipeE->addAllInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeE->createAll(System,FocusD->getKey("Guide0"),2);
+  FocusE->addInsertCell(VPipeE->getCells("Void"));
+  FocusE->createAll(System,*VPipeE,0,*VPipeE,0);
+>>>>>>> origin/master
 
   TPipeWall1->setFront(TPipeWall->getKey("Guide0"),2);
   
+<<<<<<< HEAD
   TPipeWall1->createAll(System,TPipeWall->getKey("Guide0"),2,TPipeWall->getKey("Guide0"),2);
+=======
+  // Rectangle 4m section
+  VPipeF->addAllInsertCell(bunkerObj.getCell("MainVoid"));
+  VPipeF->createAll(System,ChopperC->getKey("Beam"),2);
+  FocusF->addInsertCell(VPipeF->getCells("Void"));
+  FocusF->createAll(System,*VPipeF,0,*VPipeF,0);
+>>>>>>> origin/master
 
   
   TPipeWall2->setFront(TPipeWall1->getKey("Guide0"),2);
@@ -782,6 +839,7 @@ BIFROST::build(Simulation& System,
   
   TPipeWall2->createAll(System,TPipeWall1->getKey("Guide0"),2,TPipeWall1->getKey("Guide0"),2);
 
+<<<<<<< HEAD
   
   TPipeWall3->setFront(TPipeWall2->getKey("Guide0"),2);
   TPipeWall3->setBack(bunkerObj,-2);
@@ -793,9 +851,18 @@ BIFROST::build(Simulation& System,
 
   attachSystem::addToInsertSurfCtrl(System,*BInsert,*TPipeWall1);  
   attachSystem::addToInsertSurfCtrl(System,*BInsert,*TPipeWall2);  
+=======
+  if (stopPoint==2) return;                      // STOP At bunker edge
+  // IN WALL
+  // Make bunker insert
+  BInsert->addInsertCell(bunkerObj.getCell("MainVoid"));
+  BInsert->addInsertCell(74123);
+  BInsert->createAll(System,*AppB,2);
+  attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsert);  
+>>>>>>> origin/master
 
   
-  //  VPipeWall->addInsertCell(BInsert->getCell("Void"));
+  //  VPipeWall->addAllInsertCell(BInsert->getCell("Void"));
   //  VPipeWall->createAll(System,*BInsert,-1);
 
   // using 7 : mid point
@@ -808,6 +875,12 @@ BIFROST::build(Simulation& System,
   //  TPipeWall->setBack(*BInsert,-2);
   // TPipeWall->createAll(System,*BInsert,7,*BInsert,7);
 
+<<<<<<< HEAD
+=======
+  // Elliptic 6m section
+  VPipeOutA->addAllInsertCell(ShieldA->getCell("Void"));
+  VPipeOutA->createAll(System,FocusWall->getKey("Guide0"),2);
+>>>>>>> origin/master
 
    
   FocusWall->addInsertCell(TPipeWall->getCells("Guide0Void"));
@@ -816,10 +889,16 @@ BIFROST::build(Simulation& System,
   FocusWall->setFront(TPipeWall->getKey("Guide0"),-1);
   FocusWall->createAll(System,BenderE->getKey("Guide0"),2,BenderE->getKey("Guide0"),2);
 
+<<<<<<< HEAD
   FocusWall1->setFront(FocusWall->getKey("Guide0"),2);
   FocusWall1->addInsertCell(TPipeWall2->getCells("Guide0Void"));
  
   FocusWall1->createAll(System,BenderE->getKey("Guide0"),2,BenderE->getKey("Guide0"),2);
+=======
+  // Elliptic 6m section
+  VPipeOutB->addAllInsertCell(ShieldA->getCell("Void"));
+  VPipeOutB->createAll(System,FocusOutA->getKey("Guide0"),2);
+>>>>>>> origin/master
 
   FocusWall2->setFront(FocusWall1->getKey("Guide0"),2);
  FocusWall2->addInsertCell(TPipeWall2->getCells("Guide0Void"));
@@ -827,8 +906,26 @@ BIFROST::build(Simulation& System,
  FocusWall2->setBack(TPipeWall3->getKey("Guide0"),-2);
  FocusWall2->createAll(System,BenderE->getKey("Guide0"),2,BenderE->getKey("Guide0"),2);
 
+<<<<<<< HEAD
+=======
+  // Elliptic 6m section
+  VPipeOutC->addAllInsertCell(ShieldA->getCell("Void"));
+  VPipeOutC->createAll(System,FocusOutB->getKey("Guide0"),2);
+>>>>>>> origin/master
 
 
+<<<<<<< HEAD
+=======
+  const attachSystem::FixedComp* LinkPtr= &FocusOutC->getKey("Guide0");
+  for(size_t i=0;i<nGuideSection;i++)
+    {
+      // Elliptic 6m section
+      RecPipe[i]->addAllInsertCell(ShieldA->getCell("Void"));
+      RecPipe[i]->createAll(System,*LinkPtr,2);
+      
+      RecFocus[i]->addInsertCell(RecPipe[i]->getCells("Void"));
+      RecFocus[i]->createAll(System,*RecPipe[i],0,*RecPipe[i],0);
+>>>>>>> origin/master
 
  //Cuting in pieces for variance reduction
  {
@@ -881,20 +978,43 @@ BIFROST::build(Simulation& System,
       int icell=iFsplit[0];
   for (size_t i=0;i<10;i++){  
 
+<<<<<<< HEAD
   int inew=System.splitObject(icell,
 				 FSplit[i]->getKey("Guide0").getLinkSurf(2));
   if (i==0) System.findObject(icell)->setMaterial(0);
   icell=inew;
 	    }
+=======
+  LinkPtr= &ChopperOutA->getKey("Beam");
+  for(size_t i=0;i<nSndSection;i++)
+    {
+      // Rectangle 6m section
+      SndPipe[i]->addAllInsertCell(ShieldB->getCell("Void"));
+      SndPipe[i]->createAll(System,*LinkPtr,2);
+      
+      SndFocus[i]->addInsertCell(SndPipe[i]->getCells("Void"));
+      SndFocus[i]->createAll(System,*SndPipe[i],0,*SndPipe[i],0);
+>>>>>>> origin/master
 
      icell=iFsplit[2];
     for (size_t i=10;i<18;i++){  
 
+<<<<<<< HEAD
   int inew=System.splitObject(icell,
 				 FSplit[i]->getKey("Guide0").getLinkSurf(2));
   icell=inew;
 	    }
     
+=======
+  for(size_t i=0;i<nEllSection;i++)
+    {
+      // Elliptic 6m sections
+      EllPipe[i]->addAllInsertCell(ShieldB->getCell("Void"));
+      EllPipe[i]->createAll(System,*LinkPtr,2);
+      
+      EllFocus[i]->addInsertCell(EllPipe[i]->getCells("Void"));
+      EllFocus[i]->createAll(System,*EllPipe[i],0,*EllPipe[i],0);
+>>>>>>> origin/master
 
     
     iFsplit=TPipeWall->getCells("Full");
@@ -916,11 +1036,17 @@ BIFROST::build(Simulation& System,
       int icell=iFsplit[j];
   for (size_t i=11;i<17;i++){  
 
+<<<<<<< HEAD
   int inew=System.splitObject(icell,
 				 FSplit[i]->getKey("Guide0").getLinkSurf(2));
   icell=inew;
 	    }
 }
+=======
+  // Elliptic 6m section
+  VPipeCave->addAllInsertCell(Cave->getCell("Void"));
+  VPipeCave->createAll(System,*CaveCut,2);
+>>>>>>> origin/master
 
     
     

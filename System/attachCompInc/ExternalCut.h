@@ -3,7 +3,7 @@
  
  * File:   attachCompInc/ExternalCut.h
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,16 +23,20 @@
 #define attachSystem_ExternalCut_h
 
 class Simulation;
+namespace  ModelSupport
+{
+  class surfRegister;
+}
 
 namespace attachSystem
 {
 
+  
 struct cutUnit
 {
   HeadRule main;           ///<  cut
   HeadRule divider;        ///<  divider
 };
-  
   
 /*!
   \class ExternalCut
@@ -52,10 +56,9 @@ class ExternalCut
   typedef std::map<std::string,cutUnit> cutTYPE;
   cutTYPE cutItems;        ///< Set of external rules
 
-
   static void makeShiftedSurf(ModelSupport::surfRegister&,
 			      const HeadRule&,const int,
-			      const int,const Geometry::Vec3D&,const double);
+			      const Geometry::Vec3D&,const double);
   static void makeExpandedSurf(ModelSupport::surfRegister&,
 			       const HeadRule&,const int,
 			       const Geometry::Vec3D&,
@@ -72,7 +75,7 @@ class ExternalCut
   const cutUnit* findUnit(const std::string&) const;
   
   void copyCutSurf(const std::string&,const ExternalCut&,const std::string&);
-  
+
   void setCutSurf(const std::string&,const int);
   void setCutSurf(const std::string&,const std::string&);
   void setCutSurf(const std::string&,const HeadRule&);
@@ -85,8 +88,8 @@ class ExternalCut
   void setCutDivider(const std::string&,const HeadRule&);
 
   void createLink(const std::string&,attachSystem::FixedComp&,
-		   const size_t,const Geometry::Vec3D&,
-		   const Geometry::Vec3D&) const;
+		  const size_t,const Geometry::Vec3D&,
+		  const Geometry::Vec3D&) const;
 
   /// Flag accessor
   bool isActive(const std::string&) const;
@@ -97,16 +100,18 @@ class ExternalCut
   std::string getBridgeStr(const std::string&) const;
   
   const HeadRule& getRule(const std::string&) const;
+  HeadRule getComplementRule(const std::string&) const;
   const HeadRule& getDivider(const std::string&) const;
 
+
+  HeadRule getValidRule(const std::string&,const Geometry::Vec3D&) const;
   
   Geometry::Vec3D interPoint(const std::string&,
 			     const Geometry::Vec3D&,
 			     const Geometry::Vec3D&) const;
-
   
   void makeShiftedSurf(ModelSupport::surfRegister&,
-		       const std::string&,const int,
+		       const std::string&,
 		       const int,const Geometry::Vec3D&,const double) const;
   
   void makeExpandedSurf(ModelSupport::surfRegister&,
@@ -114,8 +119,12 @@ class ExternalCut
 			const Geometry::Vec3D&,
 			const double) const;
 
+  void write(std::ostream&) const;
 };
 
+std::ostream&
+operator<<(std::ostream&,const ExternalCut&);
+  
 }
 
 #endif

@@ -3,7 +3,7 @@
  
  * File:   Main/t1Real.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,46 +39,22 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "surfRegister.h"
-#include "objectRegister.h"
 #include "InputControl.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "inputParam.h"
-#include "Transform.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "surfIndex.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "HeadRule.h"
-#include "Object.h"
 #include "MainProcess.h"
 #include "MainInputs.h"
-#include "SimProcess.h"
 #include "SimInput.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "SimPHITS.h"
-#include "mainJobs.h"
 #include "Volumes.h"
-#include "DefPhysics.h"
 #include "variableSetup.h"
-#include "ImportControl.h"
-#include "World.h"
-#include "SimValid.h"
 
 #include "makeT1Real.h"
 
@@ -88,7 +64,6 @@ MTRand RNG(12345UL);
 namespace ELog 
 {
   ELog::OutputLog<EReport> EM;
-  ELog::OutputLog<FileReport> FM("Spectrum.log");
   ELog::OutputLog<FileReport> RN("Renumber.txt");   ///< Renumber
   ELog::OutputLog<StreamReport> CellM;
 }
@@ -122,8 +97,7 @@ main(int argc,char* argv[])
 
       
       ts1System::makeT1Real T1Obj;
-      World::createOuterObjects(*SimPtr);
-      T1Obj.build(SimPtr,IParam);
+      T1Obj.build(*SimPtr,IParam);
       
       mainSystem::buildFullSimulation(SimPtr,IParam,Oname);
       

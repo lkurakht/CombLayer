@@ -3,7 +3,7 @@
  
  * File:   global/XMLwriteVisitor.cxx
  *
- * Copyright (c) 2004-2015 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,37 +38,24 @@
 #include <memory>
 #include <boost/multi_array.hpp>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "XMLattribute.h"
 #include "XMLobject.h"
 #include "XMLgroup.h"
-#include "XMLread.h"
 #include "XMLgrid.h"
-#include "XMLdatablock.h"
 #include "XMLload.h"
 #include "XMLcollect.h"
-#include "XMLgridSupport.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "GTKreport.h"
 #include "FileReport.h"
 #include "OutputLog.h"
-#include "doubleErr.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
 #include "Triple.h"
-#include "Line.h"
 #include "BaseVisit.h"
 #include "Surface.h"
-#include "surfIndex.h"
 #include "Quadratic.h"
 #include "Quaternion.h"
 #include "ArbPoly.h"
@@ -81,15 +68,13 @@
 #include "Torus.h"
 #include "Line.h"
 #include "surfIndex.h"
-#include "Rules.h"
-#include "Track.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "Zaid.h"
 #include "MXcards.h"
 #include "Material.h"
 #include "Code.h"
-#include "funcList.h"
 #include "FItem.h"
 #include "varList.h"
 #include "FuncDataBase.h"

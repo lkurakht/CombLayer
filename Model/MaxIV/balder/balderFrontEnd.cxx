@@ -34,51 +34,27 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
-#include "Code.h"
-#include "varList.h"
-#include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedGroup.h"
 #include "FixedOffset.h"
 #include "FixedRotate.h"
-#include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
 #include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "CopiedComp.h"
-#include "InnerZone.h"
-#include "World.h"
-#include "AttachSupport.h"
-#include "generateSurf.h"
-#include "ModelSupport.h"
+#include "BlockZone.h"
 
-#include "VacuumPipe.h"
 #include "VacuumBox.h"
 #include "Wiggler.h"
 #include "R3FrontEnd.h"
@@ -119,18 +95,18 @@ balderFrontEnd::createLinks()
     Create a front/back link
    */
 {
-
-  setLinkSignedCopy(0,*wigglerBox,1);
-  setLinkSignedCopy(1,*lastComp,2);
+  ELog::RegMethod RegA("balderFrontEnd","createLinks");
+  
+  setLinkCopy(0,*wigglerBox,1);
+  setLinkCopy(1,*lastComp,2);
   return;
 }
   
 
 const attachSystem::FixedComp&
 balderFrontEnd::buildUndulator(Simulation& System,
-				MonteCarlo::Object* masterCell,
-				const attachSystem::FixedComp& preFC,
-				const long int preSideIndex)
+			       const attachSystem::FixedComp& preFC,
+			       const long int preSideIndex)
   /*!
     Build all the objects relative to the main FC
     point.
@@ -146,21 +122,16 @@ balderFrontEnd::buildUndulator(Simulation& System,
   int outerCell;
 
   wigglerBox->createAll(System,preFC,preSideIndex);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*wigglerBox,2);
-  
+  outerCell=buildZone.createUnit(System,*wigglerBox,2);
+
   wiggler->addInsertCell(wigglerBox->getCell("Void"));
   wiggler->createAll(System,*wigglerBox,0);
 
   
   CellMap::addCell("WiggerOuter",outerCell);
   wigglerBox->insertInCell(System,outerCell);
+  return *wigglerBox;
 
-  dipolePipe->setFront(*wigglerBox,2);
-  dipolePipe->createAll(System,*wigglerBox,2);
-  outerCell=buildZone.createOuterVoidUnit(System,masterCell,*dipolePipe,2);
-  dipolePipe->insertInCell(System,outerCell);
-
-  return *dipolePipe;
 }
 
   

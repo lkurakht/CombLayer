@@ -3,7 +3,7 @@
  
  * File:   t1Build/OpenBlockTarget.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,30 +36,18 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -71,7 +59,9 @@
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
-#include "BeamWindow.h"
+#include "ExternalCut.h"
+#include "BaseMap.h"
+#include "CellMap.h"
 #include "ProtonVoid.h"
 #include "TargetBase.h"
 #include "OpenBlockTarget.h"
@@ -88,7 +78,7 @@ OpenBlockTarget::OpenBlockTarget(const std::string& Key)  :
 {}
 
 OpenBlockTarget::OpenBlockTarget(const OpenBlockTarget& A) : 
-  constructSystem::TargetBase(A),
+  TMRSystem::TargetBase(A),
   frontPlate(A.frontPlate),
   backPlate(A.backPlate),
   height(A.height),width(A.width),
@@ -113,7 +103,7 @@ OpenBlockTarget::operator=(const OpenBlockTarget& A)
 {
   if (this!=&A)
     {
-      constructSystem::TargetBase::operator=(A);
+      TMRSystem::TargetBase::operator=(A);
       frontPlate=A.frontPlate;
       backPlate=A.backPlate;
       height=A.height;
@@ -202,22 +192,6 @@ OpenBlockTarget::populate(const FuncDataBase& Control)
   return;
 }
   
-void
-OpenBlockTarget::createUnitVector(const attachSystem::FixedComp& FC,
-				  const long int indexPt)
-  /*!
-    Create the unit vectors
-    \param FC :: Fixed compontent [front of target void vessel]
-    - Y Down the beamline
-  */
-{
-  ELog::RegMethod RegA("OpenBlockTarget","createUnitVector");
-  attachSystem::FixedComp::createUnitVector(FC,indexPt);
-  applyOffset();
-  
-  return;
-}
-
 void
 OpenBlockTarget::createSurfaces()
   /*!
@@ -461,7 +435,7 @@ OpenBlockTarget::addProtonLine(Simulation& System,
   ELog::RegMethod RegA("OpenBlockTarget","addProtonLine");
 
   // 0 ::  front face of target
-  PLine->createAll(System,*this,0,refFC,index);
+  PLine->createAll(System,*this,0);
   createBeamWindow(System,1);
   System.populateCells();
   System.createObjSurfMap();
@@ -472,18 +446,20 @@ OpenBlockTarget::addProtonLine(Simulation& System,
 
 void
 OpenBlockTarget::createAll(Simulation& System,
-			   const attachSystem::FixedComp& FC)
+			   const attachSystem::FixedComp& FC,
+			   const long int sideIndex)
   /*!
     Global creation of the hutch
     \param System :: Simulation to add vessel to
     \param FC :: Fixed Component to place object within
+    \param sideIndex :: link point
   */
 {
   ELog::RegMethod RegA("OpenBlockTarget","createAll");
 
   populate(System.getDataBase());
 
-  createUnitVector(FC,0);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System);
   createLinks();

@@ -3,7 +3,7 @@
  
  * File:   Main/testMain.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,17 +41,9 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "Debug.h"
-#include "RefControl.h"
-#include "RotCounter.h"
-#include "BnId.h"
-#include "Triple.h"
-#include "mathSupport.h"
-#include "MapSupport.h"
 #include "support.h"
 #include "MatrixBase.h"
 #include "Matrix.h"
@@ -60,18 +52,10 @@
 #include "XMLobject.h"
 #include "XMLgroup.h"
 #include "XMLcollect.h"
-#include "NRange.h"
 #include "Vec3D.h"
 #include "SVD.h"
-#include "Transform.h"
 #include "Surface.h"
-#include "Rules.h"
-#include "RuleBinary.h"
-#include "AcompTools.h"
-#include "Acomp.h"
-#include "Algebra.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "Quadratic.h"
 #include "Cone.h"
 #include "Cylinder.h"
@@ -79,17 +63,9 @@
 #include "EllipticCyl.h"
 #include "surfIndex.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "Convex.h"
 #include "Vert2D.h"
 #include "Convex2D.h"
-#include "NList.h"
-#include "ModeCard.h"
-#include "PhysCard.h"
-#include "LSwitchCard.h"
-#include "PhysImp.h"
-#include "PhysicsCards.h"
-#include "funcList.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -102,7 +78,6 @@
 #include "ContainedComp.h"
 #include "simpleObj.h"
 #include "MainProcess.h"
-#include "MainInputs.h"
 
 #include "testAlgebra.h"
 #include "testAttachSupport.h"
@@ -154,7 +129,6 @@
 #include "testObjTrackItem.h"
 #include "testPairFactory.h"
 #include "testPairItem.h"
-// #include "testPhysics.h"
 #include "testPipeLine.h"
 #include "testPipeUnit.h"
 #include "testPlane.h"
@@ -969,7 +943,6 @@ processTest(const int type,const int extra)
       if (X) return X;
     }
   index++;
-  
   if(type==index || type<0)
     {
       testInputParam A;
@@ -977,7 +950,7 @@ processTest(const int type,const int extra)
       if (X) return X;
     }
   index++;
-  
+
   if(type==index || type<0)
     {
       testLineTrack A;
@@ -985,7 +958,7 @@ processTest(const int type,const int extra)
       if (X) return X;
     }
   index++;
-  
+
   if(type==index || type<0)
     {
       testObjectRegister A;

@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   essBuild/HEIMDAL.cxx
+ * File:   ESSBeam/heimdal/HEIMDAL.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,25 +35,13 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "stringCombine.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -65,42 +53,26 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "World.h"
-#include "AttachSupport.h"
 #include "beamlineSupport.h"
 #include "GuideItem.h"
-#include "Jaws.h"
 #include "GuideLine.h"
 #include "DiskChopper.h"
-#include "VacuumBox.h"
 #include "VacuumPipe.h"
-#include "ChopperHousing.h"
 #include "Bunker.h"
-#include "BunkerInsert.h"
-#include "ChopperPit.h"
 #include "SingleChopper.h"
-#include "Motor.h"
-#include "TwinBase.h"
-#include "TwinChopper.h"
-#include "DetectorTank.h"
-#include "LineShield.h"
-#include "Jaws.h"
-#include "HoleShape.h"
-#include "JawSet.h"
-#include "CylSample.h"
-#include "CrystalMount.h"
-#include "TubeDetBox.h"
-#include "Cryostat.h"
 
 #include "HEIMDAL.h"
 
@@ -110,7 +82,7 @@ namespace essSystem
 HEIMDAL::HEIMDAL(const std::string& keyName) :
   attachSystem::CopiedComp("heimdal",keyName),
   startPoint(0),stopPoint(0),
-  heimdalAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  heimdalAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
 
   FocusTA(new beamlineSystem::GuideLine(newName+"FTA")),
   FocusCA(new beamlineSystem::GuideLine(newName+"FCA")),
@@ -156,8 +128,11 @@ HEIMDAL::HEIMDAL(const std::string& keyName) :
   ModelSupport::objectRegister& OR=
     ModelSupport::objectRegister::Instance();
 
+<<<<<<< HEAD
   // This is necessary as not directly constructed:
   // OR.cell(newName+"Axis");
+=======
+>>>>>>> origin/master
   OR.addObject(heimdalAxis);
 
   OR.addObject(FocusTA);
@@ -218,7 +193,7 @@ HEIMDAL::buildBunkerUnits(Simulation& System,
 
   const Geometry::Vec3D& ZVert(World::masterOrigin().getZ());
 
-  VPipeB->addInsertCell(bunkerVoid);
+  VPipeB->addAllInsertCell(bunkerVoid);
   VPipeB->createAll(System,FTA,thermalIndex);
 
   // Offset from VPipeB center
@@ -232,7 +207,7 @@ HEIMDAL::buildBunkerUnits(Simulation& System,
 	  <<ELog::endDiag;
   ELog::EM<<"Thermal = "<<FocusTB->getKey("Guide0").getLinkAxis(2)
 	  <<ELog::endDiag;
-  VPipeC->addInsertCell(bunkerVoid);
+  VPipeC->addAllInsertCell(bunkerVoid);
   VPipeC->createAll(System,*VPipeB,2);
 
   FocusTC->addInsertCell(VPipeC->getCells("Void"));
@@ -257,13 +232,13 @@ HEIMDAL::buildBunkerUnits(Simulation& System,
   TChopA->insertAxle(System,*ADiskOne);
   TChopA->insertAxle(System,*ADiskTwo);
   
-  VPipeTD->addInsertCell(bunkerVoid);
+  VPipeTD->addAllInsertCell(bunkerVoid);
   VPipeTD->createAll(System,TChopA->getKey("Beam"),2);
 
   FocusTD->addInsertCell(VPipeTD->getCells("Void"));
   FocusTD->createAll(System,*VPipeTD,0,*VPipeTD,0);
 
-  VPipeCD->addInsertCell(bunkerVoid);
+  VPipeCD->addAllInsertCell(bunkerVoid);
   VPipeCD->createAll(System,FocusCC->getKey("Guide0"),2);
 
   // First part of cold guide
@@ -281,7 +256,7 @@ HEIMDAL::buildBunkerUnits(Simulation& System,
   BDisk->createAll(System,TChopB->getKey("Main"),0);
   TChopB->insertAxle(System,*BDisk);
   
-  VPipeTE->addInsertCell(bunkerVoid);
+  VPipeTE->addAllInsertCell(bunkerVoid);
   VPipeTE->createAll(System,TChopB->getKey("Beam"),2);
 
   FocusTE->addInsertCell(VPipeTE->getCells("Void"));
@@ -295,7 +270,7 @@ HEIMDAL::buildBunkerUnits(Simulation& System,
                     ChopperT0->getKey("BuildBeam"),0);
   ChopperT0->insertAxle(System,*T0Disk);
 
-  VPipeTF->addInsertCell(bunkerVoid);
+  VPipeTF->addAllInsertCell(bunkerVoid);
   VPipeTF->createAll(System,ChopperT0->getKey("Beam"),2);
 
   FocusTF->addInsertCell(VPipeTF->getCells("Void"));

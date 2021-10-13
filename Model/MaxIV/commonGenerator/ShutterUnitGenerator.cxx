@@ -3,7 +3,7 @@
  
  * File:   commonBeam/ShutterUnitGenerator.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,17 +35,10 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
@@ -59,7 +52,8 @@ namespace setVariable
 
 ShutterUnitGenerator::ShutterUnitGenerator() :
   height(5.0),width(5.0),
-  thick(5.0),lift(3.0),liftScrewRadius(1.0),
+  thick(5.0),baseLift(-3.0),
+  lift(4.0),liftScrewRadius(1.0),
   threadLength(30.0),
   topInnerRadius(CF100::innerRadius),
   topFlangeRadius(CF100::flangeRadius),
@@ -140,6 +134,19 @@ ShutterUnitGenerator::setTopCF()
 }
 
 void
+ShutterUnitGenerator::setLift(const double BL,const double L)
+  /*!
+    Set the lift parameters
+    \param BL :: base lift
+    \param L :: full lift
+  */
+{
+  baseLift=BL;
+  lift=L;
+  return;
+}
+  
+void
 ShutterUnitGenerator::generateShutter(FuncDataBase& Control,
 				      const std::string& keyName,
 				      const bool upFlag) const
@@ -155,6 +162,7 @@ ShutterUnitGenerator::generateShutter(FuncDataBase& Control,
   Control.addVariable(keyName+"Width",width);
   Control.addVariable(keyName+"Height",height);
   Control.addVariable(keyName+"Thick",thick);
+  Control.addVariable(keyName+"BaseLift",baseLift);
   Control.addVariable(keyName+"Lift",lift);
   Control.addVariable(keyName+"LiftScrewRadius",liftScrewRadius);
   Control.addVariable(keyName+"ThreadLength",threadLength);

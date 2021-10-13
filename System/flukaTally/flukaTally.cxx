@@ -3,7 +3,7 @@
  
  * File:   flukaTally/flukaTally.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,14 +37,10 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "support.h"
+#include "stringCombine.h"
 #include "writeSupport.h"
-#include "mathSupport.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
-#include "Vec3D.h"
 #include "flukaGenParticle.h"
 #include "flukaTally.h"
 
@@ -65,27 +61,40 @@ operator<<(std::ostream& OX,const flukaTally& TX)
   return OX;
 }
 
-flukaTally::flukaTally(const std::string& MK,const int ID)  :
-  keyName(MK),outputUnit(ID)
+std::string
+flukaTally::idForm(const std::string& baseName,const int A)
+  /*!
+    Calculate the id form based on making a unique two digit char
+    \param baseName :: Prename
+    \param A :: index to used
+   */
+{
+  if (A<100) return baseName.substr(0,4)+std::to_string(A);
+
+  return baseName.substr(0,3)+std::to_string(A);
+
+}
+
+  
+flukaTally::flukaTally(const std::string& MK,
+		       const int indexID,
+		       const int outID)  :
+  keyName(idForm(MK,std::abs(indexID))),
+  ID(std::abs(indexID)),
+  outputUnit(outID)
   /*!
     Constructor 
     \param MK :: Keyname
-    \param ID :: flukaTally ID number
-  */
-{}
-
-flukaTally::flukaTally(const int ID)  :
-  outputUnit(ID)
-  /*!
-    Constructor 
-    \param ID :: flukaTally ID number
+    \param indexID :: flukaTally ID number
+    \param outID :: flukaTally fortran tape number
   */
 {}
 
 flukaTally::flukaTally(const flukaTally& A)  :
-  keyName(A.keyName),outputUnit(A.outputUnit),
+  keyName(A.keyName),
+  ID(A.ID),outputUnit(A.outputUnit),
   comments(A.comments),auxParticle(A.auxParticle),
-  doseType(A.doseType)
+  doseType(A.doseType),userName(A.userName)
   /*!
     Copy constructor
     \param A :: flukaTally object to copy
@@ -113,10 +122,12 @@ flukaTally::operator=(const flukaTally& A)
   if (this!=&A)
     {
       keyName=A.keyName;
+      ID=A.ID;
       outputUnit=A.outputUnit;
       comments=A.comments;
       auxParticle=A.auxParticle;
       doseType=A.doseType;
+      userName=A.userName;
     }
   return *this;
 }
@@ -158,6 +169,7 @@ flukaTally::getKeyName() const
   return keyName;
 }
 
+
 void
 flukaTally::setAuxParticles(const std::string& P)
   /*!
@@ -166,6 +178,18 @@ flukaTally::setAuxParticles(const std::string& P)
   */
 {
   auxParticle=P;
+  return;
+}
+
+void
+flukaTally::setAscii()
+  /*!
+    Set the tally to binary
+  */
+{
+  ELog::RegMethod RegA("flukaTally","setAscii");
+
+  outputUnit=std::abs(outputUnit);
   return;
 }
 
@@ -237,13 +261,20 @@ flukaTally::writeAuxScore(std::ostream&) const
 }
 
 void
-flukaTally::write(std::ostream&) const
+flukaTally::write(std::ostream& OX) const
   /*!
     Writes out the flukaTally depending on the 
     fields that have been set.
     \param OX :: Output Stream
   */
 {
+  if (!userName.empty())
+    {
+      std::ostringstream cx;
+      cx<<"USRICALL "<<outputUnit<<" - - - - -  "<<userName;
+      StrFunc::writeFLUKA(cx.str(),OX);
+    }
+
   return;
 }
 

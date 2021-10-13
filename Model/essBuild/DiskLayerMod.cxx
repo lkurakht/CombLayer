@@ -3,7 +3,7 @@
  
  * File:   essBuild/DiskLayerMod.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,26 +34,18 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -61,11 +53,9 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "SurInter.h"
-#include "stringCombine.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedRotate.h"
 #include "LayerComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
@@ -79,7 +69,7 @@ namespace essSystem
 DiskLayerMod::DiskLayerMod(const std::string& Key) :
   attachSystem::ContainedComp(),
   attachSystem::LayerComp(0),
-  attachSystem::FixedComp(Key,9),
+  attachSystem::FixedRotate(Key,9),
   attachSystem::CellMap(),attachSystem::SurfMap()
   /*!
     Constructor
@@ -89,9 +79,9 @@ DiskLayerMod::DiskLayerMod(const std::string& Key) :
 
 DiskLayerMod::DiskLayerMod(const DiskLayerMod& A) : 
   attachSystem::ContainedComp(A),attachSystem::LayerComp(A),
-  attachSystem::FixedComp(A),attachSystem::CellMap(A),
+  attachSystem::FixedRotate(A),attachSystem::CellMap(A),
   attachSystem::SurfMap(A),
-  midIndex(A.midIndex),midZ(A.midZ),zStep(A.zStep),
+  midIndex(A.midIndex),midZ(A.midZ),
   outerRadius(A.outerRadius),thick(A.thick),radius(A.radius),
   mat(A.mat),temp(A.temp)
   /*!
@@ -112,13 +102,12 @@ DiskLayerMod::operator=(const DiskLayerMod& A)
     {
       attachSystem::ContainedComp::operator=(A);
       attachSystem::LayerComp::operator=(A);
-      attachSystem::FixedComp::operator=(A);
+      attachSystem::FixedRotate::operator=(A);
       attachSystem::CellMap::operator=(A);
       attachSystem::SurfMap::operator=(A);
       
       midIndex=A.midIndex;
       midZ=A.midZ;
-      zStep=A.zStep;
       outerRadius=A.outerRadius;
       thick=A.thick;
       radius=A.radius;
@@ -149,20 +138,15 @@ DiskLayerMod::~DiskLayerMod()
   
 
 void
-DiskLayerMod::populate(const FuncDataBase& Control,
-		     const double zShift,
-		     const double outRadius)
-  /*!
+DiskLayerMod::populate(const FuncDataBase& Control)
+ /*!
     Populate all the variables
     \param Control :: Variable table to use
-    \param zShift :: Default offset height a
-    \param outRadius :: Outer radius of reflector [-ve to ignore]
   */
 {
   ELog::RegMethod RegA("DiskLayerMod","populate");
 
-  zStep=Control.EvalDefVar<double>(keyName+"ZStep",zShift);
-  outerRadius=outRadius;
+  FixedRotate::populate(Control);
 
   // clear stuff 
   nLayers=Control.EvalVar<size_t>(keyName+"NLayers");
@@ -176,7 +160,7 @@ DiskLayerMod::populate(const FuncDataBase& Control,
   double T(0.0);
   for(size_t i=0;i<nLayers;i++)
     {
-      const std::string LStr(StrFunc::makeString(i));
+      const std::string LStr(std::to_string(i));
       T+=Control.EvalVar<double>(keyName+"Thick"+LStr);
       thick.push_back(T);
       size_t j(0);
@@ -184,7 +168,7 @@ DiskLayerMod::populate(const FuncDataBase& Control,
       double R(0.0);
       do
         {
-          const std::string RStr(StrFunc::makeString(j));
+          const std::string RStr(std::to_string(j));
           const std::string Num=LStr+"x"+RStr;
           if (Control.hasVariable(keyName+"Radius"+Num))
             {
@@ -207,30 +191,6 @@ DiskLayerMod::populate(const FuncDataBase& Control,
   midIndex=nLayers/2;
   return;
 }
-
-void
-DiskLayerMod::createUnitVector(const attachSystem::FixedComp& refCentre,
-                               const long int sideIndex,const bool zRotate)
-  /*!
-    Create the unit vectors
-    \param refCentre :: Centre for object
-    \param sideIndex :: index for link
-    \param zRotate :: rotate Zaxis
-  */
-{
-  ELog::RegMethod RegA("DiskLayerMod","createUnitVector");
-  attachSystem::FixedComp::createUnitVector(refCentre);
-  Origin=refCentre.getLinkPt(sideIndex);
-  if (zRotate)
-    {
-      X*=-1;
-      Z*=-1;
-    }
-  applyShift(0,0,zStep);
-
-  return;
-}
-
 
 void
 DiskLayerMod::createSurfaces()
@@ -438,7 +398,7 @@ DiskLayerMod::getLayerString(const size_t layerIndex,
   ELog::RegMethod RegA("DiskLayerMod","getLayerString");
 
   std::string Out;
-  Out=" "+StrFunc::makeString(getLayerSurf(layerIndex,sideIndex))+" ";
+  Out=" "+std::to_string(getLayerSurf(layerIndex,sideIndex))+" ";
   if (sideIndex<0)
     {
       HeadRule HR(Out);
@@ -463,26 +423,32 @@ DiskLayerMod::getHeight() const
 }
 
 void
+DiskLayerMod::setLayout(const bool zRotate,
+			const double VOffset,
+			const double ORad)
+{
+  if (zRotate) preYAngle=180.0;
+  zStep=VOffset;
+  outerRadius=ORad;
+  return;
+}
+  
+
+void
 DiskLayerMod::createAll(Simulation& System,
-		      const attachSystem::FixedComp& FC,
-		      const long int sideIndex,
-		      const bool zRotate,
-		      const double VOffset,
-		      const double ORad)
+			const attachSystem::FixedComp& FC,
+			const long int sideIndex)
   /*!
     Extrenal build everything
     \param System :: Simulation
     \param FC :: Attachment point	       
     \param sideIndex :: side of object
-    \param zRotate :: Rotate to -ve Z
-    \param VOffset :: Vertical offset from target
-    \param ORad :: Outer radius of zone
    */
 {
   ELog::RegMethod RegA("DiskLayerMod","createAll");
 
-  populate(System.getDataBase(),VOffset,ORad);
-  createUnitVector(FC,sideIndex,zRotate);
+  populate(System.getDataBase());
+  FixedRotate::createUnitVector(FC,sideIndex,0);
 
   createSurfaces();
   createObjects(System);

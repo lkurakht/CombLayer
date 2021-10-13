@@ -3,7 +3,7 @@
  
  * File:   geometry/SurInter.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,25 +38,17 @@
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "support.h"
-#include "mathSupport.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
 #include "PolyFunction.h"
 #include "PolyVar.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "solveValues.h"
-#include "vecOrder.h"
-#include "Transform.h"
 #include "Surface.h"
 #include "Quadratic.h"
 #include "Plane.h"
 #include "Sphere.h"
 #include "Cylinder.h"
-#include "Cone.h"
-#include "General.h"
 #include "Line.h"
 #include "Intersect.h"
 #include "Pnt.h"
@@ -65,14 +57,60 @@
 #include "Circle.h"
 #include "Ellipse.h"
 #include "HeadRule.h"
+#include "surfIndex.h"
 #include "LineIntersectVisit.h"
 #include "SurInter.h"
 
-#include "Debug.h"
 
 namespace SurInter
 {
 
+Geometry::Vec3D
+getLinePoint(const Geometry::Vec3D& Origin,
+	     const Geometry::Vec3D& LAxis,
+	     const int SNum,
+	     const Geometry::Vec3D& closePt)
+  /*!
+    Calculate the intersection object between two planes
+    \param Origin :: Start of line
+    \param LAxis :: Axis of line
+    \param SNum :: Surface number
+    \param closePt :: Point to determine closest solution
+    \return Line/Surf intersection
+  */
+{
+  ELog::RegMethod RegA("SurInter[F]","lineSurfPoint(int,close)");
+
+  ModelSupport::surfIndex& SurI=
+    ModelSupport::surfIndex::Instance();
+  const Geometry::Surface* SPtr=SurI.getSurf(SNum);
+  return getLinePoint(Origin,LAxis,SPtr,closePt);
+}
+
+Geometry::Vec3D
+getLinePoint(const Geometry::Vec3D& Origin,
+	     const Geometry::Vec3D& LAxis,
+	     const int SNum)
+  /*!
+    Calculate the intersection object between two planes
+    \param Origin :: Start of line
+    \param LAxis :: Axis of line
+    \param SNum :: Surface number
+    \return Line/Surf intersection
+  */
+{
+  ELog::RegMethod RegA("SurInter[F]","lineSurfPoint(int)");
+
+  ModelSupport::surfIndex& SurI=
+    ModelSupport::surfIndex::Instance();
+  // must be a plane to get one point
+  const Geometry::Plane* PPtr=SurI.realSurf<Geometry::Plane>(SNum);
+  if (!PPtr)
+    throw ColErr::InContainerError<int>(SNum,"Plane Surface");
+  return getLinePoint(Origin,LAxis,PPtr);
+}
+
+  
 Geometry::Vec3D
 getLinePoint(const Geometry::Vec3D& Origin,const Geometry::Vec3D& N,
 	     const HeadRule& mainHR,const HeadRule& sndHR)
@@ -91,9 +129,8 @@ getLinePoint(const Geometry::Vec3D& Origin,const Geometry::Vec3D& N,
   std::vector<int> SNum;
 
   mainHR.calcSurfIntersection(Origin,N,Pts,SNum);
-
   std::vector<Geometry::Vec3D> out;
-
+  
   if (sndHR.hasRule())
     {
       for(const Geometry::Vec3D& Pt : Pts)
@@ -106,7 +143,7 @@ getLinePoint(const Geometry::Vec3D& Origin,const Geometry::Vec3D& N,
     out=Pts;
   
   if (out.size()!=1)
-    throw ColErr::SizeError<size_t>(out.size(),1,"Out points not singular");
+    throw ColErr::MisMatch<size_t>(out.size(),1,"Out points not singular");
 
   return out.front();
 }
@@ -146,6 +183,47 @@ getLinePoint(const Geometry::Vec3D& Origin,
 {
   MonteCarlo::LineIntersectVisit trackLine(Origin,Axis);
   return trackLine.getPoint(SPtr,NPoint);
+}
+
+double
+getLineDistance(const Geometry::Vec3D& Origin,
+             const Geometry::Vec3D& Axis,
+	     const Geometry::Plane* PPtr)
+  /*!
+    Calculate the line though a plane
+    This is a specialization of getLinePoint because
+    a plane will only have one (at most) intersection points
+
+    \param Origin :: Origin of the line
+    \param Axis :: axis direction
+    \param PPtr :: plane object
+    \return Distance between Origin and intersect
+  */
+{
+  MonteCarlo::LineIntersectVisit trackLine(Origin,Axis);
+  return trackLine.getDist(PPtr);
+}
+
+double
+getLineDistance(const Geometry::Vec3D& Origin,
+             const Geometry::Vec3D& Axis,
+	     const Geometry::Surface* SPtr,
+             const Geometry::Vec3D& NPoint)
+  /*!
+    Calculate the line though a surface
+    \param Origin :: Origin of the line
+    \param Axis :: axis direction
+    \param SPtr :: surface point
+    \param NPoint :: nearest point
+    \return Distance to point
+  */
+{
+  MonteCarlo::LineIntersectVisit trackLine(Origin,Axis);
+  Geometry::Vec3D Pt=trackLine.getPoint(SPtr,NPoint);
+  const double R=Pt.Distance(Origin);
+  // calc direction
+  Pt-=Origin;
+  return (Pt.dotProd(Axis)>0.0) ? R : -R;
 }
 
    
@@ -668,7 +746,6 @@ nearPoint(const std::vector<Geometry::Vec3D>& Pts,
     return Pts.front();
 
   double Dist(1e38);
-  std::vector<Geometry::Vec3D>::const_iterator vc,mVal;
   Geometry::Vec3D Out;
   for(const Geometry::Vec3D& Pt : Pts)
     {
@@ -720,22 +797,26 @@ interceptRuleConst(const HeadRule& HR,
     \param HR :: HeadRule
     \param Origin :: Origin of line
     \param N :: Direction of the line
-    \return pair of position and surface.
+    \return pair of position and surface sign.
   */
 {
   ELog::RegMethod RegA("SurInter[F]","interceptRuleConst");
 
-  // Calc bunker edge intersectoin
-  std::vector<Geometry::Vec3D> Pts;
-  std::vector<int> SNum;
+  MonteCarlo::LineIntersectVisit LI(Origin,N);
+  const std::vector<Geometry::Vec3D> Pts=
+    LI.getPoints(HR);
 
-  HR.calcSurfIntersection(Origin,N,Pts,SNum);
   if (Pts.empty())
     return std::pair<Geometry::Vec3D,int>(Origin,0);
-  
-  const size_t indexA=SurInter::closestPt(Pts,Origin);
-  return std::pair<Geometry::Vec3D,int>(Pts[indexA],SNum[indexA]); 
 
+  const size_t indexA=SurInter::closestPt(Pts,Origin);
+  const std::vector<const Geometry::Surface*>& SVec=
+    LI.getSurfIndex();
+
+  return(SVec[indexA]->side(Origin)>=0) ?
+    std::pair<Geometry::Vec3D,int>(Pts[indexA],-SVec[indexA]->getName()) :
+      std::pair<Geometry::Vec3D,int>(Pts[indexA],SVec[indexA]->getName());
+      
 }
 
 std::pair<Geometry::Vec3D,int>

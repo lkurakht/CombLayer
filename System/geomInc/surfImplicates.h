@@ -3,7 +3,7 @@
  
  * File:   geomInc/surfImplicates.h
 *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,6 +66,8 @@ class surfImplicates
 				   const Geometry::Surface*) const;
   std::pair<int,int> cylinderPlane(const Geometry::Surface*,
 				   const Geometry::Surface*) const;
+  std::pair<int,int> cylinderCylinder(const Geometry::Surface*,
+				      const Geometry::Surface*) const;
   
   
  public:

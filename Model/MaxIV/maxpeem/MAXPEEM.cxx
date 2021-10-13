@@ -3,7 +3,7 @@
  
  * File: maxpeem/MAXPEEM.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,79 +34,51 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
-#include "Code.h"
-#include "varList.h"
-#include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
-#include "FrontBackCut.h"
-#include "InnerZone.h"
-#include "CopiedComp.h"
+#include "PointMap.h"
 #include "ExternalCut.h"
-#include "World.h"
-#include "AttachSupport.h"
+#include "FrontBackCut.h"
+#include "BlockZone.h"
+#include "CopiedComp.h"
 
 #include "VacuumPipe.h"
-#include "SplitFlangePipe.h"
-#include "Bellows.h"
-#include "LeadPipe.h"
-#include "VacuumBox.h"
-#include "portItem.h"
-#include "PipeTube.h"
-#include "PortTube.h"
 
 #include "R1Ring.h"
 #include "R1FrontEnd.h"
 #include "maxpeemFrontEnd.h"
 #include "maxpeemOpticsHut.h"
-#include "maxpeemOpticsBeamline.h"
-#include "ExperimentalHutch.h"
-#include "GateValve.h"
-#include "FlangeMount.h"
+#include "maxpeemOpticsLine.h"
 #include "WallLead.h"
 
-
+#include "R1Beamline.h"
 #include "MAXPEEM.h"
 
 namespace xraySystem
 {
 
 MAXPEEM::MAXPEEM(const std::string& KN) :
-  attachSystem::CopiedComp("Maxpeem",KN),
+  R1Beamline("Maxpeem",KN),
   frontBeam(new maxpeemFrontEnd(newName+"FrontBeam")),
   wallLead(new WallLead(newName+"WallLead")),
   opticsHut(new maxpeemOpticsHut(newName+"OpticsHut")),
   joinPipe(new constructSystem::VacuumPipe(newName+"JoinPipe")),
-  opticsBeam(new maxpeemOpticsBeamline(newName+"OpticsBeam"))
+  opticsBeam(new maxpeemOpticsLine(newName+"OpticsBeam"))
   /*!
     Constructor
     \param KN :: Keyname
@@ -136,36 +108,47 @@ MAXPEEM::build(Simulation& System,
     \param System :: Simulation system
     \param FCOrigin :: Start origin
     \param sideIndex :: link point for origin
-   */
+  */
 {
-  // For output stream
   ELog::RegMethod RControl("MAXPEEM","build");
-
-  const int voidCell(74123);
 
   const size_t PIndex=static_cast<size_t>(sideIndex-2);
   const size_t SIndex=(PIndex+1) % r1Ring->nConcave();
   const size_t OIndex=(sideIndex+1) % r1Ring->getNCells("OuterSegment");
 
-  frontBeam->addInsertCell(r1Ring->getCell("Void"));
+  frontBeam->setStopPoint(stopPoint);
+  frontBeam->setCutSurf("Floor",r1Ring->getSurf("Floor"));
+  frontBeam->setCutSurf("Roof",-r1Ring->getSurf("Roof"));
+  frontBeam->setCutSurf("REWall",r1Ring->getSurf("BeamInner",SIndex));
+  
+  frontBeam->addInsertCell(r1Ring->getCell("Void",8));
+  frontBeam->addInsertCell(r1Ring->getCell("Void",9));
+  frontBeam->addInsertMagnetCell(r1Ring->getCell("Void",8));
+  frontBeam->addInsertMagnetCell(r1Ring->getCell("Void",9));
   frontBeam->addInsertCell(r1Ring->getCell("VoidTriangle",PIndex));
-
-  frontBeam->setBack(r1Ring->getSurf("BeamInner",SIndex));
+  
   frontBeam->createAll(System,FCOrigin,sideIndex);
-
+  
   wallLead->addInsertCell(r1Ring->getCell("FrontWall",SIndex));
   wallLead->setFront(-r1Ring->getSurf("BeamInner",SIndex));
   wallLead->setBack(r1Ring->getSurf("BeamOuter",SIndex));
   wallLead->createAll(System,FCOrigin,sideIndex);
+
+  if (!stopPoint.empty())
+    ELog::EM<<"Stop Point == "<<stopPoint<<ELog::endDiag;
+  if (stopPoint=="frontEnd" ||
+      stopPoint=="Dipole" ||
+      stopPoint=="Quadrupole") return;
 
   opticsHut->setCutSurf("Floor",r1Ring->getSurf("Floor"));
   opticsHut->setCutSurf("RingWall",-r1Ring->getSurf("BeamOuter",SIndex));
   opticsHut->addInsertCell(r1Ring->getCell("OuterSegment",OIndex));
   opticsHut->createAll(System,*wallLead,2);
 
-  joinPipe->addInsertCell(frontBeam->getCell("MasterVoid"));
-  joinPipe->addInsertCell(wallLead->getCell("Void"));
-  joinPipe->addInsertCell(opticsHut->getCell("InletHole"));
+
+  joinPipe->addAllInsertCell(frontBeam->getCell("MasterVoid"));
+  joinPipe->addInsertCell("Main",wallLead->getCell("Void"));
+  joinPipe->addAllInsertCell(opticsHut->getCell("InletHole"));
   joinPipe->createAll(System,*frontBeam,2);
 
   opticsBeam->addInsertCell(opticsHut->getCell("Void"));
@@ -173,17 +156,15 @@ MAXPEEM::build(Simulation& System,
 			 opticsHut->getSideIndex("innerFront"));
   opticsBeam->setCutSurf("back",*opticsHut,
 			 opticsHut->getSideIndex("innerBack"));
-  opticsBeam->setCutSurf("floor",r1Ring->getSurf("Floor"));
-  opticsBeam->createAll(System,*joinPipe,2);
+  opticsBeam->setCutSurf("floor",r1Ring->getSurfRule("Floor"));
+  opticsBeam->setCutSurf("roof",r1Ring->getSurfRule("#Roof"));
+  opticsBeam->setPreInsert(joinPipe);
+  opticsBeam->createAll(System,*joinPipe,"back");
 
-  joinPipe->insertInCell(System,opticsBeam->getCell("OuterVoid",0));
+  opticsBeam->buildExtras(System,*opticsHut);
 
-  std::vector<int> cells(opticsHut->getCells("Back"));
-  cells.emplace_back(opticsHut->getCell("Extension"));
-  opticsBeam->buildOutGoingPipes(System,opticsBeam->getCell("LeftVoid"),
-  				 opticsBeam->getCell("RightVoid"),
-  				 cells);
-  
+
+
   return;
 }
 

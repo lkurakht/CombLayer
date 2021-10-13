@@ -3,7 +3,7 @@
  
  * File:   source/DSTerm.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,20 +32,10 @@
 #include <numeric>
 #include <boost/format.hpp>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
-#include "NameStack.h"
-#include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
 #include "writeSupport.h"
 //#include "mathSupport.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
-#include "Vec3D.h"
 #include "SrcData.h"
 #include "DSTerm.h"
 
@@ -335,11 +325,11 @@ DSIndex::addData(const size_t I,const SrcInfo* SI,
   */
 {
   PMesh.push_back(SrcData(I));
-  if (SI)
+  if (SI != nullptr)
     PMesh.back().addUnit(*SI);
-  if (SB)
+  if (SB != nullptr)
     PMesh.back().addUnit(*SB);
-  if (SP)
+  if (SP != nullptr)
     PMesh.back().addUnit(*SP);
   
   return;

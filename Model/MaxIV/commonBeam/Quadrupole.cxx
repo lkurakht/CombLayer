@@ -3,7 +3,7 @@
  
  * File:   commonBeam/Quadrupole.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,37 +33,18 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "surfDIter.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
-#include "SurInter.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
-#include "SimProcess.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -72,7 +53,6 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"  
 #include "FixedComp.h"
-#include "FixedOffset.h"
 #include "FixedRotate.h"
 #include "ContainedComp.h"
 #include "ExternalCut.h" 
@@ -90,6 +70,7 @@ Quadrupole::Quadrupole(const std::string& Key) :
   attachSystem::ContainedComp(),
   attachSystem::ExternalCut(),
   attachSystem::CellMap(),
+  attachSystem::SurfMap(),
   baseName(Key)
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -103,6 +84,7 @@ Quadrupole::Quadrupole(const std::string& Base,
   attachSystem::ContainedComp(),
   attachSystem::ExternalCut(),
   attachSystem::CellMap(),
+  attachSystem::SurfMap(),
   baseName(Base)
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -110,6 +92,61 @@ Quadrupole::Quadrupole(const std::string& Base,
     \param Key :: KeyName
   */
 {}
+
+Quadrupole::Quadrupole(const Quadrupole& A) : 
+  attachSystem::FixedRotate(A),attachSystem::ContainedComp(A),
+  attachSystem::ExternalCut(A),attachSystem::CellMap(A),
+  attachSystem::SurfMap(A),
+  baseName(A.baseName),vertGap(A.vertGap),length(A.length),
+  width(A.width),height(A.height),coilLength(A.coilLength),
+  coilCornerRad(A.coilCornerRad),coilWidth(A.coilWidth),
+  frameThick(A.frameThick),poleLength(A.poleLength),
+  poleRadius(A.poleRadius),poleZStep(A.poleZStep),
+  poleYAngle(A.poleYAngle),poleStep(A.poleStep),
+  poleWidth(A.poleWidth),poleMat(A.poleMat),coreMat(A.coreMat),
+  coilMat(A.coilMat),frameMat(A.frameMat)
+  /*!
+    Copy constructor
+    \param A :: Quadrupole to copy
+  */
+{}
+
+Quadrupole&
+Quadrupole::operator=(const Quadrupole& A)
+  /*!
+    Assignment operator
+    \param A :: Quadrupole to copy
+    \return *this
+  */
+{
+  if (this!=&A)
+    {
+      attachSystem::FixedRotate::operator=(A);
+      attachSystem::ContainedComp::operator=(A);
+      attachSystem::ExternalCut::operator=(A);
+      attachSystem::CellMap::operator=(A);
+      attachSystem::SurfMap::operator=(A);
+      vertGap=A.vertGap;
+      length=A.length;
+      width=A.width;
+      height=A.height;
+      coilLength=A.coilLength;
+      coilCornerRad=A.coilCornerRad;
+      coilWidth=A.coilWidth;
+      frameThick=A.frameThick;
+      poleLength=A.poleLength;
+      poleRadius=A.poleRadius;
+      poleZStep=A.poleZStep;
+      poleYAngle=A.poleYAngle;
+      poleStep=A.poleStep;
+      poleWidth=A.poleWidth;
+      poleMat=A.poleMat;
+      coreMat=A.coreMat;
+      coilMat=A.coilMat;
+      frameMat=A.frameMat;
+    }
+  return *this;
+}
 
 
 Quadrupole::~Quadrupole() 
@@ -131,22 +168,22 @@ Quadrupole::populate(const FuncDataBase& Control)
   
   vertGap=Control.EvalVar<double>(keyName+"VertGap");
 
-  length=Control.EvalPair<double>(keyName,baseName,"Length");
-  height=Control.EvalPair<double>(keyName,baseName,"Height");
-  width=Control.EvalPair<double>(keyName,baseName,"Width");
+  length=Control.EvalTail<double>(keyName,baseName,"Length");
+  height=Control.EvalTail<double>(keyName,baseName,"Height");
+  width=Control.EvalTail<double>(keyName,baseName,"Width");
 
-  coilLength=Control.EvalPair<double>(keyName,baseName,"CoilLength");
-  coilCornerRad=Control.EvalPair<double>(keyName,baseName,"CoilCornerRad");
-  coilWidth=Control.EvalPair<double>(keyName,baseName,"CoilWidth");
+  coilLength=Control.EvalTail<double>(keyName,baseName,"CoilLength");
+  coilCornerRad=Control.EvalTail<double>(keyName,baseName,"CoilCornerRad");
+  coilWidth=Control.EvalTail<double>(keyName,baseName,"CoilWidth");
 
-  frameThick=Control.EvalPair<double>(keyName,baseName,"FrameThick");
+  frameThick=Control.EvalTail<double>(keyName,baseName,"FrameThick");
   
-  poleLength=Control.EvalPair<double>(keyName,baseName,"PoleLength");
-  poleRadius=Control.EvalPair<double>(keyName,baseName,"PoleRadius");
-  poleZStep=Control.EvalPair<double>(keyName,baseName,"PoleZStep");
-  poleYAngle=Control.EvalPair<double>(keyName,baseName,"PoleYAngle");
-  poleStep=Control.EvalPair<double>(keyName,baseName,"PoleStep");
-  poleWidth=Control.EvalPair<double>(keyName,baseName,"PoleWidth");
+  poleLength=Control.EvalTail<double>(keyName,baseName,"PoleLength");
+  poleRadius=Control.EvalTail<double>(keyName,baseName,"PoleRadius");
+  poleZStep=Control.EvalTail<double>(keyName,baseName,"PoleZStep");
+  poleYAngle=Control.EvalTail<double>(keyName,baseName,"PoleYAngle");
+  poleStep=Control.EvalTail<double>(keyName,baseName,"PoleStep");
+  poleWidth=Control.EvalTail<double>(keyName,baseName,"PoleWidth");
   
   poleMat=ModelSupport::EvalMat<int>(Control,keyName+"PoleMat",
 				       baseName+"PoleMat");
@@ -185,8 +222,8 @@ Quadrupole::createSurfaces()
   ELog::RegMethod RegA("Quadrupole","createSurface");
 
   // mid line
-  ModelSupport::buildPlane(SMap,buildIndex+1000,Origin,X);
-  ModelSupport::buildPlane(SMap,buildIndex+2000,Origin,Z);
+  ModelSupport::buildPlane(SMap,buildIndex+1000,Origin+X*0.01,X);
+  ModelSupport::buildPlane(SMap,buildIndex+2000,Origin+Z*0.01,Z);
   
   ModelSupport::buildPlane(SMap,buildIndex+1,Origin-Y*(length/2.0),Y);
   ModelSupport::buildPlane(SMap,buildIndex+2,Origin+Y*(length/2.0),Y);
@@ -259,8 +296,10 @@ Quadrupole::createSurfaces()
 		    sqrt(poleRadius*poleRadius-poleWidth*poleWidth/4.0));
 	  
   ModelSupport::buildPlane(SMap,buildIndex+201,Origin-Y*(poleLength/2.0),Y);
+  addSurf("FrontQuadPole",SMap.realSurf(buildIndex+201));
   ModelSupport::buildPlane(SMap,buildIndex+202,Origin+Y*(poleLength/2.0),Y);
-
+  addSurf("BackQuadPole",-SMap.realSurf(buildIndex+202));
+  
   int CI(buildIndex+200);
   for(size_t i=0;i<2;i++)
     {
@@ -369,44 +408,51 @@ Quadrupole::createObjects(Simulation& System)
   makeCell("REdge",System,cellIndex++,0,0.0,Out);
 
   // Pole Pieces
+  const std::string ICell=      
+    (isActive("Inner")) ? getRuleStr("Inner") : "";
   
   Out=ModelSupport::getComposite(SMap,buildIndex,
 				 "105 201 -202 203 -204 (206:-207) ");
   makeCell("Pole",System,cellIndex++,poleMat,0.0,Out);
-  Out=ModelSupport::getComposite(SMap,buildIndex,
-				 "105 -2000 201 -202 1000 -104  (-203:204:(-206  207) )");
-  makeCell("VoidPoleA",System,cellIndex++,0,0.0,Out);
+  
+  Out=ModelSupport::getComposite
+    (SMap,buildIndex,"105 -2000 201 -202 1000 -104  (-203:204:(-206  207) )");
+  makeCell("VoidPoleA",System,cellIndex++,0,0.0,Out+ICell);
   
   Out=ModelSupport::getComposite(SMap,buildIndex,
 				 "105 201 -202 303 -304 (306:-307) ");
   makeCell("Pole",System,cellIndex++,poleMat,0.0,Out);
-  Out=ModelSupport::getComposite(SMap,buildIndex,
-				 "105 -2000 201 -202 -1000 103  (-303:304:(-306  307) )");
-  makeCell("VoidPoleB",System,cellIndex++,0,0.0,Out);
+  Out=ModelSupport::getComposite
+    (SMap,buildIndex,"105 -2000 201 -202 -1000 103  (-303:304:(-306  307) )");
+  makeCell("VoidPoleB",System,cellIndex++,0,0.0,Out+ICell);
 
   Out=ModelSupport::getComposite(SMap,buildIndex,
 				 "-106 201 -202 403 -404 (406:-407) ");
   makeCell("Pole",System,cellIndex++,poleMat,0.0,Out);
-  Out=ModelSupport::getComposite(SMap,buildIndex,
-				 "-106 2000 201 -202 1000 -104  (-403:404:(-406  407) )");
-  makeCell("VoidPoleC",System,cellIndex++,0,0.0,Out);
   
+  Out=ModelSupport::getComposite
+    (SMap,buildIndex,"-106 2000 201 -202 1000 -104  (-403:404:(-406  407) )");
+  makeCell("VoidPoleC",System,cellIndex++,0,0.0,Out+ICell);
+
   Out=ModelSupport::getComposite(SMap,buildIndex,
 				 "-106 201 -202 503 -504 (506:-507) ");
   makeCell("Pole",System,cellIndex++,poleMat,0.0,Out);
-  Out=ModelSupport::getComposite(SMap,buildIndex,
-				 "-106 2000 201 -202 -1000 103  (-503:504:(-506  507) )");
-  makeCell("VoidPoleD",System,cellIndex++,0,0.0,Out);
 
+  Out=ModelSupport::getComposite
+    (SMap,buildIndex,"-106 2000 201 -202 -1000 103  (-503:504:(-506  507) )");
+
+  makeCell("VoidPoleD",System,cellIndex++,0,0.0,Out+ICell);
+    
   if (poleLength<coilLength-Geometry::zeroTol)
     {
       Out=ModelSupport::getComposite
 	(SMap,buildIndex,"105 -106 202 -102 103 -104 ");
-      makeCell("ExtraPoleVoidA",System,cellIndex++,0,0.0,Out);
+      makeCell("ExtraPoleVoidA",System,cellIndex++,0,0.0,Out+ICell);
       Out=ModelSupport::getComposite
 	(SMap,buildIndex,"105 -106 101 -201 103 -104 ");
-      makeCell("ExtraPoleVoidB",System,cellIndex++,0,0.0,Out);
+      makeCell("ExtraPoleVoidB",System,cellIndex++,0,0.0,Out+ICell);
     }
+
   Out=ModelSupport::getComposite(SMap,buildIndex,"101 -102 13 -14 15 -16");  
   addOuterSurf(Out);      
 
@@ -421,15 +467,15 @@ Quadrupole::createLinks()
 {
   ELog::RegMethod RegA("Quadrupole","createLinks");
 
-  FixedComp::setConnect(0,Origin-Y*(length/2.0),-Y);     
-  FixedComp::setConnect(1,Origin+Y*(length/2.0),Y);     
+  FixedComp::setConnect(0,Origin-Y*(coilLength/2.0),-Y);     
+  FixedComp::setConnect(1,Origin+Y*(coilLength/2.0),Y);     
   FixedComp::setConnect(2,Origin-X*(width/2.0),-X);     
   FixedComp::setConnect(3,Origin+X*(width/2.0),X);     
   FixedComp::setConnect(4,Origin-Z*(height/2.0),-Z);     
   FixedComp::setConnect(5,Origin+Z*(height/2.0),Z);     
 
-  FixedComp::setLinkSurf(0,-SMap.realSurf(buildIndex+1));
-  FixedComp::setLinkSurf(1,SMap.realSurf(buildIndex+2));
+  FixedComp::setLinkSurf(0,-SMap.realSurf(buildIndex+101));
+  FixedComp::setLinkSurf(1,SMap.realSurf(buildIndex+102));
   FixedComp::setLinkSurf(2,-SMap.realSurf(buildIndex+3));
   FixedComp::setLinkSurf(3,SMap.realSurf(buildIndex+4));
   FixedComp::setLinkSurf(4,-SMap.realSurf(buildIndex+5));
@@ -437,7 +483,6 @@ Quadrupole::createLinks()
   
   return;
 }
-
 
 void
 Quadrupole::createAll(Simulation& System,
@@ -462,4 +507,4 @@ Quadrupole::createAll(Simulation& System,
   return;
 }
   
-}  // NAMESPACE epbSystem
+}  // NAMESPACE xraySystem

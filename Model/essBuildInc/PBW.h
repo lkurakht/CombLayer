@@ -3,7 +3,7 @@
 
  * File:   essBuildInc/PBW.h
  *
- * Copyright (c) 2017-2018 by Konstantin Batkov
+ * Copyright (c) 2017-2019 by Konstantin Batkov
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ namespace essSystem
 
 
 class PBW : public attachSystem::ContainedComp,
-  public attachSystem::FixedOffset
+  public attachSystem::FixedOffsetUnit
 {
  private:
 
@@ -87,8 +87,6 @@ class PBW : public attachSystem::ContainedComp,
   std::shared_ptr<TelescopicPipe> shield; ///< Shielding
 
   void populate(const FuncDataBase&);
-  void createUnitVector(const attachSystem::FixedComp&,const long int&);
-
   void createSurfaces();
   void createLinks();
   void createObjects(Simulation&);

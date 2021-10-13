@@ -1,9 +1,9 @@
-/********************************************************************* 
+/***************************************************************************** 
   CombLayer : MCNP(X) Input builder
  
  * File:   t1Build/t1Reflector.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,36 +34,17 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDivide.h"
-#include "surfDIter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -85,8 +66,8 @@ namespace ts1System
 {
 
 t1Reflector::t1Reflector(const std::string& Key)  :
-  attachSystem::ContainedComp(),attachSystem::FixedComp(Key,11),
-  populated(0)
+  attachSystem::ContainedComp(),
+  attachSystem::FixedOffset(Key,11)
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Name for item in search
@@ -94,10 +75,8 @@ t1Reflector::t1Reflector(const std::string& Key)  :
 {}
 
 t1Reflector::t1Reflector(const t1Reflector& A) : 
-  attachSystem::ContainedComp(A),attachSystem::FixedComp(A),
-  populated(A.populated),
-  xStep(A.xStep),yStep(A.yStep),zStep(A.zStep),
-  xyAngle(A.xyAngle),xSize(A.xSize),ySize(A.ySize),
+  attachSystem::ContainedComp(A),attachSystem::FixedOffset(A),
+  xSize(A.xSize),ySize(A.ySize),
   ySizeColdCut(A.ySizeColdCut),zSize(A.zSize),cutLen(A.cutLen),
   defMat(A.defMat),Boxes(A.Boxes),Rods(A.Rods),
   Plates(A.Plates),baseZCut(A.baseZCut)
@@ -118,12 +97,7 @@ t1Reflector::operator=(const t1Reflector& A)
   if (this!=&A)
     {
       attachSystem::ContainedComp::operator=(A);
-      attachSystem::FixedComp::operator=(A);
-      populated=A.populated;
-      xStep=A.xStep;
-      yStep=A.yStep;
-      zStep=A.zStep;
-      xyAngle=A.xyAngle;
+      attachSystem::FixedOffset::operator=(A);
       xSize=A.xSize;
       ySize=A.ySize;
       ySizeColdCut=A.ySizeColdCut;
@@ -145,21 +119,15 @@ t1Reflector::~t1Reflector()
 {}
 
 void
-t1Reflector::populate(const Simulation& System)
+t1Reflector::populate(const FuncDataBase& Control)
  /*!
    Populate all the variables
-   \param System :: Simulation to use
+   \param Control :: Database to use
  */
 {
   ELog::RegMethod RegA("t1Reflector","populate");
-  
-  const FuncDataBase& Control=System.getDataBase();
 
-  // Master values
-  xStep=Control.EvalVar<double>(keyName+"XStep");
-  yStep=Control.EvalVar<double>(keyName+"YStep");
-  zStep=Control.EvalVar<double>(keyName+"ZStep");
-  xyAngle=Control.EvalVar<double>(keyName+"XYAngle");
+  FixedOffset::populate(Control);
 
   xSize=Control.EvalVar<double>(keyName+"XSize");
   ySize=Control.EvalVar<double>(keyName+"YSize");
@@ -173,24 +141,9 @@ t1Reflector::populate(const Simulation& System)
   // Box information
   baseZCut=Control.EvalVar<double>(keyName+"BaseZCut");
 
-  populated |= 1;
   return;
 }
   
-void
-t1Reflector::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    - Y Down the beamline
-    \param LC :: Linked object
-  */
-{
-  ELog::RegMethod RegA("t1Reflector","createUnitVector");
-  attachSystem::FixedComp::createUnitVector(FC);
-  applyShift(xStep,yStep,zStep);
-  applyAngleRotate(xyAngle,0);
-  return;
-}
 
 void
 t1Reflector::createSurfaces()
@@ -325,7 +278,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[0]->addSurface(Origin,Geometry::Vec3D(-1,0,0));  // base
   //  Boxes[0]->maskSection(5);
   //  Boxes[0]->addInsertCell(buildIndex+1);
-  Boxes[0]->createAll(System,*this);
+  Boxes[0]->createAll(System,*this,0);
 
   
   // ---------------- RIGHT BASE --------------------------------
@@ -334,7 +287,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
      (new constructSystem::LWInner("RBoxRBase")));
   Boxes[1]->addSurface(*this,"-9 -1 -8 -7 -6 -5"); 
   Boxes[1]->addSurface(*Boxes[0],"-7 8"); 
-  Boxes[1]->createAll(System,*this);
+  Boxes[1]->createAll(System,*this,0);
 
   // ---------------- WATER CORNER --------------------------------
   Boxes.push_back
@@ -351,7 +304,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
 //  Boxes[2]->addSurface(Origin+Z*7.10,Geometry::Vec3D(0,0,1));  //
   Boxes[2]->addSurface(Origin+Z*7.975,Geometry::Vec3D(0,0,1));  //                
   Boxes[2]->addSurface(OGrp,"WatNorthFlight",-6);  // roof
-  Boxes[2]->createAll(System,*this);
+  Boxes[2]->createAll(System,*this,0);
 
   // ---------------- Merlin CORNER --------------------------------
   Boxes.push_back
@@ -368,7 +321,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[3]->addExcludeObj(System,"MerlinFlight","outer");
   Boxes[3]->addExcludeObj(System,TName);
 
-  Boxes[3]->createAll(System,*this);
+  Boxes[3]->createAll(System,*this,0);
 
   // ---------------- Methane CORNER --------------------------------
   Boxes.push_back
@@ -384,7 +337,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[4]->addSurface(Origin-Z*(zStep*2.0),Geometry::Vec3D(0,0,-1));
   Boxes[4]->addExcludeObj(System,TName);
   Boxes[4]->addExcludeObj(System,"ProtonVoid");    
-  Boxes[4]->createAll(System,*this);
+  Boxes[4]->createAll(System,*this,0);
   
 
   // ---------------- LH2 CORNER --------------------------------
@@ -404,7 +357,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[5]->addExcludeObj(System,"H2Flight","outer");
   Boxes[5]->addExcludeObj(System,TName);
 
-  Boxes[5]->createAll(System,*this);
+  Boxes[5]->createAll(System,*this,0);
 
   // ---------------- Merlin Wrapper --------------------------------
   Boxes.push_back
@@ -420,7 +373,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[6]->maskSection(5);
 
   Boxes[6]->addInsertCell(Boxes[3]->centralCell());
-  Boxes[6]->createAll(System,*this);
+  Boxes[6]->createAll(System,*this,0);
 
   // ---------------- LH2 Wrapper --------------------------------
   Boxes.push_back
@@ -439,7 +392,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[7]->maskSection(5);
 
   Boxes[7]->addInsertCell(Boxes[5]->centralCell());
-  Boxes[7]->createAll(System,*this);
+  Boxes[7]->createAll(System,*this,0);
 
 
   // Flightline wrapper for MERLIN:
@@ -454,9 +407,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[8]->maskSection(4);
   Boxes[8]->maskSection(5); 
   Boxes[8]->addInsertCell(Boxes[3]->centralCell());
-  Boxes[8]->createAll(System,*this);
-
-
+  Boxes[8]->createAll(System,*this,0);
   // Flightline wrapper for LH2:
   Boxes.push_back
     (std::shared_ptr<constructSystem::LinkWrapper>
@@ -470,7 +421,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[9]->maskSection(1);
   Boxes[9]->maskSection(5); 
   Boxes[9]->addInsertCell(Boxes[5]->centralCell());
-  Boxes[9]->createAll(System,*this);
+  Boxes[9]->createAll(System,*this,0);
 
 
   // ---------------- Top CORNER Hexagon --------------------------------
@@ -493,7 +444,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[10]->addExcludeObj(System,"WatNorthFlight","outer");
   Boxes[10]->addExcludeObj(System,"WatSouthFlight","outer");
   Boxes[10]->maskSection(4);
-  Boxes[10]->createAll(System,*this);
+  Boxes[10]->createAll(System,*this,0);
 
   // ---------------- Top CORNER Pentagon --------------------------------
   Boxes.push_back
@@ -514,7 +465,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[11]->addExcludeObj(System,"WatSouthFlight","outer");
 
   Boxes[11]->maskSection(3);
-  Boxes[11]->createAll(System,*this);
+  Boxes[11]->createAll(System,*this,0);
 
   
   // ---------------- Bottom Hexagon --------------------------------
@@ -537,7 +488,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[12]->maskSection(3);
   Boxes[12]->maskSection(4);
   Boxes[12]->maskSection(5); 
-  Boxes[12]->createAll(System,*this);  
+  Boxes[12]->createAll(System,*this,0);  
   // ---------------- Bottom Pentagon --------------------------------
   Boxes.push_back
     (std::shared_ptr<constructSystem::LinkWrapper>
@@ -557,7 +508,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
 //  Boxes[13]->maskSection(2);
   Boxes[13]->maskSection(3);
 //  Boxes[13]->maskSection(4);
-  Boxes[13]->createAll(System,*this);    
+  Boxes[13]->createAll(System,*this,0);    
 
   // ---------------- Bottom Quad --------------------------------
   Boxes.push_back
@@ -572,7 +523,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[14]->addExcludeObj(System,"ProtonVoid");
   Boxes[14]->addExcludeObj(System,"CH4Mod");
   Boxes[14]->maskSection("0 1 2 3");
-  Boxes[14]->createAll(System,*this);    
+  Boxes[14]->createAll(System,*this,0);    
 
   // ---------------- Top --------------------------------
   Boxes.push_back
@@ -582,7 +533,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[15]->addSurface(*this,"-6 -5 -4 -3 -2 -1 -8 -7"); 
   Boxes[15]->addSurface(OGrp,"MerlinMod",6);  //               
   Boxes[15]->addSurface(*this,-10);  // roof
-  Boxes[15]->createAll(System,*this);
+  Boxes[15]->createAll(System,*this,0);
 
   // ---------------- LH2 Void --------------------------------
   Boxes.push_back
@@ -594,7 +545,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[16]->addSurface(Origin-Z*zStep*2.0,Geometry::Vec3D(0,0,-1));  // roof
   Boxes[16]->addExcludeObj(System,TName);
 
-  Boxes[16]->createAll(System,*this);
+  Boxes[16]->createAll(System,*this,0);
   
 
   // Flightline wrapper for CH4 South:
@@ -615,7 +566,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[17]->addInsertCell(Boxes[12]->centralCell());
   Boxes[17]->addInsertCell(Boxes[13]->centralCell());
 
-  Boxes[17]->createAll(System,*this);
+  Boxes[17]->createAll(System,*this,0);
 
 
   // Flightline wrapper for Water North:
@@ -640,7 +591,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[18]->addInsertCell(Boxes[10]->centralCell());
   Boxes[18]->addInsertCell(Boxes[11]->centralCell());
 
-  Boxes[18]->createAll(System,*this);
+  Boxes[18]->createAll(System,*this,0);
 
   // Flightline wrapper for WaterSouth:
   Boxes.push_back
@@ -662,7 +613,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[19]->addInsertCell(Boxes[10]->centralCell());
   Boxes[19]->addInsertCell(Boxes[11]->centralCell());
 
-  Boxes[19]->createAll(System,*this);
+  Boxes[19]->createAll(System,*this,0);
 
   // Flightline wrapper for CH4 North:
   Boxes.push_back
@@ -683,7 +634,7 @@ t1Reflector::createBoxes(Simulation& System,const std::string& TName)
   Boxes[20]->addInsertCell(Boxes[12]->centralCell());
   Boxes[20]->addInsertCell(Boxes[13]->centralCell());
 
-  Boxes[20]->createAll(System,*this);
+  Boxes[20]->createAll(System,*this,0);
  
   return;
 }
@@ -713,7 +664,8 @@ t1Reflector::createRods(Simulation& System)
 		     
 void
 t1Reflector::createAll(Simulation& System,
-		       const attachSystem::FixedComp& FC)
+		       const attachSystem::FixedComp& FC,
+		       const long int sideIndex)
   /*!
     Global creation of the hutch
     \param System :: Simulation to add vessel to
@@ -721,9 +673,9 @@ t1Reflector::createAll(Simulation& System,
   */
 {
   ELog::RegMethod RegA("t1Reflector","createAll");
-  populate(System);
+  populate(System.getDataBase());
 
-  createUnitVector(FC);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System);
   createLinks();

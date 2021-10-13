@@ -34,16 +34,10 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Code.h"
 #include "varList.h"
@@ -53,10 +47,8 @@
 #include "ShieldGenerator.h"
 #include "ChopperGenerator.h"
 #include "PipeGenerator.h"
-#include "JawGenerator.h"
 #include "BladeGenerator.h"
 #include "PitGenerator.h"
-#include "essVariables.h"
 
 namespace setVariable
 {
@@ -174,12 +166,14 @@ BEERvariables(FuncDataBase& Control)
   FGen.generateBender(Control,"beerBA",350.0,4.0,4.0,10.593,17.566,
                       7000.0,0.0);
   
-  PipeGen.generatePipe(Control,"beerPipeB",8.0,44.0);
+  PipeGen.generatePipe(Control,"beerPipeB",44.0);
+  Control.addVariable("beerPipeBYStep",8.0);
   FGen.clearYOffset();
   FGen.generateBender(Control,"beerBB",42.0,4.0,4.0,17.566,18.347,
                       7000.0,0.0);
 
-  PipeGen.generatePipe(Control,"beerPipeC",6.0,46.0);
+  PipeGen.generatePipe(Control,"beerPipeC",46.0);
+  Control.addVariable("beerPipeCYStep",6.0);
   FGen.generateBender(Control,"beerBC",44.0,4.0,4.0,17.566,18.347,
                       7000.0,0.0);
 
@@ -206,7 +200,8 @@ BEERvariables(FuncDataBase& Control)
   BGen.addPhase({95,275},{30.0,30.0});
   BGen.generateBlades(Control,"beerWFMBlade",0.0,40.0,75.0);
 
-  PipeGen.generatePipe(Control,"beerPipeD",4.0,125.0);
+  PipeGen.generatePipe(Control,"beerPipeD",125.0);
+  Control.addVariable("beerPipeDYStep",4.0);
   FGen.generateBender(Control,"beerBD",121.0,4.0,4.0,20.0,16.0,
                       7000.0,180.0);
 
@@ -219,7 +214,8 @@ BEERvariables(FuncDataBase& Control)
   BGen.addPhase({95,275},{30.0,30.0});
   BGen.generateBlades(Control,"beerFOC1Blade",0.0,40.0,75.0);
   
-  PipeGen.generatePipe(Control,"beerPipeE",4.0,132.0);
+  PipeGen.generatePipe(Control,"beerPipeE",132.0);
+  Control.addVariable("beerPipeEYStep",4.0);
   FGen.generateBender(Control,"beerBE",128.0,4.0,4.0,20.0,16.0,
                       7000.0,180.0);
 
@@ -234,7 +230,8 @@ BEERvariables(FuncDataBase& Control)
   BGen.addPhase({95,275},{30.0,30.0});
   BGen.generateBlades(Control,"beerWBC2Blade",0.0,25.0,50.0);
 
-  PipeGen.generatePipe(Control,"beerPipeF",4.0,102.0);
+  PipeGen.generatePipe(Control,"beerPipeF",102.0);
+  Control.addVariable("beerPipeFYStep",4.0);
   FGen.generateBender(Control,"beerBF",98.0,4.0,4.0,20.0,16.0,
                       7000.0,180.0);
 
@@ -260,7 +257,8 @@ BEERvariables(FuncDataBase& Control)
   // Guide in wall
   FGen.generateTaper(Control,"beerFWall",308.0,6.0,6.0,6.0,6.0);
   // Optional pipe in wall
-  PipeGen.generatePipe(Control,"beerPipeWall",4.0,348.0);
+  PipeGen.generatePipe(Control,"beerPipeWall",348.0);
+  Control.addVariable("beerPipeWallYStep",4.0);
 
   CGen.setMainRadius(56.0);
   CGen.setFrame(120.0,120.0);
@@ -284,7 +282,8 @@ BEERvariables(FuncDataBase& Control)
   BGen.generateBlades(Control,"beerFOC3Blade",0.0,40.0,75.0);
 
 
-  PipeGen.generatePipe(Control,"beerPipeOutA",4.0,450.0);
+  PipeGen.generatePipe(Control,"beerPipeOutA",450.0);
+  Control.addVariable("beerPipeOutAYStep",4.0);
   FGen.generateTaper(Control,"beerOutFA",442.0,4.0,4.0,20.0,16.0);
 
   PGen.setFeLayer(6.0);

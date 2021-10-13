@@ -3,7 +3,8 @@
  
  * File:   Model/ESSBeam/bifrost/E02PillarCover.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Rodion Kolevatov
+
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -83,8 +84,6 @@ namespace constructSystem
 E02PillarCover::E02PillarCover(const std::string& Key) : 
   attachSystem::FixedOffset(Key,8),
   attachSystem::ContainedComp(),attachSystem::CellMap(),
-  //  buildIndex(ModelSupport::objectRegister::Instance().cell(Key)),
-  // cellIndex(buildIndex+1),
   activeFront(0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -134,7 +133,9 @@ E02PillarCover::operator=(const E02PillarCover& A)
       backSurf=A.backSurf;
       backCut=A.backCut;
 
-  length=A.length;voidLength=A.voidLength;l2mid=A.l2mid;l2edge=A.l2edge;gap=A.gap;
+      length=A.length;
+      voidLength=A.voidLength;
+      l2mid=A.l2mid;l2edge=A.l2edge;gap=A.gap;
     length1low=A.length1low;length2low=A.length2low;
     wid1b=A.wid1b; wid1f=A.wid1f;wid2=A.wid2;wid3f=A.wid3f;wid3b=A.wid3b;
     hupB=A.hupB;hlowB=A.hlowB; hmid=A.hmid;
@@ -222,10 +223,12 @@ E02PillarCover::populate(const FuncDataBase& Control)
   gapV=Control.EvalDefVar<double>(keyName+"GapV",0.2);
 
   
-  defMatf=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMatF",144);
-  defMatb=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMatB",144);
-  gapMat=ModelSupport::EvalDefMat<int>(Control,keyName+"GapMat",60);
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",60);
+  defMatf=ModelSupport::EvalDefMat(Control,keyName+"DefMatF",
+					"LimestoneConcrete");
+  defMatb=ModelSupport::EvalDefMat(Control,keyName+"DefMatB",
+					"LimestoneConcrete");
+  gapMat=ModelSupport::EvalDefMat(Control,keyName+"GapMat",60);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",60);
  
   //  int B4CMat;
 
@@ -235,16 +238,19 @@ E02PillarCover::populate(const FuncDataBase& Control)
 
   int iLayerFlag=Control.EvalDefVar<int>("LayerFlag",1);
 
-  if(iLayerFlag==0){
-  nSeg=1;
-  nLayers=1;
-  }
+  if(iLayerFlag==0)
+    {
+      nSeg=1;
+      nLayers=1;
+    }
 
   iTubes=Control.EvalDefVar<size_t>(keyName+"ITubes",0);
   iChicane=Control.EvalDefVar<size_t>(keyName+"IChicane",0);
+
+  // what is this ???
   if (iChicane) left=59.0+25.0;
   
-  // Cable tube
+
   return;
 }
 
@@ -258,7 +264,6 @@ E02PillarCover::createUnitVector(const attachSystem::FixedComp& FC,
   */
 {
   ELog::RegMethod RegA("E02PillarCover","createUnitVector");
-
 
   FixedComp::createUnitVector(FC,sideIndex);
   applyOffset();
@@ -283,27 +288,27 @@ E02PillarCover::createSurfaces()
   if (!activeFront)
     ModelSupport::buildPlane(SMap,buildIndex+1,Origin-Y*(length/2.0-gap),Y);
 
-    ModelSupport::buildPlane(SMap,buildIndex+11,Origin-Y*(length/2.0),Y);
-
-    ModelSupport::buildPlane(SMap,buildIndex+2,Origin+Y*(length/2.0),Y);
-
-    ModelSupport::buildPlane(SMap,buildIndex+1002,Origin+Y*(length/2.0-15),Y);
-
-    ModelSupport::buildPlane(SMap,buildIndex+2002,Origin+Y*(length/2.0+15)
-			     -Y*(length-voidLength),Y);
-
-
-      
-    //Front block index
-    int SIF(113);
-    for (int i=1; i<nSeg; i++){
-      ModelSupport::buildPlane(SMap,buildIndex+1+SIF,
-			       Origin-Y*(length/2.0-gap)+Y*(voidLength*i/nSeg),Y);
-      //      std::cout << buildIndex+1+SIF << std::endl;
-      SIF+=113;
-    }
-    /*
-  ModelSupport::buildPlane(SMap,buildIndex+111,Origin-Y*(length/2.0-length+0.5*gap),Y);
+  ModelSupport::buildPlane(SMap,buildIndex+11,Origin-Y*(length/2.0),Y);
+  
+  ModelSupport::buildPlane(SMap,buildIndex+2,Origin+Y*(length/2.0),Y);
+  
+  ModelSupport::buildPlane(SMap,buildIndex+1002,Origin+Y*(length/2.0-15),Y);
+  
+  ModelSupport::buildPlane(SMap,buildIndex+2002,Origin+Y*(length/2.0+15)
+			   -Y*(length-voidLength),Y);
+  
+  
+  
+  //Front block index
+  int SIF(113);
+  for (int i=1; i<nSeg; i++){
+    ModelSupport::buildPlane(SMap,buildIndex+1+SIF,
+			     Origin-Y*(length/2.0-gap)+Y*(voidLength*i/nSeg),Y);
+    //      std::cout << buildIndex+1+SIF << std::endl;
+    SIF+=113;
+  }
+  /*
+    ModelSupport::buildPlane(SMap,buildIndex+111,Origin-Y*(length/2.0-length+0.5*gap),Y);
    //ModelSupport::buildPlane(SMap,buildIndex+12,Origin-Y*(length/2.0-length1low),Y);
 
 
@@ -490,7 +495,7 @@ X,9.8);
      - X*cos(angle0)-Y*sin(angle0));
 
       ModelSupport::buildCylinder(SMap,buildIndex+778,
-      Origin+Z*20+Y*21-X*right+X*20+X*cos(angle)*72+Y*sin(angle)*72,
+				  Origin+Z*20+Y*21-X*right+X*20+X*cos(angle)*72+Y*sin(angle)*72,
 X,10);
 
 
@@ -1028,8 +1033,8 @@ E02PillarCover::getXSectionIn() const
     
 void
 E02PillarCover::createAll(Simulation& System,
-		      const attachSystem::FixedComp& FC,
-		      const long int FIndex)
+			  const attachSystem::FixedComp& FC,
+			  const long int FIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation item
@@ -1043,7 +1048,7 @@ E02PillarCover::createAll(Simulation& System,
   createUnitVector(FC,FIndex);
   createSurfaces();    
   createObjects(System);  
-    createLinks();
+  createLinks();
   insertObjects(System);   
   
   return;

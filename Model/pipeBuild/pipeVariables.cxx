@@ -34,21 +34,14 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "variableSetup.h"
 
 namespace setVariable
 {
@@ -70,7 +63,7 @@ PipeVariables(FuncDataBase& Control)
   Control.addVariable("ATubeInnerHeight",10.0);
   Control.addVariable("ATubeWallMat","Stainless304");
 
-  Control.addVariable("ATubeNWallLayers",3);
+  Control.addVariable("ATubeNWallLayers",0);
   Control.addVariable("ATubeWLayerThick0",3.0);
   Control.addVariable("ATubeWLayerThick1",4.0);
   Control.addVariable("ATubeWLayerThick2",5.0);
@@ -115,6 +108,13 @@ PipeVariables(FuncDataBase& Control)
   Control.addVariable("diskSourceEnergy",3.0);
   Control.addVariable("diskSourceEProb",1.0);
   
+  
+  Control.addVariable("ATubeLength",35.0);
+  Control.addVariable("ATubeWidth",10.0);
+  Control.addVariable("ATubeHeight",10.0);
+  Control.addVariable("ATubeInnerWidth",5.0);
+  Control.addVariable("ATubeInnerHeight",5.0);
+  Control.addVariable("ATubeWallMat","Stainless304");
 
   return;
 }

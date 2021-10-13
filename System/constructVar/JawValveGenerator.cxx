@@ -3,7 +3,7 @@
  
  * File:   constructVar/JawValveGenerator.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,18 +35,10 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
@@ -59,8 +51,10 @@ namespace setVariable
 {
 
 JawValveGenerator::JawValveGenerator() :
-  length(7.0),width(24.0),height(46.0),depth(10.5),
-  wallThick(0.5),portRadius(5.0),portThick(1.0),portLen(1.0),
+  length(7.0),innerRadius(-1.0),
+  width(24.0),height(46.0),depth(10.5),
+  wallThick(0.5),portARadius(5.0),portAThick(1.0),portALen(1.5),
+  portBRadius(5.0),portBThick(1.0),portBLen(1.5),
   voidMat("Void"),wallMat("Stainless304"),jawWidth(2.0),
   jawHeight(1.0),jawThick(0.2),jawGap(0.1)
   /*!
@@ -69,11 +63,13 @@ JawValveGenerator::JawValveGenerator() :
 {}
 
 JawValveGenerator::JawValveGenerator(const JawValveGenerator& A) : 
-  length(A.length),width(A.width),height(A.height),
-  depth(A.depth),wallThick(A.wallThick),portRadius(A.portRadius),
-  portThick(A.portThick),portLen(A.portLen),voidMat(A.voidMat),
-  wallMat(A.wallMat),jawWidth(A.jawWidth),jawHeight(A.jawHeight),
-  jawThick(A.jawThick),jawGap(A.jawGap),jawMat(A.jawMat)
+  length(A.length),innerRadius(A.innerRadius),width(A.width),height(A.height),
+  depth(A.depth),wallThick(A.wallThick),portARadius(A.portARadius),
+  portAThick(A.portAThick),portALen(A.portALen),
+  portBRadius(A.portBRadius),portBThick(A.portBThick),
+  portBLen(A.portBLen),voidMat(A.voidMat),wallMat(A.wallMat),
+  jawWidth(A.jawWidth),jawHeight(A.jawHeight),jawThick(A.jawThick),
+  jawGap(A.jawGap),jawMat(A.jawMat)
   /*!
     Copy constructor
     \param A :: JawValveGenerator to copy
@@ -91,13 +87,17 @@ JawValveGenerator::operator=(const JawValveGenerator& A)
   if (this!=&A)
     {
       length=A.length;
+      innerRadius=A.innerRadius;
       width=A.width;
       height=A.height;
       depth=A.depth;
       wallThick=A.wallThick;
-      portRadius=A.portRadius;
-      portThick=A.portThick;
-      portLen=A.portLen;
+      portARadius=A.portARadius;
+      portAThick=A.portAThick;
+      portALen=A.portALen;
+      portBRadius=A.portBRadius;
+      portBThick=A.portBThick;
+      portBLen=A.portBLen;
       voidMat=A.voidMat;
       wallMat=A.wallMat;
       jawWidth=A.jawWidth;
@@ -109,11 +109,18 @@ JawValveGenerator::operator=(const JawValveGenerator& A)
   return *this;
 }
 
-JawValveGenerator::~JawValveGenerator() 
- /*!
-   Destructor
- */
-{}
+
+void
+JawValveGenerator::setRadius(const double R)
+  /*!
+    Set the radius of the cylinder
+    If the radius positive then the cylinder form 
+    is activated.
+    \param R :: Radius
+   */
+{
+  innerRadius=R;
+}
 
 
 void
@@ -157,13 +164,74 @@ JawValveGenerator::setPort(const double R,const double L,
   /*!
     Set both the ports
     \param R :: radius of port tube
+    \param L :: length of port tube
+    \param T :: Thickness of port tube (outer radius extention)
+   */
+{
+  setAPort(R,L,T);
+  setBPort(R,L,T);
+  return;
+}
+
+void
+JawValveGenerator::setAPort(const double R,const double L,
+			 const double T)
+  /*!
+    Set the first port
+    \param R :: radius of port tube
     \param L :: lenght of port tube
     \param T :: Thickness of port tube (outer radius extention)
    */
 {
-  portRadius=R;
-  portLen=L;
-  portThick=T;
+  portARadius=R;
+  portALen=L;
+  portAThick=T;
+  return;
+}
+
+void
+JawValveGenerator::setBPort(const double R,const double L,
+			 const double T)
+  /*!
+    Set the back port
+    \param R :: radius of port tube
+    \param L :: lenght of port tube
+    \param T :: Thickness of port tube (outer radius extention)
+   */
+{
+  portBRadius=R;
+  portBLen=L;
+  portBThick=T;
+  return;
+}
+
+
+  
+template<typename CF>
+void
+JawValveGenerator::setAPortCF()
+  /*!
+    Setter for port A
+  */
+{
+  // rad/len/thick
+  setAPort(CF::innerRadius,CF::flangeLength,
+	   CF::flangeRadius-CF::innerRadius);
+  
+  return;
+}
+
+template<typename CF>
+void
+JawValveGenerator::setBPortCF()
+  /*!
+    Setter for port A
+  */
+{
+  // rad/len/thick
+  setBPort(CF::innerRadius,CF::flangeLength,
+	   CF::flangeRadius-CF::innerRadius);
+  
   return;
 }
 
@@ -174,12 +242,28 @@ JawValveGenerator::setCF()
     Set pipe/flange to CF format
   */
 {
-  portRadius=CF::innerRadius;
-  portThick=CF::flangeRadius-CF::innerRadius;   //  total 
-  portLen=CF::flangeLength;
-  depth=1.1*CF::flangeRadius;
-  height=2.5*CF::flangeRadius;
-  width=2.1*CF::flangeRadius;
+  setAPortCF<CF>();
+  setBPortCF<CF>();
+
+  depth=  1.1*CF::flangeRadius;
+  height= 2.5*CF::flangeRadius;
+  width=  2.1*CF::flangeRadius;
+  
+  return;
+}
+
+template<typename CF>
+void
+JawValveGenerator::setCylCF()
+  /*!
+    Set pipe/flange to CF format
+    for a cylinder
+  */
+{
+  setAPortCF<CF>();
+  setBPortCF<CF>();
+
+  innerRadius=CF::innerRadius;
   
   return;
 }
@@ -207,15 +291,25 @@ JawValveGenerator::generateSlits(FuncDataBase& Control,
   Control.addVariable(keyName+"YStep",yStep);   // step + flange
 
   Control.addVariable(keyName+"Length",length);
-  Control.addVariable(keyName+"Width",width);
-  Control.addVariable(keyName+"Height",height);
+  if (innerRadius<Geometry::zeroTol)
+    {
+      Control.addVariable(keyName+"Width",width);
+      Control.addVariable(keyName+"Height",height);
+    }
+  else
+    Control.addVariable(keyName+"InnerRadius",innerRadius);
+  
   Control.addVariable(keyName+"Depth",depth);
 
   Control.addVariable(keyName+"WallThick",wallThick);
 
-  Control.addVariable(keyName+"PortRadius",portRadius);	
-  Control.addVariable(keyName+"PortThick",portThick);
-  Control.addVariable(keyName+"PortLen",portLen);
+  Control.addVariable(keyName+"PortARadius",portARadius);	
+  Control.addVariable(keyName+"PortAThick",portAThick);
+  Control.addVariable(keyName+"PortALen",portALen);
+
+  Control.addVariable(keyName+"PortBRadius",portBRadius);	
+  Control.addVariable(keyName+"PortBThick",portBThick);
+  Control.addVariable(keyName+"PortBLen",portBLen);
 
   Control.addVariable(keyName+"VoidMat",voidMat);
   Control.addVariable(keyName+"WallMat",wallMat);
@@ -249,6 +343,17 @@ JawValveGenerator::generateSlits(FuncDataBase& Control,
   template void JawValveGenerator::setCF<CF63>();
   template void JawValveGenerator::setCF<CF100>();
 
+  template void JawValveGenerator::setCylCF<CF40>();
+  template void JawValveGenerator::setCylCF<CF63>();
+  template void JawValveGenerator::setCylCF<CF100>();
+
+  template void JawValveGenerator::setAPortCF<CF40>();
+  template void JawValveGenerator::setAPortCF<CF63>();
+  template void JawValveGenerator::setAPortCF<CF100>();
+
+  template void JawValveGenerator::setBPortCF<CF40>();
+  template void JawValveGenerator::setBPortCF<CF63>();
+  template void JawValveGenerator::setBPortCF<CF100>();
 
 ///\endcond TEMPLATE
 

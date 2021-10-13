@@ -3,7 +3,7 @@
  
  * File:   insertUnitInc/insertObject.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,15 +37,18 @@ namespace insertSystem
   for fluxes/tallies etc
 */
 
-class insertObject : public attachSystem::ContainedComp,
-  public attachSystem::FixedOffset,
-  public attachSystem::CellMap,
-  public attachSystem::SurfMap,
-  public attachSystem::FrontBackCut
+class insertObject :
+    public attachSystem::ContainedComp,
+    public attachSystem::FixedOffset,
+    public attachSystem::CellMap,
+    public attachSystem::SurfMap,
+    public attachSystem::FrontBackCut
 {
  protected:
+
+  const std::string baseName;   ///< Base key name [if used]
   
-  int populated;          //< externally set values
+  int populated;          ///< externally set values
   
   int defMat;             ///< Material
   bool delayInsert;       ///< Delay insertion         
@@ -63,12 +66,11 @@ class insertObject : public attachSystem::ContainedComp,
 				const Geometry::Vec3D&);
   virtual void createUnitVector(const Geometry::Vec3D&,
 				const Geometry::Vec3D&);
-
-
   
  public:
 
   insertObject(const std::string&);
+  insertObject(const std::string&,const std::string&);
   insertObject(const insertObject&);
   insertObject& operator=(const insertObject&);
   ~insertObject();
@@ -76,7 +78,9 @@ class insertObject : public attachSystem::ContainedComp,
   /// set delay flag
   void setNoInsert() { delayInsert=1; }
 
-  void setMat(const int M) { defMat=M; } 
+  /// Set the material
+  void setMat(const int M) { defMat=M; }
+  
   void setStep(const double,const double,const double);
   void setStep(const Geometry::Vec3D&);
   void setAngles(const double,const double);

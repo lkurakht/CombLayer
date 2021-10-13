@@ -3,7 +3,7 @@
  
  * File:   attachComp/AttachSupport.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,14 +36,11 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "support.h"
 #include "Surface.h"
@@ -51,9 +48,9 @@
 #include "Plane.h"
 #include "Rules.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 
 #include "varList.h"
 #include "Code.h"
@@ -62,25 +59,19 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "objectRegister.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "SurInter.h"
 #include "AttachSupport.h"
 
-#include "Debug.h"
-#include "debugMethod.h"
 
 
 namespace attachSystem
 {
-
-void createAddition(const int,Rule*,Rule*&);
 
 long int
 getLinkNumber(const std::string& Name)
@@ -170,6 +161,7 @@ addIntersection(const int SN,const Geometry::Surface* SPtr,
   */
 {
   ELog::RegMethod RegA("AttachSupport[F]","addIntersection<int,Rule>");
+
   createAddition(1,new SurfPoint(SPtr,SN),outRule);  
   return;
 }
@@ -196,7 +188,7 @@ createAddition(const int InterFlag,Rule* NRptr,
     }
   // This is an intersection and we want to add our rule at the base
   // Find first item that is not an intersection
-  Rule* RPtr(outRule);
+  Rule* RPtr;
   
   std::deque<Rule*> curLevel;
   curLevel.push_back(outRule);
@@ -227,7 +219,10 @@ createAddition(const int InterFlag,Rule* NRptr,
       if ( (LeafPtr=RPtr->leaf(1)) )
 	curLevel.push_back(LeafPtr);
     }
-  ELog::EM<<"Failed on rule structure  "<<ELog::endErr;
+
+  throw ColErr::EmptyContainer
+    ("Failed on rule structure :"+outRule->display());
+
   return;  
 }
 
@@ -759,6 +754,34 @@ addToInsertForced(Simulation& System,
   return;
 }  
 
+void
+addToInsertForced(Simulation& System,
+		  const std::vector<int>& cellVec,
+		  attachSystem::ContainedGroup& CG)
+ /*!
+   Force CC into the BaseFC objects
+   \param System :: Simulation to use
+   \param cellA :: First cell to use
+   \param cellB :: last cell to use
+   \param CC :: ContainedComp object to add to the BaseFC
+ */
+{
+  ELog::RegMethod RegA("AttachSupport","addToInsertForce(int,int,CG)");
+
+  const HeadRule HR(CG.getAllExclude());
+  for(const int CN : cellVec)
+    {
+      MonteCarlo::Object* CRPtr=System.findObject(CN);
+      if (CRPtr)
+	{
+	  CRPtr->populate();
+	  CRPtr->createSurfaceList();
+	  CRPtr->addUnion(HR);
+	}
+    }
+  return;
+}  
+
 
 void
 addToInsertForced(Simulation& System,
@@ -776,6 +799,25 @@ addToInsertForced(Simulation& System,
   const std::vector<int> cellVec=
     System.getObjectRange(BaseFC.getKeyName());
   addToInsertForced(System,cellVec,CC);
+  return;
+}  
+
+void
+addToInsertForced(Simulation& System,
+		  const attachSystem::FixedComp& BaseFC,
+		  attachSystem::ContainedGroup& CG)
+ /*!
+   Force CC into the BaseFC objects
+  \param System :: Simulation to use
+  \param BaseFC :: Object to get range for cells
+  \param CG :: ContainedComp object to add to the BaseFC
+ */
+{
+  ELog::RegMethod RegA("AttachSupport","addToInsertForced(FC,CC)");
+
+  const std::vector<int> cellVec=
+    System.getObjectRange(BaseFC.getKeyName());
+  addToInsertForced(System,cellVec,CG);
   return;
 }  
 

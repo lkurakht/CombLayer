@@ -3,7 +3,7 @@
  
  * File:   monte/Object.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,16 +40,13 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "support.h"
 #include "writeSupport.h"
+#include "mcnpStringSupport.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Track.h"
 #include "Line.h"
 #include "LineIntersectVisit.h"
 #include "Surface.h"
@@ -58,17 +55,15 @@
 #include "Rules.h"
 #include "HeadRule.h"
 #include "Token.h"
-#include "neutron.h"
-#include "objectRegister.h"
+#include "particle.h"
 #include "masterWrite.h"
-#include "Element.h"
 #include "Zaid.h"
 #include "MXcards.h"
 #include "Material.h"
 #include "DBMaterial.h"
+#include "Importance.h"
 #include "Object.h"
 
-#include "Debug.h"
 
 namespace MonteCarlo
 {
@@ -87,90 +82,12 @@ operator<<(std::ostream& OX,const Object& A)
   return OX;
 }
 
-bool
-Object::keyUnit(std::string& Ln,std::string& Key,
-		std::string& value)
-/*!
-    Given a string extract the first XXX = YYY parts
-    \param Ln :: Line to extract and cut
-    \param Key :: Key component [left side/xxx]
-    \param value :: Value component [right side/yyy]
-    \return true if unit found.
-   */
-{
-  std::string::size_type posA=Ln.find('=');
-  std::string::size_type posB(posA);
-  if (posA==std::string::npos)
-    return 0;
-
-  Key.clear();
-  int spc(0);
-  for(;posA!=0 && spc!=2;posA--)
-    {
-      if (isspace(Ln[posA-1]))
-	spc=(Key.empty()) ? 1 : 2;
-      else
-	Key+=Ln[posA-1];
-    }
-  if (Key.empty())
-    return 0;
-  std::reverse(Key.begin(),Key.end());
-  std::transform(Key.begin(),Key.end(),
-		 Key.begin(),::tolower);
-  if (spc==2) posA++;
-  
-  value.clear();
-  spc=0;
-  for(posB++;posB!=Ln.size() && spc!=2;posB++)
-    {
-      if (isspace(Ln[posB]))
-	spc=(value.empty()) ? 1 : 2;
-      else
-	value+=Ln[posB];
-    }
-  if (value.empty())
-    return 0;
-
-  Ln.erase(posA,posB-posA);  
-  return 1;
-}
-
-int
-Object::startLine(const std::string& Line) 
-  /*!
-    Static object to deterimine if the
-    input string 'Line' starts an object 
-    \param Line :: Object to test
-    \retval 1 :: Start
-    \retval 0 :: Not the start of aline
-  */
-{
-  int n,matN;
-  double rho;
-  // Need line of type id matNumber
-  std::string Tst=Line;
-  if (StrFunc::section(Tst,n) && n>0 &&           // must start id + matN
-      StrFunc::section(Tst,matN) && matN>=0)      
-    {
-      if (matN==0)
-	return 1;
-
-      std::string A;
-      if (StrFunc::section(Tst,A) &&  StrFunc::convert(A,rho))
-	{
-	  if (A.find('.')!=std::string::npos &&    // avoid problem of 0.0
-	      rho<10.0)
-	    return 1;
-	}
-    }
-
-  return 0;         
-}
-
 Object::Object() :
-  ObjName(0),listNum(-1),Tmp(300),MatN(-1),trcl(0),
-  imp(1),density(0.0),placehold(0),populated(0),
-  activeMag(0),objSurfValid(0)
+  ObjName(0),listNum(-1),Tmp(300.0),
+  matPtr(ModelSupport::DBMaterial::Instance().getVoidPtr()),
+  trcl(0),populated(0),
+  activeMag(0),magMinStep(1e-3),magMaxStep(1e-1),
+  objSurfValid(0)
    /*!
      Defaut constuctor, set temperature to 300C and material to vacuum
    */
@@ -178,9 +95,44 @@ Object::Object() :
 
 Object::Object(const int N,const int M,
 	       const double T,const std::string& Line) :
-  ObjName(N),listNum(-1),Tmp(T),MatN(M),trcl(0),
-  imp(1),density(0.0),placehold(0),
-  populated(0),activeMag(0),objSurfValid(0)
+  ObjName(N),listNum(-1),Tmp(T),
+  matPtr(ModelSupport::DBMaterial::Instance().getMaterialPtr(M)),
+  trcl(0),populated(0),activeMag(0),
+  magMinStep(1e-3),magMaxStep(1e-1),objSurfValid(0)
+ /*!
+   Constuctor, set temperature to 300C 
+   \param N :: number
+   \param M :: material
+   \param T :: temperature (K)
+   \param Line :: Line to use
+ */
+{
+  HRule.procString(Line);
+}
+
+Object::Object(const int N,const int M,
+	       const double T,const HeadRule& HR) :
+  ObjName(N),listNum(-1),Tmp(T),
+  matPtr(ModelSupport::DBMaterial::Instance().getMaterialPtr(M)),
+  trcl(0),populated(0),activeMag(0),
+  magMinStep(1e-3),magMaxStep(1e-1),HRule(HR),
+  objSurfValid(0)
+ /*!
+   Constuctor, set temperature to 300C 
+   \param N :: number
+   \param M :: material
+   \param T :: temperature (K)
+   \param HR :: HeadRule
+ */
+{}
+
+Object::Object(const std::string& FCName,const int N,const int M,
+	       const double T,const std::string& Line) :
+  FCUnit(FCName),ObjName(N),listNum(-1),Tmp(T),
+  matPtr(ModelSupport::DBMaterial::Instance().getMaterialPtr(M)),
+  trcl(0),populated(0),activeMag(0),
+  magMinStep(1e-3),magMaxStep(1e-1),
+  objSurfValid(0)
  /*!
    Constuctor, set temperature to 300C 
    \param N :: number
@@ -193,28 +145,30 @@ Object::Object(const int N,const int M,
 }
 
 Object::Object(const std::string& FCName,const int N,const int M,
-	       const double T,const std::string& Line) :
-  FCUnit(FCName),ObjName(N),listNum(-1),Tmp(T),MatN(M),trcl(0),
-  imp(1),density(0.0),placehold(0),
-  populated(0),activeMag(0),objSurfValid(0)
+	       const double T,const HeadRule& HR) :
+  FCUnit(FCName),ObjName(N),listNum(-1),Tmp(T),
+  matPtr(ModelSupport::DBMaterial::Instance().getMaterialPtr(M)),
+  trcl(0),populated(0),activeMag(0),
+  magMinStep(1e-3),magMaxStep(1e-1),
+  HRule(HR),
+  objSurfValid(0)
  /*!
    Constuctor, set temperature to 300C 
    \param N :: number
    \param M :: material
    \param T :: temperature (K)
-   \param Line :: Line to use
+   \param HR :: HeadRule of object
  */
-{
-  HRule.procString(Line);
-}
+{}
 
 Object::Object(const Object& A) :
   FCUnit(A.FCUnit),ObjName(A.ObjName),
-  listNum(A.listNum),Tmp(A.Tmp),MatN(A.MatN),
-  trcl(A.trcl),imp(A.imp),
-  density(A.density),placehold(A.placehold),populated(A.populated),
-  activeMag(A.activeMag),magVec(A.magVec),
-  HRule(A.HRule),objSurfValid(0),SurList(A.SurList),SurSet(A.SurSet)
+  listNum(A.listNum),Tmp(A.Tmp),matPtr(A.matPtr),
+  trcl(A.trcl),imp(A.imp),populated(A.populated),
+  activeMag(A.activeMag),
+  magMinStep(A.magMinStep),magMaxStep(A.magMaxStep),
+  HRule(A.HRule),objSurfValid(0),
+  SurList(A.SurList),SurSet(A.SurSet)
   /*!
     Copy constructor
     \param A :: Object to copy
@@ -235,14 +189,13 @@ Object::operator=(const Object& A)
       ObjName=A.ObjName;
       listNum=A.listNum;
       Tmp=A.Tmp;
-      MatN=A.MatN;
+      matPtr=A.matPtr;
       trcl=A.trcl;
       imp=A.imp;
-      density=A.density;
-      placehold=A.placehold;
       populated=A.populated;
       activeMag=A.activeMag;
-      magVec=A.magVec;
+      magMinStep=A.magMinStep;
+      magMaxStep=A.magMaxStep;
       HRule=A.HRule;
       objSurfValid=0;
       SurList=A.SurList;
@@ -268,11 +221,63 @@ Object::clone() const
 }
 
 int
+Object::getMatID() const
+  /*!
+    Get Material ID
+    \return ID number
+  */
+{
+ return matPtr->getID();
+}
+
+double
+Object::getDensity() const
+  /*!
+    Accessor to denstiy
+    \return Density [Atom/A3]
+   */
+{
+  return matPtr->getAtomDensity();
+}
+
+void
+Object::setMaterial(const int matID)
+  /*!
+    Given a material id , set the new(?) material pointer
+    This function should not be called under most cases.
+    \param matID :: Material id
+   */
+{
+  ELog::RegMethod RegA("Object","setMaterial");
+
+  matPtr=ModelSupport::DBMaterial::Instance().getMaterialPtr(matID);
+  return;
+}
+
+void
+Object::setMagStep(const double minV,const double maxV)
+  /*!
+    Set the min/max steps for the steps of charged particle
+    in a magnetic field
+    \param minV :: min step value
+    \param maxV :: max step value
+  */
+{
+  ELog::RegMethod RegA("Object","setMagStep");
+
+  magMinStep=std::min(minV,maxV);
+  magMaxStep=std::max(minV,maxV);
+
+  return;
+}
+
+
+int
 Object::complementaryObject(const int Cnum,std::string& Ln)
   /*!
     Calcluate if there are any complementary components in
     the object. That is lines with #(....)
-    \throws ColErr::ExBase :: Error with processing
+    \throws ColErr::InvalidLine :: Error with processing
     \param Cnum :: Number for cell since we don't have one
     \param Ln :: Input string must:  ID Mat {Density}  {rules}
     \retval 0 on no work to do
@@ -308,10 +313,8 @@ Object::complementaryObject(const int Cnum,std::string& Ln)
   std::string Part=Ln.substr(posA,posB-(posA+1));
 
   ObjName=Cnum;
-  MatN=0;
-  density=0.0;
   if (!HRule.procString(Part))
-    throw ColErr::ExBase(0,RegA.getFull()+"\n"+Part);
+    throw ColErr::InvalidLine(0,Part);
 
   SurList.clear();
   SurSet.erase(SurSet.begin(),SurSet.end());
@@ -356,70 +359,67 @@ Object::setObject(std::string Ln)
     }
 
   // Material (0 == vacuum)
-  if (!StrFunc::section(Ln,MatN) || MatN<0) 
-    {
-      ELog::EM<<"MatN not valid"<<MatN<<std::endl;
-      ELog::EM<<"Line == "<<Ln<<ELog::endErr;
-      return 0;
-    }
+  int matN(0);
+  if (!StrFunc::section(Ln,matN) || matN<0)
+    throw ColErr::InvalidLine("Material Index",Ln);
   
-  // Density 
-  if (MatN>0)
+  // Density
+  double density;
+  if (matN>0 && !StrFunc::section(Ln,density))
+    throw ColErr::InvalidLine("density read",Ln);
+  
+  // Check is we can strip and remove [allows a density to be
+  // set with a variable material that can go to zero]
+  if (matN==0)
     {
-      if (!StrFunc::section(Ln,density))
-        throw ColErr::InvalidLine("density read",Ln,0);
-    }
-
-  else
-    {
-      // Check is we can strip and remove [allows a density to be
-      // set with a variable material that can go to zero]
       if (StrFunc::convert(Ln,density) && 
 	  density<1.0 && density>0.0)
 	StrFunc::section(Ln,density);  // dump. phantom density
-      density=0.0;          // Vacuum
     }
 
   std::string Extract;
   std::string Value;
-  double tval;
-  int iVal;
-  while(keyUnit(Ln,Extract,Value))
+  double lineTemp(0.0);
+  int lineTRCL(0);
+  int lineIMP(1);
+  while(mcnpFunc::keyUnit(Ln,Extract,Value))
     {
-      if (Extract=="tmp" && 
-	  StrFunc::convert(Value,tval) && tval>=0.0)
-	Tmp=tval;
-      else if (Extract=="trcl" && 
-	       StrFunc::convert(Value,iVal))
-	trcl=iVal;
-      else if (Extract=="imp:n" && 
-	       StrFunc::convert(Value,iVal))
-	imp=iVal;
+      if ((Extract=="tmp" && 
+	   StrFunc::convert(Value,lineTemp) && lineTemp>=0.0)  ||
+
+	  (Extract=="trcl" && 
+	   StrFunc::convert(Value,lineTRCL) && lineTRCL>=0)  ||
+
+	  (Extract=="imp:n" && 
+	   StrFunc::convert(Value,lineIMP) && lineIMP>=0)  )
+	{ } 
       else
-	{
-	  ELog::EM<<"Failed due to non understood key = value"<<ELog::endErr;
-	  return 0;
-	}
+	throw ColErr::InvalidLine("Invalid key :: ",Extract+":"+Value);
+      
     }
   if (std::find_if(Ln.begin(), Ln.end(),
                    [](char c) { return std::isalpha(c); }) != Ln.end())
-    {
-      ELog::EM<<"Junk letters in cell definition:"<<Ln<<ELog::endErr;
-      return 0;
-    }
+    ColErr::InvalidLine("Junk letters in line ",Ln);
+
+  if (!HRule.procString(Ln))   // fails on empty
+    throw ColErr::InvalidLine("procString failure :: ",Ln);
+
+
+  // note that this invalidates the read density:
+
+    
+  SurList.clear();
+  SurSet.erase(SurSet.begin(),SurSet.end());
+  objSurfValid=0;
+
+  setMaterial(matN);
+  Tmp=lineTemp;
+  imp.setImp(static_cast<double>(lineIMP));
+  trcl=lineTRCL;
 
   populated=0;
-  if (HRule.procString(Ln))   // fails on empty
-    {
-      SurList.clear();
-      SurSet.erase(SurSet.begin(),SurSet.end());
-      objSurfValid=0;
-      return 1;
-    }
-
-  // failure
-  ELog::EM<<"Failed to process:"<<Ln<<ELog::endErr;
-  return 0;
+  
+  return 1;   // SUCCESS
 }
 
 int
@@ -463,25 +463,21 @@ Object::setObject(const int N,const int matNum,
   ELog::RegMethod RegA("Object","setObject");
   
   ObjName=N;
-  MatN=matNum;
-  density=0.0;
+  matPtr=ModelSupport::DBMaterial::Instance().
+    getMaterialPtr(matNum);
 
-  std::vector<Token>::const_iterator mc;
   std::ostringstream cx;
-  for(mc=TVec.begin();mc!=TVec.end();mc++)
-    mc->write(cx);
+  for(const Token& tItem : TVec)
+    tItem.write(cx);
 
-  if (HRule.procString(cx.str()))     // this currently does not fail:
-    {
-      SurList.clear();
-      SurSet.erase(SurSet.begin(),SurSet.end());
-      objSurfValid=0;
-      return 1;
-    }
+  if (!HRule.procString(cx.str()))
+    throw ColErr::InvalidLine("Token string",cx.str());
 
-  // failure
-  ELog::EM<<"Failed to process:"<<cx.str()<<ELog::endErr;
-  return 0;
+  SurList.clear();
+  SurSet.erase(SurSet.begin(),SurSet.end());
+  objSurfValid=0;
+  populated=0;
+  return 1;
 }
 
 void
@@ -518,6 +514,38 @@ Object::rePopulate()
   return;
 }
 
+void
+Object::addIntersection(const HeadRule& HR)
+  /*!
+    Adds a HR as an intersection
+    \param HR :: headrule to add
+  */
+{
+  ELog::RegMethod RegA("Object","addIntersection");
+  
+  HRule.addIntersection(HR);
+  
+  populated=0;
+  objSurfValid=0;
+  return;
+}
+
+void
+Object::addUnion(const HeadRule& HR)
+  /*!
+    Adds a HR as an union
+    \param HR :: headrule to add
+  */
+{
+  ELog::RegMethod RegA("Object","addIntersection");
+  
+  HRule.addUnion(HR);
+  
+  populated=0;
+  objSurfValid=0;
+  return;
+}
+
 int
 Object::addSurfString(const std::string& XE)
   /*!
@@ -542,17 +570,28 @@ Object::addSurfString(const std::string& XE)
   return flag;
 }
 
-void
-Object::setMagField(const Geometry::Vec3D& M)
+int
+Object::isOnSurface(const Geometry::Vec3D& Pt) const
   /*!
-    Simple setter for magnetic field in an object
-    \param M :: Magnetic vector
+    Determine if the point is on a surface in the object
+    THIS SHOULD NOT be used if you want if the point is 
+    at an exiting boundary (use Object::isOnSide). But 
+    it is for determining if a boundary check is needed.
+    \param Pt :: Point to check
+    \returns SurfNumber if the point is on the surface [signed]
   */
 {
-  magVec=M;
-  activeMag=1;
-  return;
+  ELog::RegMethod RegA("Object","isOnSurface");
+
+  std::map<int,int> surMap=mapValid(Pt);
+  for(const auto& [sn , sideFlag] : surMap)
+    {
+      if (!sideFlag)
+	return sn;
+    }
+  return 0;
 }
+
 
 int
 Object::isOnSide(const Geometry::Vec3D& Pt) const
@@ -568,10 +607,10 @@ Object::isOnSide(const Geometry::Vec3D& Pt) const
   std::map<int,int>::iterator mc;
 
   std::set<int> onSurf;
-  for(mc=surMap.begin();mc!=surMap.end();mc++)
+  for(const auto& [sn , sideFlag] : surMap)
     {
-      if (!mc->second)
-	onSurf.insert(mc->first);
+      if (!sideFlag)
+	onSurf.insert(sn);
     }
   // Definately not on the surface
   if (onSurf.empty()) return 0;
@@ -633,31 +672,59 @@ Object::checkSurfaceValid(const Geometry::Vec3D& C,
   return status/2;
 }
 
+const Geometry::Surface*
+Object::getSurf(const int SN) const
+  /*!
+    Get a surface from the object. It is unsigned.
+    \param SN :: Surface number
+    \return Surface Ptr
+   */
+{
+  if (SurSet.find(SN)!=SurSet.end() ||
+      SurSet.find(SN)!=SurSet.end())
+    {
+      const int ASN=std::abs(SN);
+      for(const Geometry::Surface* SPtr : SurList)
+	if (SPtr->getName()==ASN)
+	  return SPtr;
+    }
+  return 0;
+}
+
 int
-Object::trackDirection(const Geometry::Vec3D& C,
-		       const Geometry::Vec3D& Nm) const
+Object::trackDirection(const Geometry::Vec3D& Pt,
+		       const Geometry::Vec3D& Norm) const
 			  
   /*!
     Determine if a point is valid by checking both
     directions of the normal away from the line
     A good point will have one valid and one invalid.
-    \param C :: Point on a basic surface to check 
-    \param Nm :: Direction +/- to be checked
+    \param Pt :: Point on a basic surface to check 
+    \param Norm :: Direction +/- to be checked
     \retval +1 ::  Entering the Object
     \retval 0 :: No-change
     \retval -1 ::  Exiting the object
   */
 {
-  Geometry::Vec3D tmp=C+Nm*(Geometry::shiftTol*5.0);
-  const int inStatus=isValid(tmp);    
-  tmp-= Nm*(Geometry::shiftTol*10.0);
-  const int outStatus=isValid(tmp);   
-  return inStatus-outStatus;
+  ELog::RegMethod RegA("Object","trackDirection");
+  
+  // first determine if on surface :
+  const int SN = isOnSide(Pt);
+  if (!SN) return 0;
+
+  const int pAB=isDirectionValid(Pt,std::abs(SN));   // true/false [1/0]
+  const int mAB=isDirectionValid(Pt,-std::abs(SN));
+  if (pAB==mAB)  return 0;  // not extiting [internal]
+
+  const Geometry::Surface* SPtr=getSurf(SN);
+
+  const int normD=SPtr->sideDirection(Pt,Norm);
+  return (normD == pAB || normD == -mAB ) ? 1 : -1;
 }  
 
 int
 Object::isValid(const Geometry::Vec3D& Pt) const
-/*! 
+/*!
   Determines is Pt is within the object 
   or on the surface
   \param Pt :: Point to be tested
@@ -681,6 +748,19 @@ Object::isValid(const Geometry::Vec3D& Pt,
   return HRule.isValid(Pt,ExSN);
 }
 
+std::set<int>
+Object::surfValid(const Geometry::Vec3D& Pt) const
+  /*! 
+    Determines the surface set the point is on
+    or on the surface
+    \param Pt :: Point to be tested
+    \param ExSN :: Excluded surf Number [unsigned]
+    \returns 1 if true and 0 if false
+  */
+{
+  return HRule.surfValid(Pt);
+}
+
 int
 Object::isDirectionValid(const Geometry::Vec3D& Pt,
 			 const int ExSN) const
@@ -693,6 +773,21 @@ Object::isDirectionValid(const Geometry::Vec3D& Pt,
 */
 {
   return HRule.isDirectionValid(Pt,ExSN);
+}
+
+int
+Object::isDirectionValid(const Geometry::Vec3D& Pt,
+			 const std::set<int>& surfSet,
+			 const int ExSN) const
+/*! 
+  Determines is Pt is within the object 
+  or on the surface
+  \param Pt :: Point to be tested 
+  \param ExSN :: Excluded surf Number [signed]
+  \returns 1 if true and 0 if false
+*/
+{
+  return HRule.isDirectionValid(Pt,surfSet,ExSN);
 }
 
 
@@ -708,6 +803,23 @@ Object::isValid(const Geometry::Vec3D& Pt,
 */
 {
   return HRule.isValid(Pt,ExSN);
+}
+
+std::set<int>
+Object::getSelfPairs() const
+  /*!
+    Determine the set of surfaces that are represented
+    twice in the model and as both signs (+/-)
+    \return Set of opposite surfaces
+  */
+{
+  ELog::RegMethod RegA("Object","getSelfPairs(int)");
+
+  std::set<int> Out;
+  for(const Geometry::Surface* APtr : logicOppSurf)
+    Out.emplace(APtr->getName());
+  
+  return Out;
 }
 
 std::vector<std::pair<int,int>>
@@ -753,7 +865,7 @@ Object::getImplicatePairs() const
   /*!
     Determine all the implicate pairs for the object
     The map is plane A has (sign A) implies plane B has (sign B)
-    \return Map of surf -> surf
+    \return vector of implicate pairs
   */
 {
   ELog::RegMethod RegA("Object","getImplicatePairs");
@@ -764,15 +876,21 @@ Object::getImplicatePairs() const
   std::vector<std::pair<int,int>> Out;
 
   for(size_t i=0;i<SurList.size();i++)
-    for(size_t j=i+1;j<SurList.size();j++)
+    for(size_t j=0;j<SurList.size();j++)
       {
-	const Geometry::Surface* APtr=SurList[i];
-	const Geometry::Surface* BPtr=SurList[j];
-
-	const std::pair<int,int> dirFlag=SImp.isImplicate(APtr,BPtr);
-
-	if (dirFlag.first)
-	  Out.push_back(dirFlag);
+	if (j!=i)
+	  {
+	    const Geometry::Surface* APtr=SurList[i];
+	    const Geometry::Surface* BPtr=SurList[j];
+	    // This is JUST surface SIGNS:
+	    const std::pair<int,int> dirFlag=SImp.isImplicate(APtr,BPtr);
+	    if (dirFlag.first)
+	      {
+		Out.push_back(std::pair<int,int>
+			      (dirFlag.first * APtr->getName(),
+			       dirFlag.second * BPtr->getName()));
+	      }
+	  }
       }
   return Out;
 }
@@ -790,12 +908,12 @@ Object::isValid(const std::map<int,int>& SMap) const
 
 std::map<int,int>
 Object::mapValid(const Geometry::Vec3D& Pt) const
-/*! 
-  Populates the validity map
-  the surface 
-  \param Pt :: Point to testsd
-  \returns Map [ surfNumber: -1/1 ]
-*/
+  /*! 
+    Populates the validity map
+    the surface 
+    \param Pt :: Point to testsd
+    \returns Map [ surfNumber: -1/1 ]
+  */
 {
   ELog::RegMethod RegA("Object","mapValid");
 
@@ -893,6 +1011,16 @@ Object::createSurfaceList()
 
   createLogicOpp();
   return 1;
+}
+
+bool
+Object::isVoid() const
+  /*!
+    Is the material a void material
+    \return true if void
+  */
+{
+  return matPtr->isVoid();
 }
 
 void
@@ -1026,83 +1154,68 @@ Object::hasIntercept(const Geometry::Vec3D& IP,
   return 0;
 }
 
-std::pair<const Geometry::Surface*,double>
-Object::forwardIntercept(const Geometry::Vec3D& IP,
-			 const Geometry::Vec3D& UV) const
-  /*!
-    Given a line IP + lambda(UV) does it intercept
-    this object: (used for virtual objects).
-    This does descriminate between ingoing and outgoing
-    tracks.
 
-    \param IP :: Initial point
-    \param UV :: Forward going vector
-    \return surface + distance forward : -ve on failure
+std::tuple<int,const Geometry::Surface*,Geometry::Vec3D,double>
+Object::trackSurfIntersect(const Geometry::Vec3D& Org,
+			   const Geometry::Vec3D& unitAxis) const
+  /*!
+    Track a line into an object. It effectively converts the
+    object into a HeadRule, then tracks the line into the object.
+    \param Org :: Origin of line
+    \param unitAxis :: track of line
+    \return Tuple of SurfNumber[signed]/surfacePointer/ImpactPoint/distance
   */
 {
-  ELog::RegMethod RegA("Object","forwardIntercept");
+  return HRule.trackSurfIntersect(Org,unitAxis);
+}
+
+int
+Object::trackSurf(const Geometry::Vec3D& Org,
+		  const Geometry::Vec3D& unitAxis) const
+  /*!
+    Transfer function to move Object into headrule
+    \param Org :: Origin of line
+    \param unitAxis :: track of line
+    \return Signed surf number
+  */
+{
+  return HRule.trackSurf(Org,unitAxis);
+}
+
+Geometry::Vec3D
+Object::trackPoint(const Geometry::Vec3D& Org,
+		   const Geometry::Vec3D& unitAxis) const
+  /*!
+    Transfer function to move Object into HeadRule
+    This calculates the line and return the first point
+    that the line intersects
+    \param Org :: Origin of line
+    \param unitAxis :: track of line
+    \return Signed surf number
+  */
+{
+  ELog::RegMethod RegA("Object","trackPoint");
   
-  MonteCarlo::LineIntersectVisit LI(IP,UV);
-  std::vector<const Geometry::Surface*>::const_iterator vc;
-  for(vc=SurList.begin();vc!=SurList.end();vc++)
-    (*vc)->acceptVisitor(LI);
-
-  const std::vector<Geometry::Vec3D>& IPts(LI.getPoints());
-  const std::vector<double>& dPts(LI.getDistance());
-  const std::vector<const Geometry::Surface*>& surfIndex(LI.getSurfIndex());
-  double minDist(1e38);
-  const Geometry::Surface* surfPtr(0);
-  // NOTE: we only check for and exiting surface by going
-  // along the line.
-  for(size_t i=0;i<dPts.size();i++)
-    {
-      if (dPts[i]>Geometry::shiftTol && dPts[i]<minDist)
-	{
-	  const int pAB=pairValid(surfIndex[i]->getName(),IPts[i]);
-	  if (pAB==1 || pAB==2)            // Going either way
-	    {
-	      minDist=dPts[i];
-	      surfPtr=surfIndex[i];
-	    }
-	}
-    }
-  // surface + distance
-  return std::pair<const Geometry::Surface*,double>(surfPtr,minDist);
+  return HRule.trackPoint(Org,unitAxis);
 }
 
-
-int
-Object::trackOutCell(const MonteCarlo::neutron& N,double& D,
-		     const Geometry::Surface*& SPtr,
-		     const int startSurf) const
+Geometry::Vec3D
+Object::trackClosestPoint(const Geometry::Vec3D& Org,
+			  const Geometry::Vec3D& unitAxis,
+			  const Geometry::Vec3D& aimPt) const
   /*!
-    Track the distance to exit the cell 
-    - if already out of the cell, distance is to the cell+to the exit
-    \param N :: Neutron
-    \param D :: Distance to exit
-    \param SPtr :: Surface at exit
-    \param startSurf :: Start surface (not to be used) [0 to ignore]
-    \return surface number on exit
+    Transfer function to move Object into HeadRule
+    This calculates the line and return the first point
+    that the line intersects
+    \param Org :: Origin of line
+    \param unitAxis :: track of line
+    \return Signed surf number
   */
 {
-  return trackCell(N,D,-1,SPtr,startSurf);
+  ELog::RegMethod RegA("Object","trackClosetPoint");
+  return HRule.trackClosestPoint(Org,unitAxis,aimPt);
 }
 
-int
-Object::trackIntoCell(const MonteCarlo::neutron& N,double& D,
-		      const Geometry::Surface*& SPtr,
-		      const int startSurf) const
-  /*!
-    Track the distance to a cell
-    \param N :: Neutron
-    \param D :: Distance to entrance
-    \param SPtr :: Surface at exit
-    \param startSurf :: Start surface 
-    \return surface number on exit
-  */
-{
-  return trackCell(N,D,1,SPtr,startSurf);
-}
 
 int
 Object::calcInOut(const int pAB,const int N) const
@@ -1126,21 +1239,20 @@ Object::calcInOut(const int pAB,const int N) const
 }
 
 int
-Object::trackCell(const MonteCarlo::neutron& N,double& D,
-		  const int direction,
+Object::trackCell(const MonteCarlo::particle& N,double& D,
 		  const Geometry::Surface*& surfPtr,
 		  const int startSurf) const
   /*!
-    Track to a neutron into/out of a cell. 
-    \param N :: Neutron 
+    Track to a particle into/out of a cell. 
+    \param N :: Particle 
     \param D :: Distance traveled to the cell [get added too]
-    \param direction :: direction to track [+1/-1 : in/out ] 
-    \param surfPtr :: Surface at exit
+    \param surfPtr :: Surface at exit [output]
     \param startSurf :: Start surface [to be ignored]
     \return surface number of intercept
    */
 {
   ELog::RegMethod RegA("Object","trackCell[D,dir]");
+
 
   MonteCarlo::LineIntersectVisit LI(N);
   for(const Geometry::Surface* isptr : SurList)
@@ -1150,113 +1262,53 @@ Object::trackCell(const MonteCarlo::neutron& N,double& D,
   const std::vector<double>& dPts(LI.getDistance());
   const std::vector<const Geometry::Surface*>& surfIndex(LI.getSurfIndex());
 
+  const int absSN(std::abs(startSurf));
+  const int signSN(startSurf>0 ? 1 : -1);   // pAB/mAB is 1 / 0 
   D=1e38;
   surfPtr=0;
-  int touchUnit(0);
   // NOTE: we only check for and exiting surface by going
   // along the line.
   int bestPairValid(0);
+
   for(size_t i=0;i<dPts.size();i++)
     {
       // Is point possible closer
-      if ( ( surfIndex[i]->getName()!=startSurf || 
-	     dPts[i]>10.0*Geometry::zeroTol) &&
-	   (dPts[i]>0.0 && dPts[i]<D) )
+      if ( dPts[i]>10.0*Geometry::zeroTol &&
+	   dPts[i]>Geometry::zeroTol && dPts[i]<D )
 	{
 	  const int NS=surfIndex[i]->getName();	    // NOT SIGNED
 	  const int pAB=isDirectionValid(IPts[i],NS);
 	  const int mAB=isDirectionValid(IPts[i],-NS);
-	  const int normD=surfIndex[i]->sideDirection(IPts[i],N.uVec);
-          
-	  if (direction<0)
+	  if (pAB!=mAB)           // out going positive surface
 	    {
-	      if (pAB!=mAB)  // out going positive surface
+	      const int normD=surfIndex[i]->sideDirection(IPts[i],N.uVec);
+	      if (NS!=absSN || (normD!=signSN))  // discard current surface
 		{
 		  bestPairValid=normD;
-		  if (dPts[i]>Geometry::zeroTol)
-		    D=dPts[i];
-		  else
-		    touchUnit=1;
+		  D=dPts[i];
 		  surfPtr=surfIndex[i];
 		}
 	    }
 	}
     }
-  if (touchUnit && D>1e37)
+  if (!surfPtr) return 0;
+  if (D<Geometry::zeroTol)
     D=Geometry::zeroTol;
 
-  if (!surfPtr) return 0;
   const int NSsurf=surfPtr->getName();
   const bool pSurfFound(SurSet.find(NSsurf)!=SurSet.end());
   const bool mSurfFound(SurSet.find(-NSsurf)!=SurSet.end());
   
+  int retNum;
   if (pSurfFound && mSurfFound)
-    return bestPairValid*NSsurf;
+    retNum=bestPairValid*NSsurf;
+  else
+    retNum=(pSurfFound) ? -NSsurf : NSsurf;
 
-  return (pSurfFound) ? -NSsurf : NSsurf;
+  return retNum;
 }
 
 		  
-std::pair<const Geometry::Surface*,double>
-Object::forwardInterceptInit(const Geometry::Vec3D& IP,
-			     const Geometry::Vec3D& UV) const
-  /*!
-    Given a line IP + lambda(UV) does it intercept
-    this object: (used for virtual objects).
-    Has special test for the case that the neutron 
-    starts on a surface and we need to effectively move it inside.
-
-    \param IP :: Initial point
-    \param UV :: Forward going vector
-    \return distance forward : -ve on failure
-  */
-{
-  ELog::RegMethod RegA("Object","forwardInterceptInit");
-  
-  MonteCarlo::LineIntersectVisit LI(IP,UV);
-  std::vector<const Geometry::Surface*>::const_iterator vc;
-  for(vc=SurList.begin();vc!=SurList.end();vc++)
-    (*vc)->acceptVisitor(LI);
-
-  const std::vector<Geometry::Vec3D>& IPts(LI.getPoints());
-  const std::vector<double>& dPts(LI.getDistance());
-  const std::vector<const Geometry::Surface*>& surfIndex(LI.getSurfIndex());
-  double minDist(1e38);
-  const Geometry::Surface* surfPtr(0);
-  // NOTE: we only check for and exiting surface by going
-  // along the line.
-  for(size_t i=0;i<dPts.size();i++)
-    {
-      if (dPts[i]>Geometry::shiftTol && dPts[i]<minDist)
-	{
-	  const int pAB=pairValid(surfIndex[i]->getName(),IPts[i]);
-	  if (pAB==1 || pAB==2)            // Going either way
-	    {
-	      minDist=dPts[i];
-	      surfPtr=surfIndex[i];
-	    }
-	}
-    }
-  
-  if (!surfPtr)
-    {
-      for(size_t i=0;i<dPts.size();i++)
-	{
-	  if (dPts[i]>-Geometry::shiftTol && dPts[i]<Geometry::shiftTol && 
-	      dPts[i]<minDist)
-	    {
-	      const int pAB=pairValid(surfIndex[i]->getName(),IPts[i]);
-	      if (pAB==1 || pAB==2)            // Going either way
-		{
-		  minDist=dPts[i];
-		  surfPtr=surfIndex[i];
-		}
-	    }
-	}
-    }
-  
-  return std::pair<const Geometry::Surface*,double>(surfPtr,minDist);
-}
 
 void
 Object::makeComplement()
@@ -1289,9 +1341,9 @@ Object::headStr() const
   */
 {
   std::ostringstream cx;
-  cx<<ObjName<<" "<<MatN;
-  if (MatN!=0)
-    cx<<" "<<density;
+  cx<<ObjName<<" "<<matPtr->getID();
+  if (!matPtr->isVoid())
+    cx<<" "<<matPtr->getAtomDensity()<<" ";
   return cx.str();
 }
 
@@ -1329,21 +1381,14 @@ Object::str() const
 {
   std::ostringstream cx;
   cx<<ObjName<<" ";
-  if (imp)
-    {
-      cx<<MatN;
-      if (MatN!=0)
-	cx<<" "<<density;
-    }
-  else
-    {
-      cx<<"0 ";
-    }
+  cx<<matPtr->getID()<<" ";
+
+  if (!matPtr->isVoid())
+    cx<<matPtr->getAtomDensity()<<" ";
   
-  cx<<" "<<HRule.display();
+  cx<<HRule.display();
   return cx.str();
 }
-
 
 std::string
 Object::cellStr(const std::map<int,Object*>& MList) const
@@ -1416,10 +1461,7 @@ Object::write(std::ostream& OX) const
   if (trcl)
     cx<<" "<<"trcl="<<trcl;
 
-  if (placehold)
-    StrFunc::writeMCNPXcomment(cx.str(),OX);
-  else
-    StrFunc::writeMCNPX(cx.str(),OX);
+  StrFunc::writeMCNPX(cx.str(),OX);
   return;
 }
 
@@ -1433,25 +1475,23 @@ Object::writeFLUKAmat(std::ostream& OX) const
 {
   ELog::RegMethod RegA("Object","writeFLUKAmat");
 
-  if (!placehold)
-    {
-      std::ostringstream cx;
-      cx<<"ASSIGNMAT ";
+  std::ostringstream cx;
+  cx<<"ASSIGNMAT ";
 
-      if (!imp)
-	cx<<"BLCKHOLE";
-      else if (MatN)
-	cx<<"M"+std::to_string(MatN);
-      else
-	cx<<"VACUUM";
-
-      cx<<" R"+std::to_string(ObjName);
-      if (imp && activeMag)
-	cx<<" - - 1 ";
-
-      
-      StrFunc::writeFLUKA(cx.str(),OX);
-    }
+  const int matID=matPtr->getID();
+  if (imp.isZero())
+    cx<<"BLCKHOLE";
+  else if (matID>0)
+    cx<<"M"+std::to_string(matID);
+  else
+    cx<<"VACUUM";
+  
+  cx<<" R"+std::to_string(ObjName);
+  if (activeMag && !imp.isZero())
+    cx<<" - - 1 ";
+  
+  
+  StrFunc::writeFLUKA(cx.str(),OX);
   
   return;
 }
@@ -1466,14 +1506,11 @@ Object::writeFLUKA(std::ostream& OX) const
 {
   ELog::RegMethod RegA("Object","writeFLUKA");
 
-  if (!placehold)
-    {
-      std::ostringstream cx;
-      cx<<"* "<<FCUnit<<" "<<ObjName<<std::endl;
-      cx<<"R"<<ObjName<<" "<<SurList.size()<<" ";
-      cx<<HRule.displayFluka()<<std::endl;
-      StrFunc::writeMCNPX(cx.str(),OX);
-    }
+  std::ostringstream cx;
+  cx<<"* "<<FCUnit<<" "<<ObjName<<std::endl;
+  cx<<"R"<<ObjName<<" "<<SurList.size()<<" ";
+  cx<<HRule.displayFluka()<<std::endl;
+  StrFunc::writeMCNPX(cx.str(),OX);
   
   return;
 }
@@ -1490,10 +1527,7 @@ Object::writePOVRay(std::ostream& OX) const
 
   masterWrite& MW=masterWrite::Instance();
   
-  const ModelSupport::DBMaterial& DB=
-    ModelSupport::DBMaterial::Instance();
-
-  if (!placehold && MatN>0)
+  if (!isVoid())
     {
       // do not render global objects (outer void and black hole)
       //      if (objName.empty())
@@ -1501,37 +1535,13 @@ Object::writePOVRay(std::ostream& OX) const
       OX<<"// Cell "<<FCUnit<<" "<<ObjName<<"\n";
       OX<<"intersection{\n"
 	<<HRule.displayPOVRay()<<"\n"
-	<< " texture {mat" <<MW.NameNoDot(DB.getKey(MatN)) <<"}\n"
+	<< " texture {mat" <<MW.NameNoDot(matPtr->getName()) <<"}\n"
 	<< "}"<<std::endl;
     }
   
   return;
 }
 
-void
-Object::writePOVRaymat(std::ostream& OX) const
-  /*!
-    Write the object material assignment to a standard stream
-    in POVRay output format.
-    \param OX :: Output stream (required for multiple std::endl)
-  */
-{
-  ELog::RegMethod RegA("Object","writePOVRaymat");
-  if (!placehold)
-    {      
-      OX<<"POVRay dummy material string    ";
-      if (!MatN)   // are we really rendering vacuum ????
-	OX<<" VACUUM";
-      else
-	OX<<"    M"<<MatN;
-      
-      OX<<"    "<<FCUnit<<"_"<<ObjName<<std::endl;
-    }
-  
-  return;
-}
-
-  
 void 
 Object::writePHITS(std::ostream& OX) const
   /*!
@@ -1543,12 +1553,7 @@ Object::writePHITS(std::ostream& OX) const
   std::ostringstream cx;
 
   cx.precision(10);
-  if (placehold)
-    {
-      cx<<str();
-      StrFunc::writeMCNPXcomment(cx.str(),OX);
-    }
-  else if (ObjName==1 && imp==0)
+  if (ObjName==1 && imp.isZero())
     {
       cx<<ObjName<<" -1 "<<HRule.display();
       StrFunc::writeMCNPX(cx.str(),OX);

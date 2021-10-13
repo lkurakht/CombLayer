@@ -3,7 +3,7 @@
  
  * File:   src/SimMCNP.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,74 +36,47 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "mathSupport.h"
-#include "support.h"
 #include "writeSupport.h"
-#include "version.h"
-#include "Element.h"
+#include "particleConv.h"
 #include "Zaid.h"
-#include "MapSupport.h"
 #include "MXcards.h"
 #include "Material.h"
 #include "DBMaterial.h"
 #include "MatrixBase.h"
 #include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "localRotate.h"
-#include "masterRotate.h"
 #include "Triple.h"
 #include "NList.h"
 #include "NRange.h"
+#include "NGroup.h"
 #include "pairRange.h"
 #include "Tally.h"
-#include "cellFluxTally.h"
 #include "pointTally.h"
-#include "heatTally.h"
 #include "tmeshTally.h"
 #include "sswTally.h"
 #include "Transform.h"
 #include "Surface.h"
 #include "surfIndex.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "surfaceFactory.h"
-#include "objectRegister.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
-#include "FItem.h"
 #include "FuncDataBase.h"
-#include "SurInter.h"
-#include "BnId.h"
-#include "AcompTools.h"
-#include "Acomp.h"
-#include "Algebra.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
-#include "WForm.h"
 #include "weightManager.h"
 #include "ModeCard.h"
 #include "PhysCard.h"
 #include "LSwitchCard.h"
-#include "PhysImp.h"
-#include "Source.h"
 #include "inputSupport.h"
 #include "SourceBase.h"
 #include "sourceDataBase.h"
-#include "ObjSurfMap.h"
 #include "PhysicsCards.h"
-#include "ReadFunctions.h"
-#include "BaseMap.h"
-#include "CellMap.h"
 #include "SimTrack.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -333,7 +306,7 @@ SimMCNP::substituteAllSurface(const int oldSurfN,const int newSurfN)
     \throw IncontainerError if the key does not exist
   */
 {
-  ELog::RegMethod RegA("Simulation","substituteAllSurface");
+  ELog::RegMethod RegA("SimMCNP","substituteAllSurface");
 
   Simulation::substituteAllSurface(oldSurfN,newSurfN);
 
@@ -361,17 +334,11 @@ SimMCNP::renumberCells(const std::vector<int>& cOffset,
 
   // CARE HERE: RMap is the old number. The objects themselve
   //  have already been updated
-  for(const std::map<int,int>::value_type& RMItem : RMap)
+  for(const auto& [cNum,nNum] : RMap)
     {
-      const int cNum=RMItem.first;
-      const int nNum=RMItem.second;
-      MonteCarlo::Object* oPtr=Simulation::findObject(nNum);   // NOTE new number
-      if (!oPtr->isPlaceHold())
-	{
-	  PhysPtr->substituteCell(cNum,nNum);
-	  for(TallyTYPE::value_type& TI : TItem)
-	    TI.second->renumberCell(cNum,nNum);
-	}
+      PhysPtr->substituteCell(cNum,nNum);
+      for(TallyTYPE::value_type& TI : TItem)
+	TI.second->renumberCell(cNum,nNum);
     }
   return RMap;
 }
@@ -511,25 +478,23 @@ SimMCNP::writeMaterial(std::ostream& OX) const
     type.
     \param OX :: Output stream
   */
-
 {
   OX<<"c -------------------------------------------------------"<<std::endl;
   OX<<"c --------------- MATERIAL CARDS ------------------------"<<std::endl;
   OX<<"c -------------------------------------------------------"<<std::endl;
   ModelSupport::DBMaterial& DB=ModelSupport::DBMaterial::Instance();  
-  DB.resetActive();
-
 
   if (!PhysPtr->getMode().hasElm("h"))
     DB.deactivateParticle("h");
-  
-  OTYPE::const_iterator mp;
-  for(mp=OList.begin();mp!=OList.end();mp++)
-    {
-      DB.setActive(mp->second->getMat());
-    }
 
-  DB.writeMCNPX(OX);
+
+    // set ordered otherwize output random [which is annoying]
+  const std::map<int,const MonteCarlo::Material*> orderedMat=
+    getOrderedMaterial();
+
+  for(const auto& [matID,matPtr] : orderedMat)
+    matPtr->write(OX);
+  
   OX<<"c ++++++++++++++++++++++ END ++++++++++++++++++++++++++++"<<std::endl;
   return;
 }
@@ -632,16 +597,89 @@ SimMCNP::writePhysics(std::ostream& OX) const
     }
 
   std::set<int> voidCells;
-  for(const OTYPE::value_type& OVal : OList)
+  for(const auto& [cellNum,objPtr]  : OList)
     {
-      if (!OVal.second->getMat())
-	voidCells.insert(OVal.first);
+      if (objPtr->isVoid())
+	voidCells.emplace(cellNum);
     }
 
   // Remaining Physics cards
   PhysPtr->write(OX,cellOutOrder,voidCells);
   OX<<"c ++++++++++++++++++++++ END ++++++++++++++++++++++++++++"<<std::endl;
   OX<<std::endl;  // MCNPX requires a blank line to terminate
+  return;
+}
+
+
+void
+SimMCNP::writeImportance(std::ostream& OX) const
+  /*!
+    Write all the importances / voluems
+    \param OX :: Output stream
+  */
+{
+  ELog::RegMethod RegA("SimMCNP","writeImportance");
+
+  const particleConv& pConv=particleConv::Instance();
+  
+  std::ostringstream cx;
+  cx<<"vol 1.0 "<<cellOutOrder.size()-1<<"r";
+  StrFunc::writeMCNPX(cx.str(),OX);  
+
+  // make set of particle:
+  std::set<int> pList;
+  const std::vector<std::string>& pVec=
+    PhysPtr->getMode().getParticles();
+  for(const std::string& P : pVec)
+    pList.emplace(pConv.mcplITYP(P));
+		  
+  
+  std::map<int,std::vector<double>> ImpMap;
+  ImpMap.emplace(0,std::vector<double>());
+    
+  bool flag;
+  double Imp;
+  for(const int CN : cellOutOrder)
+    {
+      const MonteCarlo::Object* OPtr=findObject(CN);
+      // flag indicates particles :
+      std::tie(flag,Imp)=OPtr->getImpPair();  // returns 0 as well
+      ImpMap[0].push_back(Imp);
+      if (!flag)
+	{
+	  const std::set<int>& PSet=OPtr->getImportance().getParticles();
+	  std::map<int,std::vector<double>>::iterator mc;
+	  for(const int P : PSet)
+	    {
+	      const double ImpVal=OPtr->getImp(P);
+	      mc=ImpMap.find(P);
+	      if (mc==ImpMap.end())
+		{
+		  pList.erase(P);
+		  ImpMap.emplace(P,ImpMap[0]);   // copy existing list in
+		}
+	      ImpMap[P].push_back(ImpVal);
+	    }
+	}
+    }
+  cx.str("");
+  cx<<"imp:"<<pConv.mcnpParticleList(pList);
+
+  RangeUnit::NGroup<double> IRange;    
+  IRange.condense(1e-6,ImpMap[0]);
+
+  cx<<IRange;
+  StrFunc::writeMCNPX(cx.str(),OX);
+  
+  for(const auto& [ PN , IVec] : ImpMap)
+    if (PN)
+      {
+	cx.str("");
+	cx<<"imp:"<<pConv.mcplToMCNP(PN)<<" ";
+	IRange.condense(1e-6,ImpMap[0]);
+	cx<<IRange;
+	StrFunc::writeMCNPX(cx.str(),OX);    
+      }	  
   return;
 }
 
@@ -669,14 +707,18 @@ SimMCNP::writeCinderMat() const
   std::ofstream OX("material");  
   // Get used material list
 
-  ModelSupport::DBMaterial& DB=ModelSupport::DBMaterial::Instance();  
-  DB.resetActive();
-
-  OTYPE::const_iterator mp;
-  for(mp=OList.begin();mp!=OList.end();mp++)
-    DB.setActive(mp->second->getMat());
-
-  DB.writeCinder(OX);
+  std::set<int> writtenMat;      ///< set of written materials
+  for(const auto& [cellNum,objPtr]  : OList)
+    {
+      (void) cellNum;        // avoid warning -- fixed c++20
+      const MonteCarlo::Material* mPtr = objPtr->getMatPtr();
+      const int ID=mPtr->getID();
+      if (ID && writtenMat.find(ID)!=writtenMat.end())
+	{
+	  mPtr->writeCinder(OX);
+	  writtenMat.emplace(ID);
+	}
+    }
   OX.close();
   return;
 }
@@ -700,6 +742,7 @@ SimMCNP::write(const std::string& Fname) const
   writeWeights(OX);
   writeTally(OX);
   writeSource(OX);
+  writeImportance(OX);
   writePhysics(OX);
   OX.close();
   return;

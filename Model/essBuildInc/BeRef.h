@@ -1,9 +1,9 @@
-/*********************************************************************
+/********************************************************************* 
   CombLayer : MCNP(X) Input builder
-
+ 
  * File:   essBuildInc/BeRef.h
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>. 
  *
  ****************************************************************************/
 #ifndef essSystem_BeRef_h
@@ -33,29 +33,26 @@ namespace essSystem
   \author S. Ansell
   \version 1.0
   \date February 2013
-  \brief Reflector object
+  \brief Reflector object 
 */
 
-class BeRef : public attachSystem::ContainedComp,
-  public attachSystem::FixedComp,
-  public attachSystem::CellMap
+class BeRef :
+    public attachSystem::ContainedComp,
+    public attachSystem::FixedOffsetUnit,
+    public attachSystem::CellMap
 {
  private:
 
-  int engActive;                  ///< Engineering active flag
+  int engActive;                  ///< Engineering active
+  
   /// Inner components inside Reflector (eng detail)
   std::shared_ptr<BeRefInnerStructure> InnerCompTop;
+  /// Inner components inside Reflector (eng detail)
   std::shared_ptr<BeRefInnerStructure> InnerCompLow;
 
-  double xStep;                   ///< X step
-  double yStep;                   ///< Y step
-  double zStep;                   ///< Z step
-  double xyAngle;                 ///< XY Angle
-  double zAngle;                  ///< Z Angle
-
   double radius;                  ///< Radius
-  double height;                  ///< Height of the top part
-  double depth;                   ///< Height of the bottom part
+  double height;                  ///< Height
+  double depth;                  ///< depth 
   double wallThick;               ///< Wall thickness
   double wallThickLow;            ///< Wall thickness of the side near the target wheel. Separated from wallThick in order to optimise wrapping with CapMod
 
@@ -66,7 +63,7 @@ class BeRef : public attachSystem::ContainedComp,
 
   int topRefMat;                  ///< reflector material (upper Be tier)
   int lowRefMat;                  ///< reflector material (lower Be tier)
-  int topWallMat;                 ///< wall Material (upper tier)
+  int topWallMat;                 ///< wall Material (upper tier) 
   int lowWallMat;                 ///< wall Material (lower tier)
   int targSepMat;                 ///< Separator Mat
 
@@ -77,9 +74,8 @@ class BeRef : public attachSystem::ContainedComp,
 
   // Functions:
 
-  void populate(const FuncDataBase&,const double,const double,const double);
-  void createUnitVector(const attachSystem::FixedComp&);
-
+  void populateWithDef(const FuncDataBase&,const double,const double,
+		       const double);
   void createSurfaces();
   void createObjects(Simulation&);
   void createLinks();
@@ -93,8 +89,9 @@ class BeRef : public attachSystem::ContainedComp,
 
   void globalPopulate(const FuncDataBase&);
   void createAll(Simulation&,const attachSystem::FixedComp&,
-		 const double,const double,const double);
-
+		 const long int,const double,
+		 const double,const double);
+  
   /// Access to radius
   double getRadius() const { return radius+wallThick; }
 };
@@ -102,4 +99,4 @@ class BeRef : public attachSystem::ContainedComp,
 }
 
 #endif
-
+ 

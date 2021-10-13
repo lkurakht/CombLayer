@@ -3,7 +3,7 @@
  
  * File:   src/ReadFunctions.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,43 +38,29 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "mathSupport.h"
 #include "support.h"
-#include "Element.h"
 #include "Zaid.h"
-#include "MapSupport.h"
 #include "MXcards.h"
 #include "Material.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Triple.h"
-#include "NList.h"
-#include "NRange.h"
-#include "Transform.h"
-#include "Surface.h"
 #include "surfIndex.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
-#include "FItem.h"
 #include "FuncDataBase.h"
-#include "SurInter.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "DBMaterial.h"
 #include "ModeCard.h"
 #include "PhysCard.h"
 #include "LSwitchCard.h"
-#include "PhysImp.h"
 #include "PhysicsCards.h"
+#include "mcnpStringSupport.h"
 #include "ReadFunctions.h"
 
 namespace ReadFunc
@@ -173,7 +159,7 @@ processSurface(const std::string& InputLine,const int offset)
 {
   ELog::RegMethod RegItem("ReadFunctions","processSurface");
 
-  std::string Line=StrFunc::fullBlock(InputLine);
+  std::string Line=StrFunc::removeOuterSpace(InputLine);
   StrFunc::stripComment(Line);
   if (Line.size()<1 ||               // comments blank line, ^c or ^c<spc> 
       (tolower(Line[0])=='c' && 
@@ -370,12 +356,12 @@ readCells(FuncDataBase& DB,std::istream& IX,
       else if (!ignore)
         {
 	  ReadFunc::processDollarString(DB,Line);          // Process variables
-	  if (MonteCarlo::Object::startLine(Line))        // Start of a line
+	  if (mcnpFunc::startMaterial(Line))        // Start of a line
 	    endActive=2;
 	  else
 	    {
 	      StrFunc::stripComment(Line);
-	      ObjLine+=" "+StrFunc::fullBlock(Line);	  
+	      ObjLine+=" "+StrFunc::removeOuterSpace(Line);	  
 	    }
 	}
       
@@ -406,7 +392,7 @@ readCells(FuncDataBase& DB,std::istream& IX,
         {
 	  // Add line without comments + end <spc>
 	  StrFunc::stripComment(Line);
-	  ObjLine=StrFunc::fullBlock(Line);
+	  ObjLine=StrFunc::removeOuterSpace(Line);
 	}
       endActive=0;
     }

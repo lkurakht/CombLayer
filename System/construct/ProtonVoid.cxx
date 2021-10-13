@@ -3,7 +3,7 @@
  
  * File:   construct/ProtonVoid.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,47 +34,28 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDivide.h"
-#include "surfDIter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
 #include "generateSurf.h"
-#include "SimProcess.h"
-#include "chipDataStore.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "ContainedComp.h"
+#include "ExternalCut.h"
+#include "BaseMap.h"
+#include "CellMap.h"
 #include "ProtonVoid.h"
 
 namespace ts1System
@@ -83,7 +64,8 @@ namespace ts1System
 ProtonVoid::ProtonVoid(const std::string& Key)  :
   attachSystem::ContainedComp(),
   attachSystem::FixedComp(Key,2),
-  protonVoidCell(0)
+  attachSystem::ExternalCut(),
+  attachSystem::CellMap()
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Name for item in search
@@ -92,7 +74,8 @@ ProtonVoid::ProtonVoid(const std::string& Key)  :
 
 ProtonVoid::ProtonVoid(const ProtonVoid& A) : 
   attachSystem::ContainedComp(A),attachSystem::FixedComp(A),
-  protonVoidCell(A.protonVoidCell),
+  attachSystem::ExternalCut(A),
+  attachSystem::CellMap(A),
   viewRadius(A.viewRadius)
   /*!
     Copy constructor
@@ -112,7 +95,8 @@ ProtonVoid::operator=(const ProtonVoid& A)
     {
       attachSystem::ContainedComp::operator=(A);
       attachSystem::FixedComp::operator=(A);
-      protonVoidCell=A.protonVoidCell;
+      attachSystem::ExternalCut::operator=(A);
+      attachSystem::CellMap::operator=(A);
       viewRadius=A.viewRadius;
     }
   return *this;
@@ -139,19 +123,6 @@ ProtonVoid::populate(const FuncDataBase& Control)
   return;
 }
   
-void
-ProtonVoid::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    - Y Down the beamline
-    \param FC :: FixedComp for origin and axis
-  */
-{
-  ELog::RegMethod RegA("ProtonVoid","createUnitVector");
-
-  attachSystem::FixedComp::createUnitVector(FC);
-  return;
-}
 
 void
 ProtonVoid::createSurfaces()
@@ -178,13 +149,12 @@ ProtonVoid::createObjects(Simulation& System,
   */
 {
   ELog::RegMethod RegA("ProtonVoid","createObjects");
-  
+
   std::string Out;
 
   Out=ModelSupport::getComposite(SMap,buildIndex, " -7 ");
   Out+=RefSurfBoundary+" "+TargetSurfBoundary;
-  System.addCell(MonteCarlo::Object(cellIndex++,0,0.0,Out));
-  protonVoidCell=cellIndex-1;
+  CellMap::makeCell("VoidCell",System,cellIndex++,0,0.0,Out);
   addOuterSurf(Out);
   addBoundarySurf(-SMap.realSurf(buildIndex+7));    
 
@@ -204,25 +174,22 @@ ProtonVoid::createLinks()
 void
 ProtonVoid::createAll(Simulation& System,
 		      const attachSystem::FixedComp& TargetFC,
-		      const long int tIndex,
-		      const attachSystem::FixedComp& RefFC,
-		      const long int rIndex)
+		      const long int tIndex)
   /*!
     Global creation of the hutch
     \param System :: Simulation to add vessel to
     \param TargetFC :: FixedComp for origin and target value
     \param tIndex :: Target plate surface
-    \param RefFC :: FixedComp for reflector (bounding surf)
-    \param rIndex :: Reflector outer surf
   */
 {
   ELog::RegMethod RegA("ProtonVoid","createAll");
   populate(System.getDataBase());
 
-  createUnitVector(TargetFC);
+  createUnitVector(TargetFC,tIndex);
   createSurfaces();
+  // This need to be from externalCut:
   const std::string TSurf=TargetFC.getLinkString(tIndex);
-  const std::string RSurf=RefFC.getLinkString(rIndex);
+  const std::string RSurf=ExternalCut::getRuleStr("RefBoundary");
 
   createObjects(System,TSurf,RSurf);
   createLinks();

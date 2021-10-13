@@ -3,7 +3,7 @@
  
  * File:   insertUnit/insertPlate.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,40 +33,24 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "LineIntersectVisit.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
-#include "MaterialSupport.h"
 #include "Zaid.h"
 #include "MXcards.h"
 #include "Material.h"
@@ -79,9 +63,9 @@
 #include "SurfMap.h"
 #include "CellMap.h"
 #include "ContainedComp.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "SurInter.h"
-#include "AttachSupport.h"
 #include "LayerDivide3D.h"
 #include "insertObject.h"
 #include "insertPlate.h"
@@ -93,6 +77,16 @@ insertPlate::insertPlate(const std::string& Key)  :
   insertObject(Key),nGrid(1)
   /*!
     Constructor BUT ALL variable are left unpopulated.
+    \param Key :: Name for item in search
+  */
+{}
+
+insertPlate::insertPlate(const std::string& baseKey,
+			   const std::string& Key)  :
+  insertObject(baseKey,Key),nGrid(1)
+  /*!
+    Constructor BUT ALL variable are left unpopulated
+    \param baseKey :: base Name for item in search
     \param Key :: Name for item in search
   */
 {}
@@ -144,10 +138,10 @@ insertPlate::populate(const FuncDataBase& Control)
   if (!populated)
     {
       insertObject::populate(Control);
-      width=Control.EvalVar<double>(keyName+"Width");
-      height=Control.EvalVar<double>(keyName+"Height");
-      depth=Control.EvalVar<double>(keyName+"Depth");
-      nGrid=Control.EvalDefVar<size_t>(keyName+"NGrid",1);
+      width=Control.EvalTail<double>(keyName,baseName,"Width");
+      height=Control.EvalTail<double>(keyName,baseName,"Height");
+      depth=Control.EvalTail<double>(keyName,baseName,"Depth");
+      nGrid=Control.EvalDefTail<size_t>(keyName,baseName,"NGrid",1);
     }
   return;
 }
@@ -177,13 +171,10 @@ insertPlate::createSurfaces()
   else
     setSurf("Back",getBackRule().getPrimarySurface());
 
-
   ModelSupport::buildPlane(SMap,buildIndex+3,Origin-X*(width/2.0),X);
   ModelSupport::buildPlane(SMap,buildIndex+4,Origin+X*(width/2.0),X);
   ModelSupport::buildPlane(SMap,buildIndex+5,Origin-Z*(height/2.0),Z);
-  ModelSupport::buildPlane(SMap,buildIndex+6,Origin+Z*(height/2.0),Z);
-
-  
+  ModelSupport::buildPlane(SMap,buildIndex+6,Origin+Z*(height/2.0),Z);  
 
   setSurf("Left",SMap.realSurf(buildIndex+3));
   setSurf("Right",SMap.realSurf(buildIndex+4));
@@ -393,6 +384,7 @@ insertPlate::mainAll(Simulation& System)
 
   if (!delayInsert)
     findObjects(System);
+    
   createObjects(System);
 
   insertObjects(System);
@@ -430,10 +422,11 @@ insertPlate::createAll(Simulation& System,
   */
 {
   ELog::RegMethod RegA("insertPlate","createAll(FC,index)");
-  
+
   if (!populated) 
     populate(System.getDataBase());  
   createUnitVector(FC,lIndex);
+
   mainAll(System);
   return;
 }
@@ -452,6 +445,7 @@ insertPlate::createAll(Simulation& System,
   */
 {
   ELog::RegMethod RegA("insertPlate","createAll");
+  
   if (!populated) 
     populate(System.getDataBase());  
   createUnitVector(Orig,YA,ZA);

@@ -3,7 +3,7 @@
  
  * File:   ESSBeam/skadi/SKADI.cxx
  *
- * Copyright (c) 2004-2019 by Tsitohaina Randriamalala/Stuart Ansell
+ * Copyright (c) 2004-2021 by Tsitohaina Randriamalala/Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,25 +36,13 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "stringCombine.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -65,36 +53,32 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
-#include "World.h"
 #include "AttachSupport.h"
 #include "beamlineSupport.h"
 #include "GuideItem.h"
-#include "Jaws.h"
 #include "GuideLine.h"
 #include "DiskChopper.h"
 #include "Motor.h"
-#include "VacuumBox.h"
 #include "VacuumPipe.h"
-#include "ChopperHousing.h"
 #include "SingleChopper.h"
 #include "Bunker.h"
-#include "BunkerInsert.h"
 #include "CompBInsert.h"
 #include "ChopperPit.h"
 #include "HoleShape.h"
 #include "LineShield.h"
 #include "PipeCollimator.h"
-#include "Aperture.h"
 
 #include "SkadiHut.h"
 
@@ -106,7 +90,7 @@ namespace essSystem
 SKADI::SKADI(const std::string& keyName):
   attachSystem::CopiedComp("skadi",keyName),
   stopPoint(0),
-  skadiAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  skadiAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
 
   BendA(new beamlineSystem::GuideLine(newName+"BA")),
 
@@ -181,7 +165,6 @@ SKADI::SKADI(const std::string& keyName):
   ELog::RegMethod RegA("SKADI","SKADI");
   
   ModelSupport::objectRegister& OR = ModelSupport::objectRegister::Instance();
-  // OR.cell(newName+"Axis");
 
   OR.addObject(skadiAxis);
 
@@ -274,12 +257,12 @@ SKADI::buildBunkerUnits(Simulation& System,
   ELog::RegMethod RegA("SKADI","buildBunkerUnits");
   /// Pipe+Guide at Light shutter position
 
-  VPipeB->addInsertCell(bunkerVoid);
+  VPipeB->addAllInsertCell(bunkerVoid);
   VPipeB->createAll(System,FA,startIndex);
   BendB->addInsertCell(VPipeB->getCells("Void"));
   BendB->createAll(System,*VPipeB,0,*VPipeB,0);
 
-  VPipeC->addInsertCell(bunkerVoid);
+  VPipeC->addAllInsertCell(bunkerVoid);
   VPipeC->createAll(System,BendB->getKey("Guide0"),2);
   BendC->addInsertCell(VPipeC->getCells("Void"));
   BendC->createAll(System,*VPipeC,0,*VPipeC,0);
@@ -289,7 +272,7 @@ SKADI::buildBunkerUnits(Simulation& System,
   CollA->addInsertCell(VPipeC->getCell("Void"));
   CollA->createAll(System,*VPipeC,-1);
 
-  VPipeD->addInsertCell(bunkerVoid);
+  VPipeD->addAllInsertCell(bunkerVoid);
   VPipeD->createAll(System,BendC->getKey("Guide0"),2);
   BendD->addInsertCell(VPipeD->getCells("Void"));
   BendD->createAll(System,BendC->getKey("Guide0"),2,
@@ -301,13 +284,13 @@ SKADI::buildBunkerUnits(Simulation& System,
   CollB->createAll(System,*VPipeD,-1);
 
   
-  VPipeE->addInsertCell(bunkerVoid);
+  VPipeE->addAllInsertCell(bunkerVoid);
   VPipeE->createAll(System,BendD->getKey("Guide0"),2);
   BendE->addInsertCell(VPipeE->getCells("Void"));
   BendE->createAll(System,BendD->getKey("Guide0"),2,
 		   BendD->getKey("Guide0"),2);
 
-  VPipeF->addInsertCell(bunkerVoid);
+  VPipeF->addAllInsertCell(bunkerVoid);
   VPipeF->createAll(System,BendE->getKey("Guide0"),2);
   FocusF->addInsertCell(VPipeF->getCells("Void"));
   FocusF->createAll(System,*VPipeF,0,*VPipeF,0);
@@ -364,7 +347,7 @@ SKADI::build(Simulation& System,
   if (stopPoint==2) return;         // Stop at last pipe in Bunker
   
   BInsert->addInsertCell(bunkerObj.getCell("MainVoid"));
-  BInsert->createAll(System,FocusF->getKey("Guide0"),2,bunkerObj);
+  BInsert->createAll(System,FocusF->getKey("Guide0"),2);
   attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsert);
   FocusWallA->addInsertCell(BInsert->getCells("Item"));
   FocusWallA->createAll(System,*BInsert,0,*BInsert,0);
@@ -393,7 +376,7 @@ SKADI::build(Simulation& System,
   CInsert->addInsertCell(bunkerObj.getCell("MainVoid"));
   CInsert->addInsertCell(voidCell);
   CInsert->addInsertCell(ShieldA->getCell("Void"));
-  CInsert->createAll(System,*BInsert,2,bunkerObj);
+  CInsert->createAll(System,*BInsert,2);
 
   attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*CInsert);
   
@@ -438,13 +421,13 @@ SKADI::build(Simulation& System,
   ShieldB->createAll(System,PitA->getKey("Mid"),2);
   
 
-  VPipeOutA->addInsertCell(ShieldB->getCell("Void"));
+  VPipeOutA->addAllInsertCell(ShieldB->getCell("Void"));
   VPipeOutA->createAll(System,PitA->getKey("Mid"),2);
   GuideOutA->addInsertCell(VPipeOutA->getCells("Void"));
   GuideOutA->createAll(System,*VPipeOutA,0,*VPipeOutA,0);
 
   //  VPipeOutB->addInsertCell(ShieldB1->getCell("Void"));
-  VPipeOutB->addInsertCell(ShieldB->getCell("Void"));
+  VPipeOutB->addAllInsertCell(ShieldB->getCell("Void"));
   VPipeOutB->createAll(System,*VPipeOutA,2);
 
   GuideOutB->addInsertCell(VPipeOutB->getCells("Void"));
@@ -484,7 +467,7 @@ SKADI::build(Simulation& System,
   ShieldC->setBack(PitC->getKey("Mid"),1);  
   ShieldC->createAll(System,*VPipeOutB,2);
 
-  VPipeOutC->addInsertCell(ShieldC->getCell("Void"));
+  VPipeOutC->addAllInsertCell(ShieldC->getCell("Void"));
   VPipeOutC->createAll(System,*ShieldC,-1);
   
   GuideOutC->addInsertCell(VPipeOutC->getCells("Void"));
@@ -496,7 +479,7 @@ SKADI::build(Simulation& System,
   ShieldD->setFront(PitC->getKey("Mid"),2);
   ShieldD->createAll(System,*VPipeOutC,2);
 
-  VPipeOutD->addInsertCell(ShieldD->getCell("Void"));
+  VPipeOutD->addAllInsertCell(ShieldD->getCell("Void"));
   VPipeOutD->setBack(*ShieldD,-2);
   VPipeOutD->createAll(System,*ShieldD,-1);
   GuideOutD->addInsertCell(VPipeOutD->getCells("Void"));

@@ -26,29 +26,24 @@
 #include <cmath>
 #include <list>
 #include <vector>
+#include <set>
 #include <map>
 #include <stack>
 #include <string>
 #include <algorithm>
 #include <complex>
 
+
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h" 
 #include "OutputLog.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "mathSupport.h"
 #include "polySupport.h"
-#include "support.h"
-#include "Triple.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "Transform.h"
+#include "Triple.h"
 #include "Surface.h"
 #include "Quadratic.h"
 #include "ArbPoly.h"
@@ -59,9 +54,7 @@
 #include "MBrect.h"
 #include "Plane.h"
 #include "Sphere.h"
-#include "Torus.h"
 #include "Line.h"
-#include "LineIntersectVisit.h"
 
 namespace Geometry
 {
@@ -196,6 +189,19 @@ Line::distance(const Geometry::Vec3D& A) const
   Geometry::Vec3D L=getPoint(lambda);
   L-=A;
   return L.abs();
+}
+
+double
+Line::lambdaDistance(const Geometry::Vec3D& A) const
+  /*!
+    Distance of along a line [signed] to the closest point
+    \param A :: test Point
+    \returns absolute distance (not signed)
+  */
+{
+  const Geometry::Vec3D LP=A-Origin;
+  return LP.dotProd(Direct);
+  
 }
 
 int 
@@ -393,8 +399,6 @@ Line::intersect(std::vector<Geometry::Vec3D>& PntOut,const ArbPoly& APoly) const
  */
 {
   size_t cnt(0);
-  std::vector<Geometry::Vec3D>::const_iterator vc;
-
   for(size_t i=0;i<APoly.getNSurf();i++)
     {
       std::vector<Geometry::Vec3D> PlanePts;
@@ -545,8 +549,6 @@ Line::intersect(std::vector<Geometry::Vec3D>& PntOut,
      \return Number of points found by intersection
   */
 {
-  ELog::RegMethod RegA("Line","intersect(Cyl)");
-
   const Geometry::Vec3D Cent=Cyl.getCentre();
   const Geometry::Vec3D Ax=Origin-Cent;
   const Geometry::Vec3D N= Cyl.getNormal();

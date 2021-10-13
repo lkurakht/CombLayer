@@ -3,7 +3,7 @@
  
  * File:   constructVarInc/JawValveGenerator.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,14 +40,20 @@ class JawValveGenerator
  private:
 
   double length;                ///< Void length
-  double width;                 ///< Void width (full)
+  double innerRadius;           ///< Inner radius if cyclinder
+  double width;                 ///< Void width (full) 
   double height;                ///< height 
   double depth;                 ///< depth
   
   double wallThick;             ///< Wall thickness
-  double portRadius;            ///< Port inner radius (opening)
-  double portThick;             ///< Port outer ring
-  double portLen;               ///< Forward step of port
+
+  double portARadius;            ///< Port inner radius (opening)
+  double portAThick;             ///< Port outer ring
+  double portALen;               ///< Forward step of port
+  
+  double portBRadius;            ///< Port inner radius (opening)
+  double portBThick;             ///< Port outer ring
+  double portBLen;               ///< Forward step of port
     
   std::string voidMat;          ///< Void material
   std::string wallMat;          ///< Pipe material
@@ -65,11 +71,15 @@ class JawValveGenerator
   JawValveGenerator();
   JawValveGenerator(const JawValveGenerator&);
   JawValveGenerator& operator=(const JawValveGenerator&);
-  ~JawValveGenerator();
+  ~JawValveGenerator() =default;
 
   template<typename CF> void setCF();
+  template<typename CF> void setCylCF();
+  template<typename CF> void setAPortCF();
+  template<typename CF> void setBPortCF();
 
   void setLength(const double L) { length=L; }
+  void setRadius(const double);
   void setSlits(const double,const double,const double,const std::string&);
   void setOuter(const double,const double,const double,
 		const double);
@@ -77,6 +87,9 @@ class JawValveGenerator
   void setWallThick(const double T) { wallThick=T; }
 
   void setPort(const double,const double,const double);
+  void setAPort(const double,const double,const double);
+  void setBPort(const double,const double,const double);
+
   /// set void material
   void setVoidMat(const std::string& M) { voidMat=M; }
   /// set wall material

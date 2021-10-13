@@ -39,10 +39,7 @@
 #include "OutputLog.h"
 #include "support.h"
 #include "writeSupport.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
 #include "Triple.h"
 #include "localRotate.h"
 #include "masterRotate.h"
@@ -138,7 +135,7 @@ tmeshTally::setKeyWords(const std::string& K)
   */
 {
   if (!K.empty())
-    keyWords=StrFunc::fullBlock(K);
+    keyWords=StrFunc::removeOuterSpace(K);
   else
     keyWords="";
   return;

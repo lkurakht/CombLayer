@@ -33,31 +33,23 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
 #include "Surface.h"
 #include "surfIndex.h"
 #include "surfRegister.h"
-#include "surfDIter.h"
 #include "Quadratic.h"
 #include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
-#include "shutterBlock.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -206,7 +198,7 @@ channel::setVar(const size_t Item,const channel& CRef)
 
 
 void
-channel::populate(const Simulation& System,
+channel::populate(const FuncDataBase& Control,
 		  const channel* defChannel)
   /*!
     Populate all the variables
@@ -216,7 +208,6 @@ channel::populate(const Simulation& System,
   */
 {
   ELog::RegMethod RegA("channel","populate");
-  const FuncDataBase& Control=System.getDataBase();
 
   const int Size(8);
   const char* sndKey[Size]=
@@ -239,21 +230,6 @@ channel::populate(const Simulation& System,
     }  
   return;
 }
-
-void
-channel::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    - Y Down the beamline
-    \param FC :: Fixed Component for origin
-  */
-{
-  ELog::RegMethod RegA("channel","createUnitVector");
-  attachSystem::FixedComp::createUnitVector(FC,0);
-  return;
-}
-
-
 
 void
 channel::createSurfaces()
@@ -325,9 +301,22 @@ channel::createObjects(Simulation& System)
 }
 
 void
+channel::setDefaultValues(const FuncDataBase& Control,
+			  const channel* ZB)
+  /*!
+    \param Control :: Target origin system
+    \param ZB :: Channel to take default values
+  */
+{
+  populate(Control,ZB);
+  return;
+}
+
+void
 channel::createAll(Simulation& System,
 		   const attachSystem::FixedComp& FC,
-		   const channel* ZB)
+		   const long int sideIndex)
+
   /*!
     Global creation of the hutch
     \param System :: Simulation to add vessel to
@@ -336,9 +325,9 @@ channel::createAll(Simulation& System,
   */
 {
   ELog::RegMethod RegA("channel","createAll");
-  populate(System,ZB);
 
-  createUnitVector(FC);
+
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System);
   insertObjects(System);       
@@ -346,4 +335,4 @@ channel::createAll(Simulation& System,
   return;
 }
 
-} // NAMESPACE shutterSystem
+} // NAMESPACE t1System

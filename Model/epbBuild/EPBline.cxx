@@ -3,7 +3,7 @@
  
  * File:   epbBuild/EPBline.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,33 +34,20 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
 #include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -68,15 +55,10 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "SimProcess.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
-#include "channel.h"
-#include "boxValues.h"
-#include "boxUnit.h"
-#include "BoxLine.h"
 #include "EPBline.h"
 
 namespace epbSystem
@@ -163,7 +145,8 @@ EPBline::populate(const Simulation& System)
 }
   
 void
-EPBline::createUnitVector(const attachSystem::FixedComp& FC)
+EPBline::createUnitVector(const attachSystem::FixedComp& FC,
+			      const long int sideIndex)
   /*!
     Create the unit vectors
     - Y Down the beamline
@@ -172,7 +155,7 @@ EPBline::createUnitVector(const attachSystem::FixedComp& FC)
 {
   ELog::RegMethod RegA("EPBline","createUnitVector");
 
-  attachSystem::FixedComp::createUnitVector(FC);
+  attachSystem::FixedComp::createUnitVector(FC,sideIndex);
   applyOffset();
 
   for(size_t i=0;i<nSeg;i++)
@@ -288,7 +271,8 @@ EPBline::createLinks()
 
 void
 EPBline::createAll(Simulation& System,
-		   const attachSystem::FixedComp& FC)
+		   const attachSystem::FixedComp& FC,
+		   const long int sideIndex)
 
   /*!
     Global creation of the hutch
@@ -298,7 +282,7 @@ EPBline::createAll(Simulation& System,
 {
   ELog::RegMethod RegA("EPBline","createAll");
   populate(System);
-  createUnitVector(FC);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System);
   createLinks();

@@ -35,13 +35,7 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
-#include "NameStack.h"
-#include "RegMethod.h"
 #include "OutputLog.h"
-#include "InputControl.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "support.h"
 
@@ -177,6 +171,9 @@ getDefInput(const MITYPE&,const std::string&,const size_t,const size_t&);
 template std::string
 getDefInput(const MITYPE&,const std::string&,const size_t,const std::string&);
 
+
+template bool
+findInput(const MITYPE&,const std::string&,const size_t,int&);
 
 template bool
 findInput(const MITYPE&,const std::string&,const size_t,size_t&);

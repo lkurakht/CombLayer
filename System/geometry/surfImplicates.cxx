@@ -3,7 +3,7 @@
  
  * File:   geometry/surfImplicates.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,25 +31,17 @@
 #include <string>
 #include <algorithm>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "support.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
 #include "Surface.h"
 #include "Quadratic.h"
 #include "Cylinder.h"
-#include "Cone.h"
 #include "Plane.h"
-#include "Sphere.h"
 #include "surfImplicates.h" 
 
 
@@ -61,6 +53,7 @@ surfImplicates::surfImplicates()
     Constructor
   */
 {
+  functionMap.emplace("CylinderCylinder",&surfImplicates::cylinderCylinder);
   functionMap.emplace("CylinderPlane",&surfImplicates::cylinderPlane);
   functionMap.emplace("PlaneCylinder",&surfImplicates::planeCylinder);
   functionMap.emplace("PlanePlane",&surfImplicates::planePlane);
@@ -87,7 +80,7 @@ surfImplicates::isImplicate(const Surface* ASPtr,
     \return -1 / 1 if implicate 0 if not
   */
 {
-  ELog::RegMethod RegA("surfaceImplicates","isImplicate");
+  ELog::RegMethod RegA("surfImplicates","isImplicate");
 
   const std::string AType=ASPtr->className();
   const std::string BType=BSPtr->className();
@@ -145,15 +138,20 @@ std::pair<int,int>
 surfImplicates::cylinderPlane(const Geometry::Surface* APtr,
 			      const Geometry::Surface* BPtr) const
   /*!
-    Determine if two planes are implicates
+    Determine if a cyliner and a planes are implicates
+    Condition is that the plane normal -- CylAxis are orthoganal
+    We know that +Cyl can imply nothing BUT
+     -Cyl can imply either +/- Plane.
     \param APtr :: First cylinder pointer
     \param BPtr :: second plane pointer
+    \return first*APtr -> second*BPtr
    */
 {
-  // we already know these are planes/cylinders
-  std::pair<int,int> Out=planeCylinder(BPtr,APtr);
-  Out.first*=-1;
-  Out.second*=-1;
+  // possible results: -1,1 : 0,0
+  const std::pair<int,int> Out=planeCylinder(BPtr,APtr);
+  if (Out.first) 
+    return std::pair<int,int>(-1,-Out.first);
+
   return Out;
 }
   
@@ -163,8 +161,10 @@ surfImplicates::planeCylinder(const Geometry::Surface* APtr,
   /*!
     Determine if plane / cylinder are implicates
     Condition is that the plane normal -- CylAxis are orthoganal
+
     \param APtr :: First plane pointer
     \param BPtr :: second cylinder pointer
+    \return first*APtr -> second*BPtr
    */
 {
   // we already know these are planes/cylinders
@@ -177,12 +177,58 @@ surfImplicates::planeCylinder(const Geometry::Surface* APtr,
   const Geometry::Vec3D& BCent=BCyl->getCentre();
   const double R=BCyl->getRadius();
 
+  // test if Norm - Axis are orthogonal
   if (std::abs(ANorm.dotProd(BAxis))<Geometry::zeroTol)
     {
       const double D=APlane->distance(BCent);
-      if (std::abs(D)>R)
-	return (D>0) ? std::pair<int,int>(-1,1) :
-	  std::pair<int,int>(1,1);
+      if (std::abs(D)>(R+Geometry::zeroTol))
+	{
+	  return (D>0) ? std::pair<int,int>(-1,1) :
+	    std::pair<int,int>(1,1);
+	}
+    }
+  return std::pair<int,int>(0,0);
+}
+
+std::pair<int,int>
+surfImplicates::cylinderCylinder(const Geometry::Surface* APtr,
+				 const Geometry::Surface* BPtr) const
+  /*!
+    Determine if plane / cylinder are implicates
+    Condition is that the axis are normal and
+    radius A is within B.
+
+    \param APtr :: First cylinder pointer
+    \param BPtr :: second cylinder pointer
+
+    \return first*APtr -> second*BPtr
+   */
+{
+  // we already know these are planes/cylinders
+  const Cylinder* ACyl=dynamic_cast<const Cylinder*>(APtr);
+  const Cylinder* BCyl=dynamic_cast<const Cylinder*>(BPtr);
+
+  const Geometry::Vec3D& AAxis=ACyl->getNormal();
+  const Geometry::Vec3D& ACent=ACyl->getCentre();
+
+  const Geometry::Vec3D& BAxis=BCyl->getNormal();
+  const Geometry::Vec3D& BCent=BCyl->getCentre();
+  
+  const double RA=ACyl->getRadius();
+  const double RB=BCyl->getRadius();
+  // test if Axis - Axis are parallel
+  if ((std::abs(AAxis.dotProd(BAxis))-1.0) > -Geometry::zeroTol)
+    {
+      // remember to project centre down length
+      const Geometry::Vec3D cutACentre=ACent.cutComponent(AAxis);
+      const Geometry::Vec3D cutBCentre=BCent.cutComponent(AAxis);
+      
+      const double D=cutACentre.Distance(cutBCentre);
+
+      if (RA>RB && (RA-D-RB>Geometry::zeroTol))
+	return std::pair<int,int>(1,1);
+      if (RA<RB && (RB-D-RA>Geometry::zeroTol))
+	return std::pair<int,int>(-1,-1);
     }
   return std::pair<int,int>(0,0);
 }

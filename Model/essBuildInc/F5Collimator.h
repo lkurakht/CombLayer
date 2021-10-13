@@ -3,7 +3,11 @@
  
  * File:   essBuildInc/F5Collimator.h
  *
+<<<<<<< HEAD
  * Copyright (c) 2015-2016 Konstantin Batkov
+=======
+ * Copyright (c) 2015-2019 Konstantin Batkov
+>>>>>>> origin/master
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,6 +67,7 @@ namespace essSystem
 	void createLinks();
 
 
+<<<<<<< HEAD
       public:
 	F5Collimator(const std::string&);
 	F5Collimator(const F5Collimator&);
@@ -76,6 +81,38 @@ namespace essSystem
 	int getMainCell() const { return colIndex+1; }
 	virtual void addToInsertChain(attachSystem::ContainedComp&) const; 
 	void createAll(Simulation&,const attachSystem::FixedComp&);
+=======
+  double height;                  ///< Height along z
+  double length;                   ///< Width  along x
+  double width;                   ///< Width  along y
+  double wall;                    ///< Wall thickness
+  
+  int GluePoint;              ///< Glue point number (currently number defines quadrant as in butterfly.svgz). Not used if <0
+  
+  // Functions:
+  
+  void populate(FuncDataBase&);
+  
+  void createSurfaces();
+  void createObjects(Simulation&);
+  void createLinks();
+  
+  
+ public:
+
+  F5Collimator(const std::string&);
+  F5Collimator(const F5Collimator&);    
+  F5Collimator& operator=(const F5Collimator&);
+  virtual ~F5Collimator();
+  
+  int getMainCell() const { return buildIndex+1; }
+  virtual void addToInsertChain(attachSystem::ContainedComp&) const; 
+
+  void createAll(Simulation&,const attachSystem::FixedComp&,
+		 const long int);
+  
+};
+>>>>>>> origin/master
 
 	//	inline const Geometry::Vec3D &getLinkPt(const size_t Index) { return attachSystem::FixedComp::getLinkPt(Index);}
 	//	inline size_t NConnect() { return attachSystem::FixedComp::NConnect();}

@@ -3,7 +3,7 @@
  
  * File:   phitsPhysicsInc/phitsPhysics.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,25 @@ class phitsPhysics
 {
  private:
 
+  /// fortran open files [to e done] 
+  std::map<size_t,std::string> files;  
+
+  /// CUT Energy for particles
+  std::map<std::string,double> particleECut;  
+
+  /// Max energy in libraries
+  std::map<std::string,double> libEMax;  
+
+
+  /// Simple integer flags
+  std::map<std::string,std::pair<int,std::string>> flags; 
+
+  std::map<std::string,double> values; ///< simple double values
+
+  std::pair<double,double> eRange;  ///< energy limit for range
+  std::pair<double,double> eTrack;  ///< energy limit for range
+
+  
  public:
    
   phitsPhysics();
@@ -44,7 +63,10 @@ class phitsPhysics
   phitsPhysics& operator=(const phitsPhysics&);
   virtual ~phitsPhysics();
 
-
+  void setECut(const std::string&,const double);
+  void setERange(const double,const double);
+  void setETrack(const double,const double);
+  
   void writePHITS(std::ostream&) const;
 };
 

@@ -3,7 +3,7 @@
  
  * File:   test/testHeadRule.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <complex>
 #include <cmath>
 #include <vector>
 #include <set>
@@ -34,28 +35,21 @@
 #include <memory>
 #include <tuple>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "NameStack.h"
 #include "MemStack.h"
 #include "RegMethod.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "BnId.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "support.h"
-#include "Surface.h"
 #include "Rules.h"
-#include "RuleBinary.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "surfIndex.h"
-#include "mapIterator.h"
 #include "SurInter.h"
+#include "Line.h"
+#include "LineIntersectVisit.h"
 
 #include "testFunc.h"
 #include "testHeadRule.h"
@@ -140,6 +134,7 @@ testHeadRule::applyTest(const int extra)
       "GetComponent",
       "GetLevel",
       "InterceptRule",
+      "IntersectHead",
       "Level",
       "PartEqual",
       "RemoveSurf",      
@@ -206,8 +201,8 @@ testHeadRule::testAddInterUnion()
 
       const std::string& IStr=std::get<1>(tc);
       const std::string& UStr=std::get<2>(tc);
-      if (StrFunc::fullBlock(B.display())!=UStr ||
-	  StrFunc::fullBlock(A.display())!=IStr)
+      if (StrFunc::removeOuterSpace(B.display())!=UStr ||
+	  StrFunc::removeOuterSpace(A.display())!=IStr)
 	{
 	  ELog::EM<<"Failed on test:"<<ELog::endDiag;
 	  ELog::EM<<"A   == "<<A.display()<<ELog::endDiag;
@@ -455,7 +450,7 @@ testHeadRule::testGetComponent()
 	  return -1;
 	}
       HeadRule ARes=tmp.getComponent(std::get<1>(tc),std::get<2>(tc));
-      const std::string AStr=StrFunc::fullBlock(ARes.display());
+      const std::string AStr=StrFunc::removeOuterSpace(ARes.display());
       if (AStr!=std::get<3>(tc))
 	{
 	  ELog::EM<<"Test Failed: "<<cnt<<ELog::endDiag;
@@ -475,7 +470,7 @@ testHeadRule::testGetComponent()
 int
 testHeadRule::testInterceptRule()
   /*!
-    Tests the point going into a headrule.
+    Tests the point going into a HeadRule.
     The surface that the track crosses is signed. It needs 
     to have the sign that would make the surface true for 
     points that are at a greater distance from the origin along 
@@ -524,12 +519,67 @@ testHeadRule::testInterceptRule()
 	  (SNum && Result.first.Distance(RPt)>1e-5))
 	{
 	  ELog::EM<<"Failed on test "<<cnt<<ELog::endTrace;
+	  ELog::EM<<"HR "<<HM<<ELog::endDiag;
 	  ELog::EM<<"Result "<<Result.first<<" at SN="<<Result.second
 		  <<ELog::endDiag;
 	  ELog::EM<<"Expect "<<RPt<<" at SN="<<SNum<<ELog::endDiag;
+
 	  return -1;
 	}
       cnt++;
+    }
+
+  return 0;
+}
+
+int
+testHeadRule::testIntersectHeadRule()
+  /*!
+    Test the interPoint/interDistance template function
+    \return 0 sucess / -ve on failure
+  */
+{
+  ELog::RegMethod RegItem("testHeadRule","testInterHeadRule");
+
+
+  createSurfaces();
+  
+  // HeadRule : Origin : Axis ::: Index : Point
+  typedef std::tuple<std::string,Geometry::Vec3D,Geometry::Vec3D,
+		     size_t,Geometry::Vec3D> TTYPE;
+    
+  // Target / result
+  const std::vector<TTYPE> Tests=
+    {
+      TTYPE("1",Geometry::Vec3D(0,0,0),Geometry::Vec3D(0,1,0),
+	    0,Geometry::Vec3D(0,0,0))
+    };
+ 
+  for(const TTYPE& tc : Tests)
+    {
+      HeadRule HM(std::get<0>(tc));
+      const Geometry::Vec3D& O(std::get<1>(tc));
+      const Geometry::Vec3D& A(std::get<2>(tc));
+      
+      MonteCarlo::LineIntersectVisit LI(O,A);
+      const std::vector<Geometry::Vec3D>& Pts=
+	LI.getPoints(HM);
+
+      const size_t index(std::get<3>(tc));
+      const Geometry::Vec3D expectPoint(std::get<4>(tc));
+      
+      if (Pts.size()<=index || expectPoint.Distance(Pts[index])>1e-5)
+	{
+	  ELog::EM<<"Line :"<<std::get<1>(tc)<<" :: "
+		  <<std::get<2>(tc)<<ELog::endDiag;	      
+	  ELog::EM<<"HR :"<<HM<<ELog::endDiag;
+	  ELog::EM<<"Index   :"<<index<<ELog::endDiag;
+	  ELog::EM<<"Expected :"<<expectPoint<<ELog::endDiag;
+	  if (Pts.size()>index)
+	    ELog::EM<<"Actual   :"<<Pts[index]<<ELog::endDiag;
+	  
+	  return -1;
+	}
     }
 
   return 0;

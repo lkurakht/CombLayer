@@ -1,3 +1,24 @@
+/********************************************************************* 
+  CombLayer : MCNP(X) Input builder
+ 
+ * File:   sinbadBuild/sbadDetector.cxx
+ *
+ * Copyright (c) 2004-2019 by A. Milocco
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+ *
+ ****************************************************************************/
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -13,28 +34,19 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -42,10 +54,9 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "stringCombine.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedOffset.h"
 #include "ContainedComp.h"
 
 #include "sbadDetector.h"
@@ -55,7 +66,7 @@ namespace sinbadSystem
 
 sbadDetector::sbadDetector(const std::string& Key,const size_t ID) :
   attachSystem::ContainedComp(),
-  attachSystem::FixedComp(Key+StrFunc::makeString(ID),0),
+  attachSystem::FixedOffset(Key+std::to_string(ID),0),
   baseName(Key),detID(ID),
   active(0)
   /*!
@@ -75,11 +86,10 @@ sbadDetector::clone() const
 }
 
 sbadDetector::sbadDetector(const sbadDetector& A) : 
-  attachSystem::ContainedComp(A),attachSystem::FixedComp(A),
+  attachSystem::ContainedComp(A),attachSystem::FixedOffset(A),
   baseName(A.baseName),detID(A.detID),
-  active(A.active),xStep(A.xStep),
-  yStep(A.yStep),zStep(A.zStep),xyAngle(A.xyAngle),
-  zAngle(A.zAngle),radius(A.radius),length(A.length),
+  active(A.active),
+  radius(A.radius),length(A.length),
   mat(A.mat)
   /*!
     Copy constructor
@@ -98,13 +108,8 @@ sbadDetector::operator=(const sbadDetector& A)
   if (this!=&A)
     {
       attachSystem::ContainedComp::operator=(A);
-      attachSystem::FixedComp::operator=(A);
+      attachSystem::FixedOffset::operator=(A);
       active=A.active;
-      xStep=A.xStep;
-      yStep=A.yStep;
-      zStep=A.zStep;
-      xyAngle=A.xyAngle;
-      zAngle=A.zAngle;
       radius=A.radius;
       length=A.length;
       mat=A.mat;
@@ -128,38 +133,17 @@ sbadDetector::populate(const FuncDataBase& Control)
 {
   ELog::RegMethod RegA("sbadDetector","populate");
 
+  FixedOffset::populate(Control);
+  
   active=Control.EvalVar<int>(keyName+"Active");
-  xStep=Control.EvalPair<double>(keyName,baseName,"XStep");
-  yStep=Control.EvalPair<double>(keyName,baseName,"YStep");
-  zStep=Control.EvalPair<double>(keyName,baseName,"ZStep");
-  xyAngle=Control.EvalPair<double>(keyName,baseName,"XYAngle");
-  zAngle=Control.EvalPair<double>(keyName,baseName,"ZAngle");
 
-  radius=Control.EvalPair<double>(keyName,baseName,"Radius");
-  length=Control.EvalPair<double>(keyName,baseName,"Length");
-  radius=Control.EvalPair<double>(keyName,baseName,"Radius");
+  radius=Control.EvalTail<double>(keyName,baseName,"Radius");
+  length=Control.EvalTail<double>(keyName,baseName,"Length");
 
   mat=ModelSupport::EvalMat<int>(Control,keyName+"Mat",baseName+"Mat");
 
   return;
 }
-
-void
-sbadDetector::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    \param FC :: FixedComponent for origin
-  */
-{
-  ELog::RegMethod RegA("sbadDetector","createUnitVector");
-
-  FixedComp::createUnitVector(FC);
-  applyShift(xStep,yStep,zStep);
-  applyAngleRotate(xyAngle,zAngle);
-
-  return;
-}
-
 
 void
 sbadDetector::createSurfaces()
@@ -207,7 +191,8 @@ sbadDetector::createLinks()
 
 void
 sbadDetector::createAll(Simulation& System,
-			const attachSystem::FixedComp& FC)
+			const attachSystem::FixedComp& FC,
+			const long int sideIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation item
@@ -217,7 +202,7 @@ sbadDetector::createAll(Simulation& System,
   ELog::RegMethod RegA("sbadDetector","createAll");
 
   populate(System.getDataBase());
-  createUnitVector(FC);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System);
   insertObjects(System);

@@ -3,7 +3,7 @@
  
  * File:   scatMat/SQWmaterial.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,25 +34,21 @@
 #include <boost/multi_array.hpp>
 
 #include "MersenneTwister.h"
-#include "Exception.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h" 
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "support.h"
-#include "mathSupport.h"
-#include "Simpson.h"
 #include "RefCon.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Triple.h"
+#include "particle.h"
 #include "neutron.h"
 #include "SQWtable.h"
 #include "SEtable.h"
+#include "Zaid.h"
+#include "MXcards.h"
+#include "Material.h"
 #include "ENDFmaterial.h"
 #include "neutMaterial.h"
 #include "SQWmaterial.h"
@@ -77,7 +73,7 @@ SQWmaterial::SQWmaterial(const std::string& N,const double M,
     Constructor for values
     \param N :: SQWmaterial name
     \param M :: Mean atomic mass
-    \param D :: density [atom/angtrom^3]
+    \param D :: atomDensit [atom/angtrom^3]
     \param B :: b-coherrent [fm]
     \param S :: scattering cross section [barns]
     \param I :: incoherrent scattering cross section [barns]
@@ -91,7 +87,7 @@ SQWmaterial::SQWmaterial(const double M,const double D,const double B,
   /*!
     Constructor for values
     \param M :: Mean atomic mass
-    \param D :: density [atom/angtrom^3]
+    \param D :: atomDensity [atom/angtrom^3]
     \param B :: b-coherrent [fm]
     \param S :: scattering cross section [barns]
     \param I :: incoherrent scattering cross section [barns]
@@ -151,7 +147,7 @@ SQWmaterial::setExtra(const std::string& N,const double Frac,
 		      const double S,const double I,
 		      const double A) 
   /*!
-    Set the extra material. Note that the density is copied from
+    Set the extra material. Note that the atomDensity is copied from
     the original material
     \param Name :: sub-Material name
     \param M :: Mean atomic mass
@@ -162,7 +158,7 @@ SQWmaterial::setExtra(const std::string& N,const double Frac,
   */
 {
   delete Extra;
-  Extra=new neutMaterial(N,density,M,B,S,I,A);
+  Extra=new neutMaterial(N,atomDensity,M,B,S,I,A);
   eFrac=Frac;
   return;
 }
@@ -187,11 +183,11 @@ SQWmaterial::ScatCross(const double Wave) const
   /*!
     Given wavelength get the scattering cross section
     \param Wave :: Wavelength [Angstrom]
-    \return Scattering Attenuation (including density)
+    \return Scattering Attenuation (including atomDensity)
   */
 {
   const double E=(0.5*RefCon::h2_mneV*1e20)/(Wave*Wave);  
-  return density*HMat.sigma(E);
+  return atomDensity*HMat.sigma(E);
 }
 
 double
@@ -200,11 +196,11 @@ SQWmaterial::calcAtten(const double Wave,const double Length) const
     Calculate the attenuation factor coefficient.
     \param Wave :: Wavelength [Angstrom]
     \param Length :: Absorption length
-    \return Attenuation (including density)
+    \return Attenuation (including atomDensity)
   */
 {
   const double E=(0.5*RefCon::h2_mneV*1e20)/(Wave*Wave);  
-  return exp(-Length*density*(HMat.sigma(E)+Wave*sabs/1.78));
+  return exp(-Length*atomDensity*(HMat.sigma(E)+Wave*sabs/1.78));
 }
 
 double
@@ -216,7 +212,7 @@ SQWmaterial::ScatTotalRatio(const double Wave) const
     \return sigma_scatter/sigma_total
   */
 {
-  if (density>0)
+  if (atomDensity>0)
     {
       const double E=(0.5*RefCon::h2_mneV*1e20)/(Wave*Wave);  
       const double SC=HMat.sigma(E);
@@ -235,7 +231,7 @@ SQWmaterial::scatterNeutron(MonteCarlo::neutron& N) const
 {
   ELog::RegMethod RegA("SQWmaterial","scatterNeutron");
 
-  if (density>0)
+  if (atomDensity>0)
     {
       const double& Wave(N.wavelength);
       const double E=(0.5*RefCon::h2_mneV*1e20)/(Wave*Wave);  
@@ -254,12 +250,12 @@ SQWmaterial::TotalCross(const double Wave) const
   /*!
     Given Wavelength get the attenuation coefficient.
     \param Wave :: Wavelength [Angstrom]
-    \return Attenuation (including density)
+    \return Attenuation (including atomDensity)
   */
 {
   // Energy [eV]
   const double E=(0.5*RefCon::h2_mneV*1e20)/(Wave*Wave);  
-  return density*(Wave*sabs/1.798+HMat.sigma(E));
+  return atomDensity*(Wave*sabs/1.798+HMat.sigma(E));
 }
 
 double
@@ -277,8 +273,8 @@ SQWmaterial::dSdOdE(const MonteCarlo::neutron& NIn,
   
   // First calculate dSDoDE for the given energy difference.
   // InElastic scatter:
-  const double Ei=NIn.energy();
-  const double Ef=NOut.energy();
+  const double Ei=NIn.energy;
+  const double Ef=NOut.energy;
   const double mu=NOut.uVec.dotProd(NIn.uVec);
 
   const double SOut=HMat.dSdOdE(Ei,Ef,mu);

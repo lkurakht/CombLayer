@@ -3,7 +3,7 @@
  
  * File:   essBuild/BunkerWall.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,54 +33,26 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ReadFunctions.h"
-#include "ModelSupport.h"
 #include "MaterialSupport.h"
-#include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
 #include "ContainedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
-#include "MXcards.h"
-#include "Zaid.h"
-#include "Material.h"
-#include "DBMaterial.h"
 #include "surfDIter.h"
 #include "LayerDivide3D.h"
 #include "BunkerWall.h"
@@ -213,21 +185,6 @@ BunkerWall::populate(const FuncDataBase& Control)
 }
   
 void
-BunkerWall::createUnitVector(const attachSystem::FixedComp& FC,
-			     const long int sideIndex)
-/*!
-    Create the unit vectors
-    \param FC :: Linked object (bunker )
-    \param sideIndex :: Side for linkage centre (wall)
-  */
-{
-  ELog::RegMethod RegA("BunkerWall","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  return;
-}
-
-void
 BunkerWall::setVertSurf(const int BS,const int TS)
   /*!
     Set the top/base vertical surfaces
@@ -280,7 +237,7 @@ BunkerWall::createSector(Simulation& System,
   std::vector<double> empty;
   
   ModelSupport::LayerDivide3D LD3(keyName+"MainWall"+
-				  StrFunc::makeString(sectNum));
+				  std::to_string(sectNum));
 
   // Front/back??
   LD3.setSurfPair(0,frontSurf,backSurf);
@@ -317,15 +274,15 @@ BunkerWall::createSector(Simulation& System,
       LD3.setMaterials(0,actualMatVec);
     }
   LD3.divideCell(System,cellN);
-  addCells("Sector"+StrFunc::makeString(sectNum),LD3.getCells());
+  addCells("Sector"+std::to_string(sectNum),LD3.getCells());
   return;
 }
 
  
 void
-BunkerWall::initialize(const FuncDataBase& Control,
-		       const attachSystem::FixedComp& FC,
-		       const long int linkIndex)
+BunkerWall::createAll(Simulation& System,
+		      const attachSystem::FixedComp& FC,
+		      const long int linkIndex)
 
   /*!
     Generic function to initialize everything
@@ -336,7 +293,7 @@ BunkerWall::initialize(const FuncDataBase& Control,
 {
   ELog::RegMethod RegA("BunkerWall","initialize");
 
-  populate(Control);  
+  populate(System.getDataBase());  
   createUnitVector(FC,linkIndex);
 
   return;

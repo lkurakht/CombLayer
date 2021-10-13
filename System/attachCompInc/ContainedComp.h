@@ -3,7 +3,7 @@
  
  * File:   attachCompInc/ContainedComp.h
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,12 +23,17 @@
 #define attachSystem_ContainedComp_h
 
 class Simulation;
+class HeadRule;
+
 
 namespace Geometry
 {
   class Line;
 }
-
+namespace MonteCarlo
+{
+  class Object;
+}
 namespace attachSystem
 {
 /*!
@@ -56,6 +61,14 @@ class ContainedComp
 			       const Geometry::Surface*,
 			       const Geometry::Surface*);
 
+public:
+
+  // to be removed:
+  void addBoundarySurf(const int);
+  void addBoundarySurf(const std::string&);
+  void addBoundaryUnionSurf(const int);
+  void addBoundaryUnionSurf(const std::string&);
+
  public:
 
   ContainedComp();
@@ -64,6 +77,8 @@ class ContainedComp
   virtual ~ContainedComp();
 
   virtual const HeadRule& getOuterSurf() const;
+  virtual const HeadRule& getBoundary() const;
+  
   virtual std::string getExclude() const;
   virtual std::string getCompExclude() const;
   virtual std::string getContainer() const;
@@ -94,14 +109,12 @@ class ContainedComp
   void addOuterSurf(const int);
   void addOuterSurf(const std::string&);
   void addOuterSurf(const ContainedComp&);
+  void addOuterSurf(const HeadRule&);
   
   void addOuterUnionSurf(const std::string&);
   void addOuterUnionSurf(const ContainedComp&);
+  void addOuterUnionSurf(const HeadRule&);
   
-  void addBoundarySurf(const int);
-  void addBoundarySurf(const std::string&);
-  void addBoundaryUnionSurf(const int);
-  void addBoundaryUnionSurf(const std::string&);
 
   // Determine the surface that the line intersect first 
   // and its sign.
@@ -115,6 +128,7 @@ class ContainedComp
 
   virtual void insertInCell(Simulation&,const int) const;
   virtual void insertInCell(Simulation&,const std::vector<int>&) const;
+  virtual void insertInCell(MonteCarlo::Object&) const;
 
   void insertExternalObject(Simulation&,const MonteCarlo::Object&) const;
   

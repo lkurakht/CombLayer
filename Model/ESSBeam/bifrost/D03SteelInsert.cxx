@@ -231,11 +231,11 @@ D03SteelInsert::populate(const FuncDataBase& Control)
   voidHeight=Control.EvalDefVar<double>(keyName+"VoidHeight",36.5);
   voidDepth=Control.EvalDefVar<double>(keyName+"VoidDepth",8.5);
   
-  //  defMat=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMat",3);
+  //  defMat=ModelSupport::EvalDefMat(Control,keyName+"DefMat",3);
   //M3=Stainless304, M151=SteelS355
-  defMat=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMat",151);
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",60);
-  spacingMat=ModelSupport::EvalDefMat<int>(Control,keyName+"SpacingMat",60);
+  defMat=ModelSupport::EvalDefMat(Control,keyName+"DefMat",151);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",60);
+  spacingMat=ModelSupport::EvalDefMat(Control,keyName+"SpacingMat",60);
   //  int B4CMat;
 
   nSeg=Control.EvalDefVar<size_t>(keyName+"NSeg",1);
@@ -258,7 +258,7 @@ D03SteelInsert::populate(const FuncDataBase& Control)
   OuterB4CThick=
         Control.EvalPair<double>(keyName+"OuterB4CLayerThick","DefaultTileThick");
   */
-  B4CMat=ModelSupport::EvalDefMat<int>(Control,keyName+"B4CTileMat",0);
+  B4CMat=ModelSupport::EvalDefMat(Control,keyName+"B4CTileMat",0);
 
   iSplitVoid=Control.EvalDefVar<int>(keyName+"SplitVoid",0);
   
@@ -296,7 +296,7 @@ D03SteelInsert::populate(const FuncDataBase& Control)
   nFloorLayers=Control.EvalDefVar<size_t>(keyName+"NFloorLayers",1);
   if (depth==voidDepth) nFloorLayers=1;
 
-  int fMat=ModelSupport::EvalDefMat<int>(Control,keyName+"FloorMat",3);
+  int fMat=ModelSupport::EvalDefMat(Control,keyName+"FloorMat",3);
   
     ModelSupport::populateDivide(Control,nFloorLayers,keyName+"FloorMat",
 				 fMat,floorMat);

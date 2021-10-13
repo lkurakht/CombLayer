@@ -3,7 +3,7 @@
  
  * File:   attachComp/FixedComp.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,32 +35,43 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
 #include "localRotate.h"
 #include "stringCombine.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "surfEqual.h"
-#include "Rules.h"
 #include "HeadRule.h"
 #include "objectRegister.h"
 #include "SurInter.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 
 namespace attachSystem
 {
+  
+FixedComp::FixedComp(const size_t NL,const std::string& KN) :
+  keyName(KN),buildIndex(0),
+  cellIndex(buildIndex+1),keyMap({{"front",0},{"back",1}}),
+  X(Geometry::Vec3D(1,0,0)),Y(Geometry::Vec3D(0,1,0)),
+  Z(Geometry::Vec3D(0,0,1)),primeAxis(0),LU(NL)
+ /*!
+    Non-registered Constructor 
+    \param NL :: Number of links
+  */
+{}
+
+FixedComp::FixedComp(const size_t NL) :
+  FixedComp(NL,"Null")
+ /*!
+    Non-registered Constructor 
+    \param NL :: Number of links
+  */
+{}
 
 FixedComp::FixedComp(const std::string& KN,const size_t NL,
 		     const size_t resSize) :
@@ -161,7 +172,8 @@ FixedComp::setAxisControl(const long int axisIndex,
     \param NAxis :: New Axis 
   */
 {
-  ELog::RegMethod Rega("FixedComp","setAxisControl");
+  ELog::RegMethod RegA("FixedComp","setAxisControl");
+  
   if (NAxis.abs()<Geometry::zeroTol)
     throw ColErr::NumericalAbort("NAxis is zero");
   if (axisIndex>3 || axisIndex<-3)
@@ -224,11 +236,11 @@ FixedComp::createUnitVector(const FixedComp& FC,
   */
 {
   ELog::RegMethod RegA("FixedComp","createUnitVector(FixedComp,side)");
-
-  createUnitVector(FC,sideIndex,sideIndex);
+  FixedComp::createUnitVector(FC,sideIndex,sideIndex);
   return;
 }
 
+  
 void
 FixedComp::createUnitVector(const FixedComp& FC,
 			    const long int orgIndex,
@@ -237,14 +249,14 @@ FixedComp::createUnitVector(const FixedComp& FC,
     Create the unit vectors
     \param FC :: Fixed unit for link points
     \param orgIndex :: SIGNED +1 side index for origin
-    \param basisIndex :: SIGNED +1 side index for directoin
+    \param basisIndex :: SIGNED +1 side index for direction
   */
 {
   ELog::RegMethod RegA("FixedComp","createUnitVector(FixedComp,org,basis)");
 
   if (basisIndex==0)
     {
-      createUnitVector(FC);
+      FixedComp::createUnitVector(FC);   // may have derived case
       Origin=FC.getLinkPt(orgIndex);
       return;
     }
@@ -270,11 +282,35 @@ FixedComp::createUnitVector(const FixedComp& FC,
   else if (std::abs(xTest.dotProd(yTest))>1.0-Geometry::zeroTol)
     xTest=FC.getY();
 
-  computeZOffPlane(xTest,yTest,zTest);
+  Geometry::Vec3D YY=yTest;
 
-  createUnitVector(FC.getLinkPt(orgIndex),
+  computeZOffPlane(xTest,yTest,zTest);
+  FixedComp::createUnitVector(FC.getLinkPt(orgIndex),
 		   yTest*zTest,yTest,zTest);
+
+  return;
+}
+
+void
+FixedComp::createUnitVector(const Geometry::Vec3D& OG,
+			    const Geometry::Vec3D& YAxis,
+                            const Geometry::Vec3D& ZAxis)
+  /*!
+    Create the unit vectors [using beam directions]
+    \param OG :: Origin
+    \param YAxis :: Direction for Y
+    \param ZAxis :: Direction for Z
+  */
+{
+  ELog::RegMethod RegA("FixedComp","createUnitVector(Vec3D,Vec3D,Vec3D))");
+
+  Y=YAxis.unit();
+  Z=ZAxis.unit();
+  X=Y*Z;
   
+  makeOrthogonal();
+  Origin=OG;
+  if (primeAxis>0) reOrientate();
   return;
 }
 
@@ -291,13 +327,12 @@ FixedComp::createUnitVector(const Geometry::Vec3D& OG,
     \param ZAxis :: Direction for Z
   */
 {
-  ELog::RegMethod RegA("FixedComp","createUnitVector(Vec3D,Vec3D,Vec3D))");
+  ELog::RegMethod RegA("FixedComp","createUnitVector(4xVec3D))");
 
-  //Geometry::Vec3D(-1,0,0);          // Gravity axis [up]
   X=XAxis.unit();
   Y=YAxis.unit();
   Z=ZAxis.unit();
-  
+
   makeOrthogonal();
   Origin=OG;
   if (primeAxis>0) reOrientate();
@@ -339,6 +374,37 @@ FixedComp::makeOrthogonal()
   Z=(Y*X).unit();
   if (ZDir.dotProd(Z)<0.0)
     Z*=-1;
+  return;
+}
+
+void
+FixedComp::createPairVector(const FixedComp& FCA,
+			    const long int sideIndexA,
+			    const FixedComp& FCB,
+			    const long int sideIndexB)
+  /*!
+    Creates a merged pair between two link points
+    It shared shared the mid point and the axises
+    \param FCA :: Fixed unit for link points
+    \param sideIndexA :: SIGNED +1 side index
+    \param FCB :: Fixed unit for link points
+    \param sideIndexB :: SIGNED +1 side index
+  */
+{
+  ELog::RegMethod RegA("FixedComp","createPairVector");
+
+  FixedUnit tmpFC("tmp");
+  FixedComp::createUnitVector(FCA,sideIndexA,sideIndexA);
+  tmpFC.createUnitVector(FCB,sideIndexB,sideIndexB);
+  X+=tmpFC.X;
+  Y+=tmpFC.Y;
+  Z+=tmpFC.Z;
+  Origin+=tmpFC.Origin;
+  X/=2.0;
+  Y/=2.0;
+  Z/=2.0;
+  Origin/=2.0;
+  makeOrthogonal();
   return;
 }
 
@@ -663,6 +729,17 @@ FixedComp::applyFullRotate(const double xyAngle,
 }
 
 void
+FixedComp::reverseX()
+  /*!
+    Flip the Z axis keeping Y Fixed
+    (could generalize but ...)
+  */
+{
+  X*= -1.0;
+  return;
+}
+
+void
 FixedComp::reverseZ()
   /*!
     Flip the Z axis keeping Y Fixed
@@ -800,6 +877,25 @@ FixedComp::addLinkComp(const size_t Index,const HeadRule& HR)
     throw ColErr::IndexError<size_t>(Index,LU.size(),"LU size/Index");
   
   LU[Index].addLinkComp(HR);
+  return;
+}
+
+template<typename T>
+void
+FixedComp::setNamedLinkSurf(const size_t Index,
+			    const std::string& linkName,
+			    const T& SUnit) 
+  /*!
+    Set a surface to output and set the link name
+    \param Index :: Link number
+    \param linkName :: Link name to set(use)
+    \param SUnit :: String/HeadRule/int to process
+  */
+{
+  ELog::RegMethod RegA("FixedComp","setLinkSurf(string,string)");
+
+  setLinkSurf(Index,SUnit);
+  nameSideIndex(Index,linkName);
   return;
 }
 
@@ -1031,7 +1127,8 @@ FixedComp::setConnect(const size_t Index,
 }
 
 void
-FixedComp::setLineConnect(const size_t Index,const Geometry::Vec3D& C,
+FixedComp::setLineConnect(const size_t Index,
+			  const Geometry::Vec3D& C,
 			  const Geometry::Vec3D& A)
  /*!
    Set the axis of the linked component by intersecting
@@ -1048,8 +1145,6 @@ FixedComp::setLineConnect(const size_t Index,const Geometry::Vec3D& C,
 
   LinkUnit& LObj=LU[Index];
   LObj.populateSurf();
-  ELog::EM<<"Main == "<<LObj.getMainRule()
-	  <<" ::: "<<LObj.getCommonRule()<<ELog::endDiag;
   const Geometry::Vec3D Pt=
     SurInter::getLinePoint(C,A,LObj.getMainRule(),LObj.getCommonRule()); 
   LObj.setConnectPt(Pt);
@@ -1100,14 +1195,14 @@ FixedComp::setUSLinkCopy(const size_t Index,
   if (sideIndex>=FC.LU.size())
     throw ColErr::IndexError<size_t>(sideIndex,FC.LU.size(),"FC/index");
   
-  LU[Index]=FC.LU[sideIndex];
+  LU[Index]=FC.LU[sideIndex];	
   return;
 }
 
 void
-FixedComp::setLinkSignedCopy(const size_t Index,
-			     const FixedComp& FC,
-			     const long int sideIndex)
+FixedComp::setLinkCopy(const size_t Index,
+		       const FixedComp& FC,
+		       const std::string& sideName)
   /*!
     Copy the opposite (as if joined) link surface 
     Note that the surfaces are complemented
@@ -1116,12 +1211,32 @@ FixedComp::setLinkSignedCopy(const size_t Index,
     \param sideIndex :: signed link unit of other object
   */
 {
-  ELog::RegMethod RegA("FixedComp","setLinkSignedSurf");
+  ELog::RegMethod RegA("FixedComp","setLinkCopy("+sideName+")");
+
+  setLinkCopy(Index,FC,FC.getSideIndex(sideName));
+  return;
+}
+
+void
+FixedComp::setLinkCopy(const size_t Index,
+		       const FixedComp& FC,
+		       const long int sideIndex)
+  /*!
+    Copy the opposite (as if joined) link surface 
+    Note that the surfaces are complemented
+    \param Index :: Link number
+    \param FC :: Other Fixed component to copy object from
+    \param sideIndex :: signed link unit of other object
+  */
+{
+  ELog::RegMethod RegA("FixedComp","setLinkCopy");
 
   if (sideIndex>0)
     setUSLinkCopy(Index,FC,static_cast<size_t>(sideIndex-1));
   else if (sideIndex<0)   // complement form
     setUSLinkComplement(Index,FC,static_cast<size_t>(-1-sideIndex));
+  else if (sideIndex==0)
+    setConnect(Index,Origin,Y);
   else
     throw ColErr::IndexError<long int>
       (sideIndex,static_cast<long int>(FC.LU.size()),"FC/sideIndex");
@@ -1291,11 +1406,41 @@ FixedComp::nameSideIndex(const size_t lP,
 
   if (keyMap.find(linkName)!=keyMap.end())
     ColErr::InContainerError<std::string>(linkName,"linkName exists");
-
+      
   keyMap.emplace(linkName,lP);
   return;
 }
   
+std::string
+FixedComp::getSideName(const long int sideIndex) const
+  /*!
+    Find the name based on the index.
+    \param sideName :: Name with +/- at front if require to change 
+    \return name 
+  */
+{
+  ELog::RegMethod RegA("FixedComp","getSideIndex");
+
+  if (!sideIndex) return "Origin";
+
+  const size_t index=std::abs(sideIndex)-1;
+  std::map<std::string,size_t>::const_iterator mc=
+    std::find_if(keyMap.begin(),keyMap.end(),
+		[&index](const std::pair<std::string,size_t>& item)
+		{
+		  return item.second==index;
+		});
+  if (mc==keyMap.end())
+  throw ColErr::InContainerError<size_t>
+    (sideIndex,"Side index not named");
+
+
+  if (sideIndex<0)
+    return std::string("#")+mc->first;
+
+  return mc->first;
+}
+
 long int
 FixedComp::getSideIndex(const std::string& sideName) const
   /*!
@@ -1322,14 +1467,15 @@ FixedComp::getSideIndex(const std::string& sideName) const
 
       std::map<std::string,size_t>::const_iterator mc=
         keyMap.find(partName);
-
+      
       if (mc!=keyMap.end())
         return negScale*static_cast<long int>(mc->second+1);
       
       if (partName=="Origin" || partName=="origin")
         return 0;
     }
-  throw ColErr::InContainerError<std::string>(sideName,"sideName");
+  throw ColErr::InContainerError<std::string>
+    (sideName,"sideName["+keyName+"]");
 }
 
 bool
@@ -1350,7 +1496,7 @@ FixedComp::hasSideIndex(const std::string& sideName) const
   if (StrFunc::convert(sideName,linkPt))
     {
       if (!linkPt) return 1;      // Origin true
-      lp=std::abs(linkPt)-1;
+      lp=static_cast<size_t>(std::abs(linkPt)-1);
     }
   else
     {
@@ -1383,6 +1529,21 @@ FixedComp::getAllLinkPts() const
     LPout.push_back(lunit.getConnectPt());
 
   return LPout;
+}
+
+double
+FixedComp::getLinkDistance(const std::string& AName,
+                           const std::string& BName) const
+  /*!
+    Accessor to the distance between link points
+    \param AName :: Link name 
+    \param BName :: link name
+    \return Distance between points
+  */
+{
+  ELog::RegMethod RegA("FixedComp","getLinkDistance(s,s):"+keyName);
+
+  return getLinkDistance(getSideIndex(AName),getSideIndex(BName));
 }
 
 double
@@ -1423,13 +1584,29 @@ FixedComp::hasLinkPt(const std::string& sideName) const
   /*!
     Accessor to the link point
     \param sideName :: named link point
-    \return True if link poni tset
+    \return True if link point set 
   */
 {
   ELog::RegMethod RegA("FixedComp","getLinkPt[str]:"+keyName);
 
+  if (!hasSideIndex(sideName)) return 0;
   const long int sideIndex=getSideIndex(sideName);
   return hasLinkPt(sideIndex);
+}
+
+bool
+FixedComp::hasLinkSurf(const std::string& sideName) const
+  /*!
+    Accessor to the link point
+    \param sideName :: named link point
+    \return True if full valid surface
+  */
+{
+  ELog::RegMethod RegA("FixedComp","getLinkPt[str]:"+keyName);
+
+  if (!hasSideIndex(sideName)) return 0;
+  const long int sideIndex=getSideIndex(sideName);
+  return hasLinkSurf(sideIndex);
 }
 
 bool
@@ -1451,6 +1628,28 @@ FixedComp::hasLinkPt(const long int sideIndex) const
 	return LU[linkIndex].hasConnectPt();
     }
   return 1;   // orgin always true
+}
+
+bool
+FixedComp::hasLinkSurf(const long int sideIndex) const
+  /*!
+    Accessor to the link point
+    \param sideName :: named link point
+    \return True if link poni tset
+  */
+{
+  ELog::RegMethod RegA("FixedComp","hasLinkSurf[LI]:"+keyName);
+
+  if (sideIndex)
+    {
+      const size_t linkIndex=
+	(sideIndex>0) ? static_cast<size_t>(sideIndex-1) :
+	static_cast<size_t>(-sideIndex-1) ;
+
+      const HeadRule& HR = LU[linkIndex].getMainRule();
+      if (HR.hasRule()) return 1;
+    }
+  return 0;
 }
 
 
@@ -1543,6 +1742,32 @@ FixedComp::getLinkAxis(const long int sideIndex) const
   const LinkUnit& LItem=getSignedRefLU(sideIndex);
   return (sideIndex>0)  ? LItem.getAxis() : -LItem.getAxis();
 }
+
+Geometry::Vec3D
+FixedComp::getLinkZAxis(const long int sideIndex) const
+  /*!
+    Calculate the Z Axis based on a link point
+    \param sideIndex :: SIGNED +1 side index [Attention :: Y AXIS]
+    \return Z Axis from Y Axis for component
+  */
+{
+  ELog::RegMethod RegA("FixedComp","getLinkZAxis");
+
+  if (sideIndex==0) return Z;
+      
+  const Geometry::Vec3D yTest=getLinkAxis(sideIndex);
+  Geometry::Vec3D zTest=Z;
+  Geometry::Vec3D xTest=X;
+  if (std::abs(zTest.dotProd(yTest))>1.0-Geometry::zeroTol)
+    zTest=Y;
+  else if (std::abs(xTest.dotProd(yTest))>1.0-Geometry::zeroTol)
+    xTest=Y;
+
+  computeZOffPlane(xTest,yTest,zTest);
+  return zTest;
+}
+
+
 
 std::string
 FixedComp::getLinkString(const long int sideIndex) const
@@ -1757,6 +1982,7 @@ FixedComp::getFullRule(const long int sideIndex) const
   HeadRule Out=(sideIndex>0) ? 
     LObj.getMainRule() :
     LObj.getMainRule().complement();
+
   Out.addIntersection(LObj.getCommonRule());
   return Out;
 }
@@ -1901,6 +2127,7 @@ FixedComp::applyRotation(const localRotate& LR)
 {
   ELog::RegMethod RegA("FixedComp","applyRotation(localRotate)");
 
+  LR.applyFull(Origin);
   LR.applyFullAxis(X);
   LR.applyFullAxis(Y);
   LR.applyFullAxis(Z);
@@ -1910,7 +2137,6 @@ FixedComp::applyRotation(const localRotate& LR)
   
   return;
 }
-  
 
 int
 FixedComp::getExitWindow(const long int sideIndex,
@@ -1985,5 +2211,34 @@ FixedComp::getExitWindow(const long int sideIndex,
     
   return std::abs(SMap.realSurf(getUSLinkSurf(outIndex)));
 }
+
+void
+FixedComp::createAll(Simulation& System,const FixedComp& FC,
+		     const std::string& linkName)
+  /*!
+    Modification accessor to get createAll based on a name
+    \param System :: Simulation to build component in
+    \param FC :: FixedComp to use as origin/basis set
+    \param linkName :: linkPoint
+  */
+{
+  ELog::RegMethod RegA("FixedComp","createAll(Named)");
+  
+  this->createAll(System,FC,FC.getSideIndex(linkName));
+  return;
+}
+
+///\cond  TEMPLATE
+
+template void FixedComp::setNamedLinkSurf
+(const size_t,const std::string&,const std::string&);
+
+template void FixedComp::setNamedLinkSurf
+(const size_t,const std::string&,const int&);
+
+template void FixedComp::setNamedLinkSurf
+(const size_t,const std::string&,const HeadRule&);
+
+///\endcond  TEMPLATE
 
 }  // NAMESPACE attachSystem

@@ -3,7 +3,7 @@
  
  * File:   attachComp/ContainedGroup.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,30 +36,11 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "MatrixBase.h"
-#include "Matrix.h"
-#include "Vec3D.h"
-#include "Surface.h"
-#include "Rules.h"
 #include "HeadRule.h"
-#include "Object.h"
-#include "Line.h"
-#include "varList.h"
-#include "Code.h"
-#include "FuncDataBase.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
-#include "AttachSupport.h"
-#include "surfRegister.h"
-#include "LinkUnit.h"
-#include "FixedComp.h"
 #include "ContainedComp.h"
 #include "ContainedGroup.h"
 
@@ -123,6 +104,7 @@ ContainedGroup::ContainedGroup(const std::string& A,const std::string& B,
   CMap.insert(CTYPE::value_type(D,ContainedComp()));
 }
 
+  
 ContainedGroup::ContainedGroup(const std::string& A,const std::string& B,
 			       const std::string& C,const std::string& D,
 			       const std::string& E)
@@ -140,6 +122,27 @@ ContainedGroup::ContainedGroup(const std::string& A,const std::string& B,
   CMap.insert(CTYPE::value_type(C,ContainedComp()));
   CMap.insert(CTYPE::value_type(D,ContainedComp()));
   CMap.insert(CTYPE::value_type(E,ContainedComp()));
+}
+
+ContainedGroup::ContainedGroup(const std::string& A,const std::string& B,
+			       const std::string& C,const std::string& D,
+			       const std::string& E,const std::string& F)
+  /*!
+    Constructor 
+    \param A :: Key one
+    \param B :: Key two
+    \param C :: Key three
+    \param C :: Key four
+    \param E :: Key five
+    \param F :: Key size
+  */
+{
+  CMap.insert(CTYPE::value_type(A,ContainedComp()));  
+  CMap.insert(CTYPE::value_type(B,ContainedComp()));
+  CMap.insert(CTYPE::value_type(C,ContainedComp()));
+  CMap.insert(CTYPE::value_type(D,ContainedComp()));
+  CMap.insert(CTYPE::value_type(E,ContainedComp()));
+  CMap.insert(CTYPE::value_type(F,ContainedComp()));
 }
 
 ContainedGroup::ContainedGroup(const ContainedGroup& A) : 
@@ -183,6 +186,19 @@ ContainedGroup::clearRules()
   for(mc=CMap.begin();mc!=CMap.end();mc++)
     mc->second.clearRules();
   
+  return;
+}
+
+void
+ContainedGroup::clearRule(const std::string& Key) 
+  /*!
+    Clear a specific rule
+    \param Key :: Key name for rule
+  */
+{
+  ELog::RegMethod RegA("ContainedGroup","clearRule");
+  
+  getCC(Key).clearRules();
   return;
 }
 
@@ -262,6 +278,20 @@ ContainedGroup::addOuterSurf(const std::string& Key,const int SN)
   getCC(Key).addOuterSurf(SN);
   return;
 }
+
+void
+ContainedGroup::addOuterSurf(const std::string& Key,const HeadRule& HR) 
+  /*!
+    Add a surface to the output
+    \param Key :: Key name for rule
+    \param SN :: Surface number [inward looking]
+  */
+{
+  ELog::RegMethod RegA("ContainedGroup","addOuterSurf(HR)");
+  
+  getCC(Key).addOuterSurf(HR);
+  return;
+}
   
 void
 ContainedGroup::addOuterSurf(const std::string& Key,
@@ -291,6 +321,21 @@ ContainedGroup::addOuterSurf(const std::string& Key,
   return;
 }
   
+void
+ContainedGroup::addOuterUnionSurf(const std::string& Key,
+				  const HeadRule& HR) 
+/*!
+  Add a set of surfaces to the output
+  \param Key :: Key name for rule
+  \param HR ::  HeadRule of surfaces
+*/
+{
+  ELog::RegMethod RegA("ContainedGroup","addOuterUnionSurf(HR)");
+  
+  getCC(Key).addOuterUnionSurf(HR);
+  return;
+}
+
 void
 ContainedGroup::addOuterUnionSurf(const std::string& Key,
 				  const std::string& SList) 
@@ -392,7 +437,39 @@ ContainedGroup::getOuterSurf(const std::string& Key) const
   
   return getCC(Key).getOuterSurf();
 }
+
+const HeadRule&
+ContainedGroup::getBoundary(const std::string& Key) const
+  /*!
+    Calculate the write out the excluded surface.
+    This allows the object to be inserted in a larger
+    object.
+    \param Key :: Key name for rule
+    \return outer surf
+  */
+{
+  ELog::RegMethod RegA("ContainedGroup","getBoundayr");
   
+  return getCC(Key).getBoundary();
+}
+  
+std::string
+ContainedGroup::getAllExclude() const
+  /*!
+    Calculate the write out the excluded surface.
+    This allows the object to be inserted in a larger
+    object.
+    \return Exclude string [union]
+  */
+{
+  ELog::RegMethod RegA("ContainedGroup","getExclude");
+  HeadRule Out;
+  for(const auto& [key,CC] : CMap)
+    Out.addUnion(CC.getOuterSurf());
+		 
+  return Out.complement().display();
+}
+
 std::string
 ContainedGroup::getExclude(const std::string& Key) const
   /*!
@@ -480,6 +557,20 @@ ContainedGroup::addInsertCell(const std::string& Key,
 
 void 
 ContainedGroup::addInsertCell(const std::string& Key,
+			      const std::vector<int>& CN)
+  /*!
+    Adds a cell to the insert list
+    \param Key :: Key name for rule
+    \param CN :: Cell numbers
+  */
+{
+  ELog::RegMethod RegA("ContainedGroup","addInsertCell");
+  getCC(Key).addInsertCell(CN);
+  return;
+}
+
+void 
+ContainedGroup::addInsertCell(const std::string& Key,
 			      const ContainedComp& CC)
   /*!
     Adds a cell to the insert list
@@ -492,6 +583,8 @@ ContainedGroup::addInsertCell(const std::string& Key,
   return;
 }
 
+
+
 void 
 ContainedGroup::addAllInsertCell(const int CN)
   /*!
@@ -501,6 +594,7 @@ ContainedGroup::addAllInsertCell(const int CN)
 {
   ELog::RegMethod RegA("ContainedGroup","addAllInsertCell(cell)");
   CTYPE::iterator mc;
+
   for(mc=CMap.begin();mc!=CMap.end();mc++)
     mc->second.addInsertCell(CN);
   
@@ -565,25 +659,46 @@ ContainedGroup::setAllInsertCell(const int CN)
   return;
 }
 
+
 void 
-ContainedGroup::addInsertCell(const std::string& Key,
-			      const std::vector<int>& CN)
+ContainedGroup::insertAllInCell(Simulation& System,
+				const int CN) const
   /*!
-    Adds a cell to the insert list
-    \param Key :: Key name for rule
-    \param CN :: Cell numbers
+    Inserts all contained components into the cell 
+    \param System :: Simulation to get cells
+    \param CN :: Cell number
   */
 {
-  ELog::RegMethod RegA("ContainedGroup","addInsertCell");
-  getCC(Key).addInsertCell(CN);
+  ELog::RegMethod RegA("ContainedGroup","insertAllInCell");
+  CTYPE::const_iterator mc;
+  for(const CTYPE::value_type& mc : CMap)
+    mc.second.insertInCell(System,CN);
+
   return;
 }
 
+void 
+ContainedGroup::insertAllInCell(Simulation& System,
+				const std::vector<int>& CVec) const
+  /*!
+    Inserts all contained components into the cell 
+    \param System :: Simulation to get cells
+    \param CN :: Cell number
+  */
+{
+  ELog::RegMethod RegA("ContainedGroup","insertAllInCell(Vec)");
+  
+  CTYPE::const_iterator mc;
+  for(const CTYPE::value_type& mc : CMap)
+    mc.second.insertInCell(System,CVec);
+
+  return;
+}
 
 void 
 ContainedGroup::insertInCell(const std::string& Key,
 			     Simulation& System,
-			     const int CN)
+			     const int CN) const
   /*!
     Inserts a contained component into the cell 
     \param Key :: Group name
@@ -597,37 +712,35 @@ ContainedGroup::insertInCell(const std::string& Key,
 }
 
 void 
-ContainedGroup::insertAllInCell(Simulation& System,
-				const int CN)
-  /*!
-    Inserts all contained components into the cell 
-    \param System :: Simulation to get cells
-    \param CN :: Cell number
-  */
-{
-  ELog::RegMethod RegA("ContainedGroup","insertInCell");
-  CTYPE::iterator mc;
-  for(CTYPE::value_type& mc : CMap)
-    mc.second.insertInCell(System,CN);
-
-  return;
-}
-
-void 
 ContainedGroup::insertInCell(const std::string& Key,
 			     Simulation& System,
-			     const std::vector<int>& CVec)
+			     const std::vector<int>& CVec) const
   /*!
     Inserts a contained component into the cell 
     \param Key :: Group name
     \param System :: Simulation to get cells
-    \param CVec :: Cell numbers
+    \param CN :: Cell number
   */
 {
   ELog::RegMethod RegA("ContainedGroup","insertInCell");
   getCC(Key).insertInCell(System,CVec);
   return;
 }
+
+void 
+ContainedGroup::insertInCell(const std::string& Key,
+			     MonteCarlo::Object& outerObj) const
+  /*!
+    Inserts a contained component into the cell 
+    \param Key :: Group name
+    \param outerObj :: Object to insert into
+  */
+{
+  ELog::RegMethod RegA("ContainedGroup","insertInCell(Obj)");
+  getCC(Key).insertInCell(outerObj);
+  return;
+}
+
   
 void
 ContainedGroup::insertObjects(Simulation& System)
@@ -638,15 +751,10 @@ ContainedGroup::insertObjects(Simulation& System)
 {
   ELog::RegMethod RegA("ContainedGroup","insertObjects");
   
-  CTYPE::iterator mc;
+  for(auto [keyUnit,CC] : CMap)
+    CC.insertObjects(System);
 
-  for(mc=CMap.begin();mc!=CMap.end();mc++)
-    mc->second.insertObjects(System);
-
-      
-	
   return;
-      
 }
 
 }  // NAMESPACE attachSystem

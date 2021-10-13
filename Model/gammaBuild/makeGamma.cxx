@@ -3,7 +3,7 @@
  
  * File:   gammaBuild/makeGamma.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,28 +34,18 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -63,8 +53,6 @@
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
-#include "ContainedGroup.h"
 #include "LayerComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
@@ -73,7 +61,6 @@
 #include "BlockMod.h"
 #include "voidCylVolume.h"
 #include "World.h"
-#include "AttachSupport.h"
 #include "NordBall.h"
 #include "makeGamma.h"
 
@@ -171,10 +158,11 @@ makeGamma::build(Simulation* SimPtr,
   const int voidCell(74123);
   
   brick->addInsertCell(voidCell);
-  brick->createAll(*SimPtr,World::masterOrigin(),0,0);
+  brick->ModBase::createAll(*SimPtr,World::masterOrigin(),0);
 
   tallyVol->addInsertCell(voidCell);
   tallyVol->createAll(*SimPtr,*brick,0);
+
   makeDetectors(*SimPtr);
 
   return;

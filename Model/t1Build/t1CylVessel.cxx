@@ -3,7 +3,7 @@
  
  * File:   t1Build/t1CylVessel.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,34 +34,20 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "surfDIter.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDivide.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -72,16 +58,16 @@
 #include "ContainedComp.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedOffset.h"
 #include "Window.h"
-#include "World.h"
 #include "t1CylVessel.h"
 
 namespace shutterSystem
 {
 
 t1CylVessel::t1CylVessel(const std::string& Key)  : 
-  attachSystem::FixedComp(Key,3),attachSystem::ContainedComp(),
-  populated(0),steelCell(0),voidCell(0)
+  attachSystem::FixedOffset(Key,3),attachSystem::ContainedComp(),
+  steelCell(0),voidCell(0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Key to use
@@ -89,8 +75,8 @@ t1CylVessel::t1CylVessel(const std::string& Key)  :
 {}
 
 t1CylVessel::t1CylVessel(const t1CylVessel& A) : 
-  attachSystem::FixedComp(A),attachSystem::ContainedComp(A),
-  populated(A.populated),voidYoffset(A.voidYoffset),
+  attachSystem::FixedOffset(A),attachSystem::ContainedComp(A),
+  voidYoffset(A.voidYoffset),
   radius(A.radius),clearance(A.clearance),baseRadius(A.baseRadius),
   topRadius(A.topRadius),wallThick(A.wallThick),
   height(A.height),wallMat(A.wallMat),ports(A.ports),
@@ -111,9 +97,8 @@ t1CylVessel::operator=(const t1CylVessel& A)
 {
   if (this!=&A)
     {
-      attachSystem::FixedComp::operator=(A);
+      attachSystem::FixedOffset::operator=(A);
       attachSystem::ContainedComp::operator=(A);
-      populated=A.populated;
       voidYoffset=A.voidYoffset;
       radius=A.radius;
       clearance=A.clearance;
@@ -136,17 +121,17 @@ t1CylVessel::~t1CylVessel()
 {}
 
 void
-t1CylVessel::populate(const Simulation& System)
+t1CylVessel::populate(const FuncDataBase& Control)
   /*!
     Populate all the variables
-    \param System :: Simulation to use
+    \param Control :: Database to use
   */
 {
   ELog::RegMethod RegA("t1CylVessel","populate");
 
-  const FuncDataBase& Control=System.getDataBase();
-
-  voidYoffset=Control.EvalVar<double>("voidYoffset");   
+  FixedOffset::populate(Control);
+  voidYoffset=Control.EvalVar<double>("voidYoffset");
+  yStep=voidYoffset;
   radius=Control.EvalVar<double>(keyName+"Radius");   
   clearance=Control.EvalVar<double>(keyName+"Clearance");   
   height=Control.EvalVar<double>(keyName+"Height");   
@@ -157,21 +142,6 @@ t1CylVessel::populate(const Simulation& System)
 
   wallMat=ModelSupport::EvalMat<int>(Control,keyName+"WallMat");
       
-  populated = 1;
-  return;
-}
-
-void
-t1CylVessel::createUnitVector()
-  /*!
-    Create the unit vectors
-  */
-{
-  ELog::RegMethod RegA("t1CylVessel","createUnitVector");
-
-  attachSystem::FixedComp::createUnitVector(World::masterOrigin());
-  applyShift(0.0,voidYoffset,0.0);
-  
   return;
 }
 
@@ -280,7 +250,7 @@ t1CylVessel::createWindows(Simulation& System)
       Geometry::Vec3D PCent;
       Geometry::Vec3D PAxis;
       // Centres:
-      PCent=Control.EvalPair<Geometry::Vec3D>(CKey,CHgh,IndexStr);
+      PCent=Control.EvalTail<Geometry::Vec3D>(CKey,CHgh,IndexStr);
       // Angles:
       if (Control.hasVariable(AKey+IndexStr))
 	PAxis=Control.EvalVar<Geometry::Vec3D>(AKey+IndexStr);
@@ -303,7 +273,7 @@ t1CylVessel::createWindows(Simulation& System)
     {
       vc->setBaseCell(steelCell);
       vc->addInsertCell(steelCell);
-      vc->createAll(System,*this);
+      vc->createAll(System,*this,0);
     }
   return;
 }
@@ -328,27 +298,31 @@ t1CylVessel::createLinks()
 }
 
 void
-t1CylVessel::createStatus(const Simulation& System)
+t1CylVessel::createStatus(const Simulation& System,
+			  const attachSystem::FixedComp& FC,
+			  const long int sideIndex)
   /*!
     Create the void vessel status so origins etc are correctly moved
     \param System :: Simulation to process
   */
 {
   ELog::RegMethod RegA("t1CylVessel","createStatus");
-  populate(System);
-  createUnitVector();
+  populate(System.getDataBase());
+  createUnitVector(FC,sideIndex);
   return;
 }
 
 void
-t1CylVessel::createAll(Simulation& System)
+t1CylVessel::createAll(Simulation& System,
+		       const attachSystem::FixedComp& FC,
+		       const long int sideIndex)
   /*!
     Create the void vessel
     \param System :: Simulation to process
   */
 {
   ELog::RegMethod RegA("t1CylVessel","createAll");
-  createStatus(System);
+  createStatus(System,FC,sideIndex);
   createSurfaces();
   createObjects(System);
   createWindows(System);

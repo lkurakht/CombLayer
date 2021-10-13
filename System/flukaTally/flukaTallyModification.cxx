@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   flukaTally/flukaTallySelector.cxx
+ * File:   flukaTally/flukaTallyModification.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,31 +38,48 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "support.h"
 
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "MainProcess.h"
-#include "inputParam.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "SimFLUKA.h"
 #include "flukaTally.h"
+#include "resnuclei.h"
 
 #include "flukaTallyModification.h"
+
 
 namespace flukaSystem
 {
 
+template<typename tallyTYPE>
+std::set<tallyTYPE*>
+getTallyType(const SimFLUKA& Sim)
+  /*!
+    Get a set of points to matching tallys
+    \param Sim :: Fluka simulation
+    \return Set of tally pointer
+   */
+{
+  ELog::RegMethod RegA("flukaTallyModification[F]","getTallyType");
+
+  std::set<tallyTYPE*> Out;
+  const SimFLUKA::FTallyTYPE& tmap=Sim.getTallySet();
+	  
+  for(flukaSystem::flukaTally* fPtr : tmap)
+    {
+      tallyTYPE* tPtr=dynamic_cast<tallyTYPE*>(fPtr);
+      if (tPtr)
+	Out.insert(tPtr);
+    }
+  return Out;
+}
+  
 std::set<flukaTally*>
 getActiveTally(const SimFLUKA& Sim,const std::string& tName)
   /*!
@@ -75,22 +92,25 @@ getActiveTally(const SimFLUKA& Sim,const std::string& tName)
   ELog::RegMethod RegA("flukaTallyModification[F]","getActiveTally");
 
   std::set<flukaTally*> Out;
-  const SimFLUKA::FTallyTYPE& tmap=Sim.getTallyMap();
+  const SimFLUKA::FTallyTYPE& tmap=Sim.getTallySet();
 
-  for(const SimFLUKA::FTallyTYPE::value_type& mc : tmap)
+  for(flukaSystem::flukaTally* fPtr : tmap)
     {
-      std::string KN=mc.second->getKeyName();
-      if (tName.back()=='*')
+      std::string KN=fPtr->getKeyName();
+      const size_t knSize(KN.size());
+
+      if (!tName.empty() && tName.size()<knSize &&
+	  tName.back()=='*')
 	{
-	  // method to make KN ==> stuff*
 	  KN.erase(tName.size(),std::string::npos);
 	  KN.back()='*';
 	}
       if (KN==tName)
-	{
-	  Out.insert(mc.second);
-	}
+	Out.insert(fPtr);
     }
+  if (Out.empty())
+    throw ColErr::InContainerError<std::string>
+      (tName,"Tally modification type not present:");
   return Out;
 }
 
@@ -107,17 +127,33 @@ setBinaryOutput(SimFLUKA& Sim,const std::string& tName)
 
   const std::set<flukaTally*> ATallySet=
     getActiveTally(Sim,tName);
-
-  if (ATallySet.empty())
-    throw ColErr::InContainerError<std::string>
-      (tName,"Unknown tally");
   
   for(flukaTally* mc: ATallySet)
     mc->setBinary();
 
   return 1;
 }
+
+int
+setAsciiOutput(SimFLUKA& Sim,const std::string& tName) 
+  /*!
+    Set the ascii file
+    \param Sim :: System to access tally tables
+    \param tNumber :: Tally number [0 for all]
+    \return tally number [0 on fail]
+  */
+{
+  ELog::RegMethod RegA("flukaTallyModificaiton[F]","setBinaryOutput");
+
+  const std::set<flukaTally*> ATallySet=
+    getActiveTally(Sim,tName);
   
+  for(flukaTally* mc: ATallySet)
+    mc->setAscii();
+
+  return 1;
+}
+
 
   
 int
@@ -168,6 +204,28 @@ setAuxParticle(SimFLUKA& Sim,const std::string& tName,
 
   for(flukaTally* mc: ATallySet)
     mc->setAuxParticles(particle);
+
+  return static_cast<int>(ATallySet.size());
+}
+
+int
+setUserName(SimFLUKA& Sim,const std::string& tName,
+	    const std::string& userName)
+/*!
+    Get the last tally point based on the tallynumber
+    \param Sim :: System to access tally tables
+    \param tName :: Tally number [0 for all]
+    \param userName :: Auxillary name
+    \return tally number size
+  */
+{
+  ELog::RegMethod RegA("flukaTallyModificaiton[F]","setUserName");
+
+  const std::set<flukaTally*> ATallySet=
+    getActiveTally(Sim,tName);
+
+  for(flukaTally* mc: ATallySet)
+    mc->setUserName(userName);
 
   return static_cast<int>(ATallySet.size());
 }
@@ -225,4 +283,10 @@ setAngle(SimFLUKA& Sim,const std::string& tName,
   return static_cast<int>(ATallySet.size());
 }
 
+///\cond TEMPLATE
+
+template std::set<resnuclei*> getTallyType(const SimFLUKA&);
+
+///\endcond TEMPLATE
+  
 }  // NAMESPACE flukaSystem

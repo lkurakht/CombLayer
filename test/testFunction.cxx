@@ -3,7 +3,7 @@
  
  * File:   test/testFunction.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,17 +33,11 @@
 #include <iterator>
 #include <tuple>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "support.h"
-#include "funcList.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
@@ -82,6 +76,7 @@ testFunction::applyTest(const int extra)
       &testFunction::testBuiltIn,
       &testFunction::testCopyVarSet,
       &testFunction::testEval,
+      &testFunction::testList,      
       &testFunction::testString, 
       &testFunction::testVariable,
       &testFunction::testVec3D,
@@ -94,6 +89,7 @@ testFunction::applyTest(const int extra)
       "BuiltIn",
       "CopyVarSet",
       "Eval",
+      "List",
       "String",
       "Variable",
       "Vec3D",
@@ -486,5 +482,35 @@ testFunction::testVec3DFunctions()
 	}
       cnt++;
     }
+  return 0;
+}
+
+int
+testFunction::testList()
+  /*!
+    Test to List
+    \return 0 on succes and -ve on failure
+  */
+{
+  ELog::RegMethod RegA("testVarList","testList");
+
+  FuncDataBase Control;
+
+    
+  Control.addVariable<int>("fred2alpha",1);
+  //
+  const int outA=Control.EvalVar<int>("fred2alpha");
+  Control.pushVariable<int>("fred2alpha",2);
+
+  std::vector<std::string> keys = Control.getKeys();
+
+  const int out=Control.EvalVar<int>("fred2alpha");
+
+  std::vector<int> OutVec=Control.EvalVector<int>("fred2alpha");
+  for(const int CN : OutVec)
+    ELog::EM<<"V == "<<CN<<ELog::endDiag;
+
+  std::string OutStr=Control.EvalVarString("fred2alpha");
+  ELog::EM<<"String == "<<OutStr<<ELog::endDiag;
   return 0;
 }

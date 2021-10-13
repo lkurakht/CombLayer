@@ -3,7 +3,7 @@
  
  * File:   formaxInc/FORMAX.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,8 +32,8 @@ namespace constructSystem
   class VacuumBox;
   class portItem;
   class PortTube;
-  class GateValve;
-  class JawValve;
+  class GateValveCube;
+  class JawValveCube;
 }
 
 /*!
@@ -50,6 +50,8 @@ namespace xraySystem
   class OpticsHutch;
   class ExperimentalHutch;
   class ExptBeamline;
+  class formaxDetectorTube;
+  class formaxExptLine;
   class formaxOpticsLine;
   class R3FrontEndCave;
   class ConnectZone;
@@ -65,20 +67,15 @@ namespace xraySystem
     \brief General constructor for the xray system
   */
 
-class FORMAX : public attachSystem::CopiedComp
+class FORMAX : public R3Beamline
 {
  private:
 
-  std::string startPoint;       ///< Start point
-  std::string stopPoint;        ///< End point
-  /// Front end cave volume
-  std::shared_ptr<R3FrontEndCave> ringCaveA;
-  // Joining front cave
-  std::shared_ptr<R3FrontEndCave> ringCaveB;
-
   /// the components in the front end
   std::shared_ptr<formaxFrontEnd> frontBeam;
-  std::shared_ptr<WallLead> wallLead;            ///< lead in beam wall
+
+  /// lead in beam wall
+  std::shared_ptr<WallLead> wallLead;       
   
   /// Pipe joining frontend to optics hut
   std::shared_ptr<constructSystem::VacuumPipe> joinPipe;
@@ -88,17 +85,31 @@ class FORMAX : public attachSystem::CopiedComp
   
   /// Beamline
   std::shared_ptr<formaxOpticsLine> opticsBeam;
-  
+
+  /// Optics hutch
+  std::shared_ptr<ExperimentalHutch> exptHut;
+
+  /// Pipe joining frontend to Expt hutch
+  std::shared_ptr<constructSystem::VacuumPipe> joinPipeB;
+
+  /// Shield at exit of optics hutch
+  std::shared_ptr<xraySystem::PipeShield> pShield;
+
+  /// Beamline expt
+  std::shared_ptr<formaxExptLine> exptBeam;
+
+  /// Detector
+  std::shared_ptr<formaxDetectorTube> detectorTube;
+
  public:
   
   FORMAX(const std::string&);
   FORMAX(const FORMAX&);
   FORMAX& operator=(const FORMAX&);
-  ~FORMAX();
+  virtual ~FORMAX();
 
-  /// set stop point(s)
-  void setStopPoint(const std::string& SP)  { stopPoint=SP; }
-  void build(Simulation&,const attachSystem::FixedComp&,
+
+  virtual void build(Simulation&,const attachSystem::FixedComp&,
 	     const long int);
 
 };

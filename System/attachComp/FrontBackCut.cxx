@@ -3,7 +3,7 @@
  
  * File:   attachComp/FrontBackCut.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,45 +34,30 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Surface.h"
 #include "surfRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "HeadRule.h"
-#include "generateSurf.h"
 #include "LinkUnit.h"  
 #include "FixedComp.h"
-#include "SurInter.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 
 namespace attachSystem
 {
 
 FrontBackCut::FrontBackCut() :
-  activeFront(0),activeBack(0)
+  ExternalCut()
   /*!
     Constructor [default]
   */
 {}
 
-FrontBackCut::FrontBackCut(const FrontBackCut& A) : 
-  activeFront(A.activeFront),frontCut(A.frontCut),
-  frontDivider(A.frontDivider),activeBack(A.activeBack),
-  backCut(A.backCut),backDivider(A.backDivider)
+FrontBackCut::FrontBackCut(const FrontBackCut& A) :
+  ExternalCut(A)
   /*!
     Copy constructor
     \param A :: FrontBackCut to copy
@@ -89,12 +74,7 @@ FrontBackCut::operator=(const FrontBackCut& A)
 {
   if (this!=&A)
     {
-      activeFront=A.activeFront;
-      frontCut=A.frontCut;
-      frontDivider=A.frontDivider;
-      activeBack=A.activeBack;
-      backCut=A.backCut;
-      backDivider=A.backDivider;
+      ExternalCut::operator=(A);
     }
   return *this;
 }
@@ -107,7 +87,7 @@ FrontBackCut::~FrontBackCut()
 {}
 
 void
-FrontBackCut::setFront(const FrontBackCut& FSurf)
+FrontBackCut::setFront(const ExternalCut& FSurf)
   /*!
     Set a front wall
     \param FSurf :: Front object
@@ -115,14 +95,12 @@ FrontBackCut::setFront(const FrontBackCut& FSurf)
 {
   ELog::RegMethod RegA("FrontBackCut","setFront(FrontBackCut)");
 
-  frontCut=FSurf.frontCut;
-  frontDivider=FSurf.frontDivider;
-  activeFront=1;
+  ExternalCut::copyCutSurf("front",FSurf,"front");
   return;
 }
 
 void
-FrontBackCut::setBack(const FrontBackCut& BSurf)
+FrontBackCut::setBack(const ExternalCut& BSurf)
   /*!
     Set a back wall
     \param BSurf :: back object
@@ -130,9 +108,33 @@ FrontBackCut::setBack(const FrontBackCut& BSurf)
 {
   ELog::RegMethod RegA("FrontBackCut","setBack(FrontBackCut)");
 
-  backCut=BSurf.backCut;
-  backDivider=BSurf.backDivider;
-  activeBack=1;
+  ExternalCut::copyCutSurf("back",BSurf,"back");
+  return;
+}
+
+void
+FrontBackCut::setFront(const HeadRule& FSurf)
+  /*!
+    Set a front wall
+    \param FSurf :: Front object
+  */
+{
+  ELog::RegMethod RegA("FrontBackCut","setFront(HeadRule)");
+
+  ExternalCut::setCutSurf("front",FSurf);
+  return;
+}
+
+void
+FrontBackCut::setBack(const HeadRule& BSurf)
+  /*!
+    Set a back wall
+    \param BSurf :: Front object
+  */
+{
+  ELog::RegMethod RegA("FrontBackCut","setBack(HeadRule)");
+
+  ExternalCut::setCutSurf("back",BSurf);
   return;
 }
 
@@ -145,10 +147,8 @@ FrontBackCut::setFront(const int FSurf)
 {
   ELog::RegMethod RegA("FrontBackCut","setFront(int)");
 
-  frontCut.procSurfNum(FSurf);
-  frontCut.populateSurf();
-  frontDivider.reset();
-  activeFront=1;
+  ExternalCut::setCutSurf("front",FSurf);
+  
   return;
 }
 
@@ -160,11 +160,7 @@ FrontBackCut::setBack(const int BSurf)
   */
 {
   ELog::RegMethod RegA("FrontBackCut","setBack(int)");
-
-  backCut.procSurfNum(BSurf);
-  backCut.populateSurf();
-  backDivider.reset();
-  activeBack=1;
+  ExternalCut::setCutSurf("back",BSurf);
   return;
 }
 
@@ -177,29 +173,35 @@ FrontBackCut::setFront(const std::string& FRule)
 {
   ELog::RegMethod RegA("FrontBackCut","setFront(string)");
 
-
-  if (!frontCut.procString(FRule))
-    throw ColErr::InvalidLine(FRule,"FRule failed");
-  frontCut.populateSurf();
-  frontDivider.reset();
-  activeFront=1;
+  ExternalCut::setCutSurf("front",FRule);
   return;
 }
 
 void
-FrontBackCut::setBack(const std::string& FRule)
+FrontBackCut::setBack(const std::string& BRule)
   /*!
     Set a back wall
-    \param FRule :: Back rule string
+    \param BRule :: Back rule string
   */
 {
   ELog::RegMethod RegA("FrontBackCut","setBack(string)");
 
-  if (!backCut.procString(FRule))
-    throw ColErr::InvalidLine(FRule,"FRule failed");
-  backCut.populateSurf();
-  backDivider.reset();
-  activeBack=1;
+  ExternalCut::setCutSurf("back",BRule);
+  return;
+}
+
+void
+FrontBackCut::setFront(const attachSystem::FixedComp& WFC,
+                       const std::string& sideName)
+  /*!
+    Set a front wall
+    \param WFC :: Front line
+    \param sideNAme :: link point
+  */
+{
+  ELog::RegMethod RegA("FrontBackCut","setFront(FC,index)");
+
+  ExternalCut::setCutSurf("front",WFC,sideName);
   return;
 }
 
@@ -212,14 +214,24 @@ FrontBackCut::setFront(const attachSystem::FixedComp& WFC,
     \param sideIndex :: link point
   */
 {
-  ELog::RegMethod RegA("FrontBackCut","setFront");
+  ELog::RegMethod RegA("FrontBackCut","setFront(FC,index)");
 
-  // FixedComp::setLinkSignedCopy(0,FC,sideIndex);
-  frontCut=WFC.getMainRule(sideIndex);
-  frontDivider=WFC.getCommonRule(sideIndex);
-  frontCut.populateSurf();
-  frontDivider.populateSurf();
-  activeFront=1;
+  ExternalCut::setCutSurf("front",WFC,sideIndex);
+  return;
+}
+
+void
+FrontBackCut::setBack(const attachSystem::FixedComp& WFC,
+                      const std::string& sideName)
+  /*!
+    Set a back wall
+    \param WFC :: Back component
+    \param sideName :: link point
+  */
+{
+  ELog::RegMethod RegA("FrontBackCut","setBack");
+
+  ExternalCut::setCutSurf("back",WFC,sideName);
   return;
 }
 
@@ -234,12 +246,7 @@ FrontBackCut::setBack(const attachSystem::FixedComp& WFC,
 {
   ELog::RegMethod RegA("FrontBackCut","setBack");
 
-  // FixedComp::setLinkSignedCopy(0,FC,sideIndex);
-  backCut=WFC.getMainRule(sideIndex);
-  backDivider=WFC.getCommonRule(sideIndex);
-  backCut.populateSurf();
-  backDivider.populateSurf();
-  activeBack=1;
+  ExternalCut::setCutSurf("back",WFC,sideIndex);
   return;
 }
 
@@ -252,9 +259,7 @@ FrontBackCut::setFrontDivider(const std::string& FDRule)
 {
   ELog::RegMethod RegA("FrontBackCut","setFrontDivider");
 
-  if (!frontDivider.procString(FDRule))
-    throw ColErr::InvalidLine(FDRule,"FDRule failed");
-  frontDivider.populateSurf();
+  ExternalCut::setCutDivider("front",FDRule);
   return;
 }
 
@@ -266,7 +271,7 @@ FrontBackCut::setFrontDivider(const HeadRule& HR)
     \param HR :: Divider surface
    */
 {
-  frontDivider=HR;
+  ExternalCut::setCutDivider("front",HR);
   return;
 }
 
@@ -278,9 +283,8 @@ FrontBackCut::setBackDivider(const std::string& BDRule)
   */
 {
   ELog::RegMethod RegA("FrontBackCut","setBackDivider");
-  if (!backDivider.procString(BDRule))
-    throw ColErr::InvalidLine(BDRule,"BDRule failed");
-  backDivider.populateSurf();
+
+  ExternalCut::setCutDivider("back",BDRule);
   return;
 }
 
@@ -291,7 +295,7 @@ FrontBackCut::setBackDivider(const HeadRule& HR)
     \param HR :: Divider surface
    */
 {
-  backDivider=HR;
+  ExternalCut::setCutDivider("back",HR);
   return;
 }
 
@@ -302,8 +306,7 @@ FrontBackCut::frontRule() const
     \return frontRule with divider
   */
 {
-  return (activeFront) ?
-    frontCut.display()+frontDivider.display() : "" ;    
+  return ExternalCut::getRuleStr("front");  
 }
 
 std::string
@@ -313,8 +316,7 @@ FrontBackCut::frontComplement() const
     \return frontRule.cmp with divider
   */
 {
-  return (activeFront) ?
-    frontCut.complement().display()+frontDivider.display() : "" ;    
+  return ExternalCut::getComplementStr("front");  
 }
 
 std::string
@@ -324,8 +326,7 @@ FrontBackCut::backRule() const
     \return backRule with divider
   */
 {
-  return (activeBack) ?
-    backCut.display()+backDivider.display() : "";    
+  return ExternalCut::getRuleStr("back");
 }
 
 std::string
@@ -335,8 +336,7 @@ FrontBackCut::backComplement() const
     \return backRule with divider
   */
 {
-  return (activeBack) ?
-    backCut.complement().display()+backDivider.display() : "";    
+  return ExternalCut::getComplementStr("back");  
 }
 
 std::string
@@ -346,8 +346,7 @@ FrontBackCut::frontBridgeRule() const
     \return frontBridgeRule 
   */
 {
-  return (activeFront) ?
-    frontDivider.display() : "";
+  return ExternalCut::getBridgeStr("front");  
 }
 
 std::string
@@ -357,8 +356,7 @@ FrontBackCut::backBridgeRule() const
     \return backRule divider
   */
 {
-  return (activeBack) ?
-    backDivider.display() : "";    
+  return ExternalCut::getBridgeStr("back");  
 }
 
 void
@@ -373,8 +371,9 @@ FrontBackCut::createLinks(attachSystem::FixedComp& FC,
    */
 {
   ELog::RegMethod RegA("FrontBackCut","createLinks");
-  createFrontLinks(FC,Org,YAxis);
-  createBackLinks(FC,Org,YAxis);
+
+  ExternalCut::createLink("front",FC,0,Org,-YAxis);
+  ExternalCut::createLink("back",FC,1,Org,YAxis);
   return;
 }
   
@@ -391,14 +390,7 @@ FrontBackCut::createFrontLinks(attachSystem::FixedComp& FC,
 {
   ELog::RegMethod RegA("FrontBackCut","createFrontLinks");
 
-  if (activeFront)
-    {
-      FC.setLinkSurf(0,frontCut.complement());
-      FC.setBridgeSurf(0,frontDivider);
-      FC.setConnect
-	(0,SurInter::getLinePoint(Org,YAxis,frontCut,frontDivider),
-	 -YAxis);
-    }
+  ExternalCut::createLink("front",FC,0,Org,-YAxis);
   return;
 }
 
@@ -414,43 +406,33 @@ FrontBackCut::createBackLinks(attachSystem::FixedComp& FC,
   */
 {
   ELog::RegMethod RegA("FrontBackCut","createBackLinks");
-  
-  if (activeBack)
-    {
-      FC.setLinkSurf(1,backCut.complement());
-      FC.setBridgeSurf(1,backDivider);
-      FC.setConnect
-        (1,SurInter::getLinePoint(Org,YAxis,backCut,backDivider),
-	 YAxis);
-    }
+
+  ExternalCut::createLink("back",FC,1,Org,YAxis);
   return;
 }
 
 void
 FrontBackCut::getShiftedFront(ModelSupport::surfRegister& SMap,
 			      const int surfIndex,
-			      const int dFlag,
 			      const Geometry::Vec3D& YAxis,
 			      const double length) const
   /*!
-    Support function to calculate the shifted surface fo the front
+    Support function to calculate the shifted surface for the front
     \param SMap :: Surface register
     \param surfIndex :: offset index [new]
-    \param dFlag :: direction flag
-    \param YAxis :: Axis for shift of sphere/cylinder
+    \param YAxis :: Axis for shift of sphere/cylinder/plane
     \param length :: length to shift by
   */
 {
   ELog::RegMethod RegA("FrontBackCut","getShiftedFront");
-  
-  getShiftedSurf(SMap,frontCut,surfIndex,dFlag,YAxis,length);
+
+  ExternalCut::makeShiftedSurf(SMap,"front",surfIndex,YAxis,length);
   return;
 }
 
 void
 FrontBackCut::getShiftedBack(ModelSupport::surfRegister& SMap,
 			     const int surfIndex,
-			     const int dFlag,
 			     const Geometry::Vec3D& YAxis,
 			     const double length) const
   /*!
@@ -458,72 +440,16 @@ FrontBackCut::getShiftedBack(ModelSupport::surfRegister& SMap,
     \param SMap :: Surface register
     \param surfIndex :: offset index [new]
     \param dFlag :: direction flag
-    \param YAxis :: Axid for shift of sphere/cylinder
+    \param YAxis :: Axid for shift of sphere/cylinder/plane
     \param length :: length to shift by
   */
 {
   ELog::RegMethod RegA("FrontBackCut","getShiftedBack");
-  
-  getShiftedSurf(SMap,backCut,surfIndex,dFlag,YAxis,length);
+
+  ExternalCut::makeShiftedSurf(SMap,"back",surfIndex,YAxis,length);
   return;
 }
 
-
-void
-FrontBackCut::getShiftedSurf(ModelSupport::surfRegister& SMap,
-			     const HeadRule& HR,
-			     const int index,
-			     const int dFlag,
-			     const Geometry::Vec3D& YAxis,
-			     const double length)
-  /*!
-    Support function to calculate the shifted surface
-    \parma SMap :: local surface register
-    \param HR :: HeadRule to extract plane surf
-    \param index :: offset index
-    \param dFlag :: direction of surface axis (relative to HR.Plane)
-    \param YAxis :: Direction of cylindical shift
-    \param length :: length to shift by
-  */
-{
-  ELog::RegMethod RegA("FrontBackCut","getShiftedSurf");
-  
-  std::set<int> FS=HR.getSurfSet();
-  for(const int& SN : FS)
-    {
-      const Geometry::Surface* SPtr=SMap.realSurfPtr(SN);
-
-      const Geometry::Plane* PPtr=
-	dynamic_cast<const Geometry::Plane*>(SPtr);
-      if (PPtr)
-	{
-	  if (SN*dFlag>0)
-	    ModelSupport::buildShiftedPlane(SMap,index,PPtr,dFlag*length);
-	  else
-	    ModelSupport::buildShiftedPlaneReversed(SMap,index,PPtr,dFlag*length);
-	  
-	  return;
-	}
-      
-      const Geometry::Cylinder* CPtr=
-	dynamic_cast<const Geometry::Cylinder*>(SPtr);
-      // Cylinder case:
-      if (CPtr)
-	{
-	  if (SN>0)
-	    ModelSupport::buildCylinder
-	      (SMap,index,CPtr->getCentre()+YAxis*length,
-	       CPtr->getNormal(),CPtr->getRadius());
-	  else
-	    ModelSupport::buildCylinder
-	      (SMap,index,CPtr->getCentre()-YAxis*length,
-	       CPtr->getNormal(),CPtr->getRadius());
-	  return;
-	}
-    }
-  
-  throw ColErr::EmptyValue<int>("HeadRule contains no planes/cylinder");
-} 
   
 Geometry::Vec3D
 FrontBackCut::frontInterPoint(const Geometry::Vec3D& Centre,
@@ -537,7 +463,7 @@ FrontBackCut::frontInterPoint(const Geometry::Vec3D& Centre,
 {
   ELog::RegMethod RegA("FrontBackCut","frontInterPoint");
 
-  return SurInter::getLinePoint(Centre,CAxis,frontCut,frontDivider);  
+  return ExternalCut::interPoint("front",Centre,CAxis);  
 }
 
 Geometry::Vec3D
@@ -552,7 +478,7 @@ FrontBackCut::backInterPoint(const Geometry::Vec3D& Centre,
 {
   ELog::RegMethod RegA("FrontBackCut","backInterPoint");
 
-  return SurInter::getLinePoint(Centre,CAxis,backCut,backDivider);  
+  return ExternalCut::interPoint("back",Centre,CAxis);  
 }
   
 }  // NAMESPACE attachSystem

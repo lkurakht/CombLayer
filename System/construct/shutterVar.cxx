@@ -34,15 +34,10 @@
 #include <iterator>
 #include <boost/format.hpp>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Code.h"
 #include "varList.h"
@@ -212,7 +207,9 @@ shutterVar::B4Cspacer(FuncDataBase& Control,const size_t index,
 {
   boost::format FMT(keyName+"ShutterBlock%d%s");
   const std::string b4cMat("B4C");
-  double gapThick((b4cSpace+b4cThick)/2.0);     // normal is two b4c sheets this is one
+  // normal is two b4c sheets this is one
+  double gapThick((b4cSpace+b4cThick)/2.0);
+
 
   // B4C scrapper #1 
 

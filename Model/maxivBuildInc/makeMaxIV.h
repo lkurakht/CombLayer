@@ -3,7 +3,7 @@
  
  * File:   maxivBuildInc/makeMaxIV.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNMaxIV FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -22,10 +22,17 @@
 #ifndef xraySystem_makeMaxIV_h
 #define xraySystem_makeMaxIV_h
 
+namespace tdcSystem
+{
+  class TDC;
+}
+
 
 namespace xraySystem
 {
+  class InjectionHall;
   class R1Ring;
+  class R3Ring;
   /*!
     \class makeMaxIV
     \version 1.0
@@ -40,10 +47,23 @@ class makeMaxIV
 
   /// Main R1 Ring
   std::shared_ptr<R1Ring> r1Ring;
-  
-  void buildR1Ring(Simulation&,const mainSystem::inputParam&);
+  /// Main R1 Ring
+  std::shared_ptr<R3Ring> r3Ring;
+  /// Linac/SPF Hall
+  std::shared_ptr<tdcSystem::TDC> tdc;
 
-  bool makeBeamLine(Simulation&,const mainSystem::inputParam&);
+  
+  void populateStopPoint(const mainSystem::inputParam&,
+			 const std::set<std::string>&,
+			 std::map<std::string,std::string>&) const;
+  std::string getActiveStop(const std::map<std::string,std::string>&,
+			    const std::string&) const;
+    
+  bool buildR1Ring(Simulation&,const mainSystem::inputParam&);
+
+  bool buildR3Ring(Simulation&,const mainSystem::inputParam&);
+
+  bool buildInjection(Simulation&,const mainSystem::inputParam&);
   
  public:
   

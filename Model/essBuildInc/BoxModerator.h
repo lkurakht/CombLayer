@@ -3,7 +3,7 @@
 
  * File:   essBuildInc/BoxModerator.h
  *
- * Copyright (c) 2004-2018 by Konstantin Batkov / Stuart Ansell
+ * Copyright (c) 2004-2019 by Konstantin Batkov / Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -84,7 +84,13 @@ class BoxModerator :
   std::string getLeftFarExclude() const;
   std::string getRightFarExclude() const;
 
+<<<<<<< HEAD
   virtual void createAll(Simulation&,const attachSystem::FixedComp&,
+=======
+  void createAll(Simulation&,const attachSystem::FixedComp&,
+		 const long int);
+  void createAll(Simulation&,const attachSystem::FixedComp&,
+>>>>>>> origin/master
 		 const long int,
 		 const attachSystem::FixedComp&,
 		 const long int);

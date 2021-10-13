@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   commonBeam/WallLeadGenerator.cxx
+ * File:   commonGenerator/WallLeadGenerator.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,17 +35,10 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
@@ -57,14 +50,14 @@ namespace setVariable
 {
 
 WallLeadGenerator::WallLeadGenerator() :
-  frontLength(10.0),backLength(10.0),
-  frontWidth(80.0),frontHeight(80.0),
-  backWidth(40.0),backHeight(40.0),
+  xStep(0.0),frontLength(10.0),backLength(10.0),
+  frontWidth(80.0),frontHeight(100.0),
+  backWidth(40.0),backHeight(60.0),
   steelOutWidth(145.0),steelRingWidth(140.0),
-  steelHeight(70.0),steelDepth(40.0),
+  steelHeight(70.0),steelDepth(60.0),
   steelThick(5.0),steelXCut(90.0),steelZCut(70.0),
   extraLeadOutWidth(140.0),extraLeadRingWidth(140.0),
-  extraLeadHeight(52.0),extraLeadDepth(8.0),extraLeadXCut(50.0),
+  extraLeadHeight(72.0),extraLeadDepth(8.0),extraLeadXCut(50.0),
   voidMat("Void"),midMat("Concrete"),wallMat("Lead"),
   steelMat("Stainless304")
   /*!
@@ -78,6 +71,17 @@ WallLeadGenerator::~WallLeadGenerator()
  */
 {}
 
+void
+WallLeadGenerator::setXOffset(const double XS)
+  /*!
+    Set the wall offset 
+    \param XS :: Wall step
+   */
+{
+  xStep=XS;
+  return;
+}
+  
 void
 WallLeadGenerator::setWidth(const double OW,const double RW)
   /*!
@@ -102,11 +106,12 @@ WallLeadGenerator::generateWall(FuncDataBase& Control,
     Primary funciton for setting the variables
     \param Control :: Database to add variables 
     \param keyName :: head name for variable
-    \param VR :: void radius						
+    \param VR :: void radius 						
   */
 {
   ELog::RegMethod RegA("WallLeadGenerator","generateWall");
   
+  Control.addVariable(keyName+"XStep",xStep);
   Control.addVariable(keyName+"FrontLength",frontLength);
   Control.addVariable(keyName+"BackLength",backLength);
   Control.addVariable(keyName+"FrontWidth",frontWidth);

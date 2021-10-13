@@ -3,7 +3,7 @@
  
  * File:   insertUnit/insertCylinder.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,39 +33,24 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
-#include "MaterialSupport.h"
 #include "Zaid.h"
 #include "MXcards.h"
 #include "Material.h"
@@ -78,9 +63,8 @@
 #include "SurfMap.h"
 #include "CellMap.h"
 #include "ContainedComp.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
-#include "SurInter.h"
-#include "AttachSupport.h"
 #include "insertObject.h"
 #include "insertCylinder.h"
 
@@ -193,7 +177,7 @@ insertCylinder::createLinks()
 
   if (!backActive())
     {
-      FixedComp::setConnect(1,Origin+Y*(length/2.0),-Y);
+      FixedComp::setConnect(1,Origin+Y*(length/2.0),Y);
       FixedComp::setLinkSurf(1,SMap.realSurf(buildIndex+2));
     }
   

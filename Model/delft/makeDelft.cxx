@@ -37,57 +37,24 @@
 #include <boost/format.hpp>
 #include <boost/multi_array.hpp>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "support.h"
-#include "stringCombine.h"
 #include "inputParam.h"
-#include "Triple.h"
-#include "NRange.h"
-#include "NList.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
-#include "Code.h"
-#include "varList.h"
-#include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
-#include "inputSupport.h"
-#include "SourceBase.h"
-#include "sourceDataBase.h"
-#include "KCodeSource.h"
-#include "ModeCard.h"
-#include "PhysImp.h"
-#include "PhysCard.h"
-#include "LSwitchCard.h"
-#include "PhysicsCards.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
-#include "ContainedGroup.h"
+#include "ExternalCut.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "pipeUnit.h"
-#include "PipeLine.h"
 #include "World.h"
 #include "AttachSupport.h"
 
@@ -97,18 +64,10 @@
 #include "BeamTubeJoiner.h"
 #include "SwimingPool.h"
 #include "virtualMod.h"
-#include "delftH2Moderator.h"
-#include "SphereModerator.h"
-#include "ConeModerator.h"
 #include "FlatModerator.h"
-#include "H2Vac.h"
 #include "PressureVessel.h"
-#include "H2Groove.h"
-#include "beamSlot.h"
 #include "BeamInsert.h"
 #include "BeSurround.h"
-#include "BeCube.h"
-#include "BeFullBlock.h"
 #include "SpaceBlock.h"
 #include "Rabbit.h"
 #include "makeDelft.h"
@@ -264,7 +223,7 @@ makeDelft::makeRabbit(Simulation& System)
     {
       RPType RB(new Rabbit("Rabbit",index));
 	
-      flag=RB->createAll(System,*GridPlate);	
+      flag=RB->build(System,*GridPlate);	
       if (flag) 
 	{
 	  OR.addObject(RB); 
@@ -392,9 +351,12 @@ makeDelft::buildModerator(Simulation& System,
 	BePtr->addInsertCell(voidCell);
       HeadRule CPCut(ColdPress->getFullRule(1));
       CPCut.addUnion(ColdPress->getFullRule(3));
-      BePtr->createAll(System,FC,sideIndex,
-		       FlightB->getExclude()+FlightC->getExclude()+
-		       CPCut.display());
+      BePtr->setCutSurf("FlightCut",
+			FlightB->getExclude()+FlightC->getExclude()+
+			CPCut.display());
+
+      BePtr->createAll(System,FC,sideIndex);
+      
       R2Be=std::shared_ptr<attachSystem::FixedOffset>(BePtr);
       OR.addObject(R2Be);
     }

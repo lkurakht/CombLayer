@@ -3,7 +3,7 @@
  
  * File:   construct/PortTube.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,51 +35,31 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Line.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "SurInter.h"
 #include "HeadRule.h"
-#include "Object.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
 #include "ModelSupport.h"
-#include "MaterialSupport.h"
 #include "generateSurf.h"
 #include "LinkUnit.h"  
 #include "FixedComp.h"
-#include "FixedOffset.h"
+#include "FixedRotate.h"
 #include "ContainedComp.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 
-#include "portItem.h"
+#include "VirtualTube.h"
 #include "PipeTube.h"
 #include "PortTube.h"
 
@@ -87,7 +67,7 @@ namespace constructSystem
 {
 
 PortTube::PortTube(const std::string& Key) :
-  PipeTube(Key)
+  PipeTube(Key),portAOuterFlag(0),portBOuterFlag(0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: KeyName
@@ -96,6 +76,8 @@ PortTube::PortTube(const std::string& Key) :
   FixedComp::nameSideIndex(2,"mainPipe");
   FixedComp::nameSideIndex(6,"portAPipe");
   FixedComp::nameSideIndex(8,"portBPipe");
+  FixedComp::nameSideIndex(10,"portA");
+  FixedComp::nameSideIndex(11,"portB");
 }
 
   
@@ -115,7 +97,9 @@ PortTube::populate(const FuncDataBase& Control)
   ELog::RegMethod RegA("PortTube","populate");
 
   PipeTube::populate(Control);
-  
+
+  portAOuterFlag=
+    (Control.EvalDefVar<int>(keyName+"PortAOuterFlag",0)!=0);
   portAXStep=Control.EvalDefVar<double>(keyName+"PortAXStep",0.0);
   portAZStep=Control.EvalDefVar<double>(keyName+"PortAZStep",0.0);
   portARadius=Control.EvalPair<double>(keyName+"PortARadius",
@@ -124,6 +108,8 @@ PortTube::populate(const FuncDataBase& Control)
 				       keyName+"PortLen");
   portAThick=Control.EvalPair<double>(keyName+"PortAThick",
 				       keyName+"PortThick");
+  portBOuterFlag=
+    (Control.EvalDefVar<int>(keyName+"PortBOuterFlag",0)!=0);
 
   portBXStep=Control.EvalDefVar<double>(keyName+"PortBXStep",0.0);
   portBZStep=Control.EvalDefVar<double>(keyName+"PortBZStep",0.0);
@@ -194,7 +180,7 @@ PortTube::createSurfaces()
   SurfMap::addSurf("PortBCut",SMap.realSurf(buildIndex+12));
 
   ModelSupport::buildCylinder(SMap,buildIndex+17,Origin,Y,radius+wallThick);
-
+  SurfMap::addSurf("OuterCyl",SMap.realSurf(buildIndex+17));
   // port
   const Geometry::Vec3D inOrg=Origin+X*portAXStep+Z*portAZStep;
   const Geometry::Vec3D outOrg=Origin+X*portBXStep+Z*portBZStep;
@@ -238,7 +224,7 @@ PortTube::createObjects(Simulation& System)
   makeCell("Void",System,cellIndex++,voidMat,0.0,Out);
   // main walls
   Out=ModelSupport::getComposite(SMap,buildIndex," 1 -17 7 -2 ");
-  makeCell("MainCylinder",System,cellIndex++,wallMat,0.0,Out);
+  makeCell("MainTube",System,cellIndex++,wallMat,0.0,Out);
 
   // plates front/back
   if ((portARadius+portAThick-(radius+wallThick))< -Geometry::zeroTol)
@@ -268,21 +254,40 @@ PortTube::createObjects(Simulation& System)
 
   // flanges
   Out=ModelSupport::getComposite(SMap,buildIndex," -111 117 -127 ");
-  makeCell("FrontPortWall",System,cellIndex++,wallMat,0.0,Out+frontSurf);
+  makeCell("FrontPortFlange",System,cellIndex++,wallMat,0.0,Out+frontSurf);
   Out=ModelSupport::getComposite(SMap,buildIndex," 212 217 -227 ");
-  makeCell("BackPortWall",System,cellIndex++,wallMat,0.0,Out+backSurf);
+  makeCell("BackPortFlange",System,cellIndex++,wallMat,0.0,Out+backSurf);
 
-
-
-  
+  // OUTER SURF:
   Out=ModelSupport::getComposite(SMap,buildIndex," 11 -12 -17 ");
   addOuterSurf("Main",Out);
+  
+  // outer void
+  if (portAOuterFlag)
+    {
+      Out=ModelSupport::getComposite(SMap,buildIndex," -11 111 117 -127 ");
+      makeCell("FrontPortOuterVoid",System,cellIndex++,0,0.0,Out);
+      Out=ModelSupport::getComposite(SMap,buildIndex,"-11 -127 ");
+      addOuterSurf("FlangeA",Out+frontSurf);
+    }
+  else
+    {
+      Out=ModelSupport::getComposite(SMap,buildIndex,"-11 -127 (-117:-111) ");
+      addOuterSurf("FlangeA",Out+frontSurf);
+    }
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,"-11 -127 (-117:-111) ");
-  addOuterSurf("FlangeA",Out+frontSurf);
-
-  Out=ModelSupport::getComposite(SMap,buildIndex," 12 -227 ( -217:212 ) ");
-  addOuterSurf("FlangeB",Out+backSurf);
+  if (portBOuterFlag)
+    {
+      Out=ModelSupport::getComposite(SMap,buildIndex," 12 -212 117 -227 ");
+      makeCell("BackPortOuterVoid",System,cellIndex++,0,0.0,Out);
+      Out=ModelSupport::getComposite(SMap,buildIndex," 12 -227 ");
+      addOuterSurf("FlangeB",Out+backSurf);
+    }
+  else
+    {
+      Out=ModelSupport::getComposite(SMap,buildIndex," 12 -227 ( -217:212 ) ");
+      addOuterSurf("FlangeB",Out+backSurf);
+    }     
   return;
 }
 
@@ -325,37 +330,27 @@ PortTube::createLinks()
   FixedComp::setLinkSurf(8,SMap.realSurf(buildIndex+217));
   FixedComp::setLinkSurf(9,SMap.realSurf(buildIndex+217));
 
-  FixedComp::setConnect(10,Origin,Y);
+  FixedComp::setConnect(10,AVec-Y*(wallThick+length/2.0),-Y);
+  FixedComp::setConnect(11,BVec+Y*(wallThick+length/2.0),Y);
+  FixedComp::setLinkSurf(10,-SMap.realSurf(buildIndex+11));
+  FixedComp::setLinkSurf(11,SMap.realSurf(buildIndex+12));
+
+  FixedComp::setConnect(12,Origin,Y);
+
+  if (!outerVoid)
+    {
+      FixedComp::setConnect(13,Origin+Z*(radius+wallThick),Z);
+      FixedComp::setLinkSurf(13,SMap.realSurf(buildIndex+17));
+    }
+  else
+    {
+      FixedComp::setConnect(13,Origin+Z*flangeBRadius,Z);
+      FixedComp::setLinkSurf(13,SMap.realSurf(buildIndex+107));
+    }
+  nameSideIndex(7,"OuterRadius");
 
   
   return;
 }
 
-void
-PortTube::createAll(Simulation& System,
-		    const attachSystem::FixedComp& FC,
-		    const long int FIndex)
-  /*!
-    Generic function to create everything
-    \param System :: Simulation item
-    \param FC :: FixedComp
-    \param FIndex :: Fixed Index
-  */
-{
-  ELog::RegMethod RegA("PortTube","createAll(FC)");
-
-  populate(System.getDataBase());
-  createUnitVector(FC,FIndex);
-  createSurfaces();    
-  createObjects(System);
-
-  createLinks();
-  insertObjects(System);
-
-  if (!delayPortBuild)
-    createPorts(System);
-  
-  return;
-}
-  
 }  // NAMESPACE constructSystem

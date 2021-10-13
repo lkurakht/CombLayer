@@ -31,11 +31,9 @@
 #include <algorithm>
 #include <tuple>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
@@ -326,11 +324,11 @@ testCylinder::testSet()
       A.setCylinder(std::get<1>(tc),std::get<0>(tc),std::get<2>(tc));
       std::ostringstream cx;
       cx<<A;
-      if (StrFunc::fullBlock(cx.str())!=std::get<3>(tc))
+      if (StrFunc::removeOuterSpace(cx.str())!=std::get<3>(tc))
 	{
 	  ELog::EM<<"Cylinder == "<<A<<ELog::endDiag;
 	  ELog::EM<<"Expect :"<<std::get<3>(tc)<<":"<<ELog::endDiag;
-	  ELog::EM<<"Found  :"<<StrFunc::fullBlock(cx.str())
+	  ELog::EM<<"Found  :"<<StrFunc::removeOuterSpace(cx.str())
 		  <<":"<<ELog::endDiag;
 	  return -1;
 	}

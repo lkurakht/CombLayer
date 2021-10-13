@@ -47,7 +47,6 @@
 #include "Triple.h"
 #include "Quaternion.h"
 #include "support.h"
-#include "mathSupport.h"
 #include "Element.h"
 #include "SymUnit.h"
 #include "AtomPos.h"
@@ -365,7 +364,7 @@ CifStore::readFile(const std::string& Fname)
       do 
         {
 	  Line=StrFunc::getLine(IX);
-	  Line=StrFunc::fullBlock(Line);
+	  Line=StrFunc::removeOuterSpace(Line);
 	  if (Line.empty())
 	    flag=1;
 	  else 

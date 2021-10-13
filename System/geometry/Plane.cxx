@@ -32,19 +32,14 @@
 #include <algorithm>
 #include <boost/format.hpp>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "RegMethod.h"
-#include "MemStack.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
 #include "support.h"
 #include "writeSupport.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "masterWrite.h"
 #include "Quaternion.h"
@@ -499,6 +494,18 @@ Plane::distance(const Geometry::Vec3D& A) const
   return A.dotProd(NormV)-Dist;
 }
 
+
+Geometry::Vec3D
+Plane::surfaceNormal(const Geometry::Vec3D&) const
+ /*!
+   Assumption that point is on surface and
+   provide normla
+   \return normal
+ */
+{
+  return NormV;
+}
+  
 Geometry::Vec3D
 Plane::closestPt(const Geometry::Vec3D& A) const
   /*!
@@ -544,8 +551,8 @@ Plane::side(const Geometry::Vec3D& A) const
 {
   double Dp=NormV.dotProd(A);
   Dp-=Dist;
-  if (Geometry::zeroTol<fabs(Dp))
-    return (Dp>0) ? 1 : -1;
+  if (Dp > Geometry::zeroTol) return 1;
+  if (Dp < -Geometry::zeroTol) return -1;
   return 0;
 }
 

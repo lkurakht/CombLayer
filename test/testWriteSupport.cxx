@@ -3,7 +3,7 @@
  
  * File:   test/testWriteSupport.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,15 +33,12 @@
 #include <tuple>
 
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "mathSupport.h"
-#include "support.h"
 #include "writeSupport.h"
+#include "phitsWriteSupport.h"
 
 #include "testFunc.h"
 #include "testWriteSupport.h"
@@ -75,12 +72,15 @@ testWriteSupport::applyTest(const int extra)
   typedef int (testWriteSupport::*testPtr)();
   testPtr TPtr[]=
     {
-      &testWriteSupport::testDouble
+      &testWriteSupport::testDouble,
+      &testWriteSupport::testPHITS
     };
 
   const std::string TestName[]=
     {
-      "Double"
+      "Double",
+      "PHITS",
+      
     };
 
   const size_t TSize(sizeof(TPtr)/sizeof(testPtr));
@@ -117,7 +117,7 @@ testWriteSupport::testDouble()
     \retval 0 on success
   */
 {
-  ELog::RegMethod RegA("testWriteSupport","testConvert");
+  ELog::RegMethod RegA("testWriteSupport","testDouble");
 
   // type : Init string : final : results : (outputs)
   typedef std::tuple<double,std::string> TTYPE;
@@ -127,7 +127,7 @@ testWriteSupport::testDouble()
       //         1234567890
       TTYPE(2.0,         "   2.00000"),
       TTYPE(2.1,         "   2.10000"),
-      TTYPE(2.0000000001,"   2.00000"),
+      TTYPE(2.0000000001,"         2"),
       TTYPE(-2.1,        "  -2.10000"),
       TTYPE(-2.1e12,     "  -2.1e+12")
     };
@@ -145,6 +145,46 @@ testWriteSupport::testDouble()
 	  ELog::EM<<"10 count    :1234567890:=="<<ELog::endDiag;
 	  ELog::EM<<"Output    ==:"<<out<<":=="<<ELog::endDiag;
 	  ELog::EM<<"Expected  ==:"<<TLine<<":=="<<ELog::endDiag;
+	  return -1;
+	}
+      cnt++;
+    }
+  return 0;
+}
+
+int
+testWriteSupport::testPHITS()
+  /*!
+    Applies a test writePhits
+    \retval 0 on success
+  */
+{
+  ELog::RegMethod RegA("testWriteSupport","testPHITS");
+
+  // type : Init string : final : results : (outputs)
+  typedef std::tuple<std::string,size_t,std::string> TTYPE;
+
+  const std::vector<TTYPE> Tests=
+    {
+      //         1234567890 
+      TTYPE("unit",1,   "    unit          ="),
+      TTYPE("unitlog",1,"    unitlog       =")
+    };
+
+  int cnt(1);
+  for(const TTYPE& tc : Tests)
+    {
+      std::ostringstream cx;
+      const std::string& unit=std::get<0>(tc);
+      const size_t NSpc=std::get<1>(tc);
+      const std::string& res=std::get<2>(tc);
+      writePHITSOpen(cx,NSpc,unit);
+      if (cx.str()!=res)
+	{
+	  ELog::EM<<"TEST :: "<<cnt<<ELog::endDiag;
+	  ELog::EM<<"          : 012345678901234567890"<<ELog::endDiag;
+	  ELog::EM<<"Output    : "<<cx.str()<<" :=="<<ELog::endDiag;
+	  ELog::EM<<"Expect    : "<<res<<" :=="<<ELog::endDiag;
 	  return -1;
 	}
       cnt++;

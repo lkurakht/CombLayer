@@ -3,7 +3,7 @@
  
  * File:   attachComp/ContainedComp.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,21 +38,18 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
 #include "writeSupport.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Surface.h"
 #include "SurInter.h"
 #include "Rules.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "Line.h"
 #include "LineIntersectVisit.h"
@@ -62,9 +59,11 @@
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "AttachSupport.h"
 #include "ContainedComp.h"
-
+#include "surfRegister.h"
+#include "LinkUnit.h"
+#include "FixedComp.h"
+#include "ContainedGroup.h"
 
 namespace attachSystem
 {
@@ -224,13 +223,30 @@ ContainedComp::addOuterSurf(const int SN)
 }
 
 void
+ContainedComp::addOuterSurf(const HeadRule& HR) 
+  /*!
+    Add a set of surfaces to the output
+    \param HR ::  Surface string [fully decomposed]
+  */
+{
+  ELog::RegMethod RegA("ContainedComp","addOuterSurf(HeadRule)");
+
+  if (HR.hasRule())
+    {
+      outerSurf.addIntersection(HR);
+      outerSurf.populateSurf();
+    }
+  return;
+}
+
+void
 ContainedComp::addOuterSurf(const std::string& SList) 
   /*!
     Add a set of surfaces to the output
     \param SList ::  Surface string [fully decomposed]
   */
 {
-  ELog::RegMethod RegA("ContainedComp","addInterSurf(std::string)");
+  ELog::RegMethod RegA("ContainedComp","addOuterSurf(std::string)");
   if (!SList.empty())
     {
       outerSurf.addIntersection(SList);
@@ -261,8 +277,27 @@ ContainedComp::addOuterUnionSurf(const std::string& SList)
   */
 {
   ELog::RegMethod RegA("ContainedComp","addOuterUnionSurf(std::string)");
+
   outerSurf.addUnion(SList);
   outerSurf.populateSurf();
+
+  return;
+}
+
+void
+ContainedComp::addOuterUnionSurf(const HeadRule& HR) 
+  /*!
+    Add a set of surfaces to the output
+    \param HR ::  Surface string [fully decomposed]
+  */
+{
+  ELog::RegMethod RegA("ContainedComp","addOuterUnionSurf(HeadRule)");
+
+  if (HR.hasRule())
+    {
+      outerSurf.addUnion(HR);
+      outerSurf.populateSurf();
+    }
   return;
 }
 
@@ -344,6 +379,17 @@ ContainedComp::getOuterSurf() const
   */
 {
   return outerSurf;
+}
+
+const HeadRule&
+ContainedComp::getBoundary() const
+  /*!
+    Care here because this can return a referenece
+    due to ContainedGroup not having a complete outer surf
+    \return Outer headRule
+  */
+{
+  return boundary;
 }
   
 std::string
@@ -474,21 +520,13 @@ ContainedComp::surfOuterIntersect(const Geometry::Line& LA) const
   */
 {
   ELog::RegMethod RegA("ContainedComp","surfOuterIntersect");
-  // Create object:
+
   if (outerSurf.hasRule())
     {
-      MonteCarlo::Object TObj(1,0,0.0,outerSurf.display());
-      TObj.createSurfaceList();
-      std::pair<const Geometry::Surface*,double> Res=
-	TObj.forwardIntercept(LA.getOrigin(),LA.getDirect());
-      
-      if (Res.first && Res.second>0.0)
-	{
-	  // Get point :
-	  Geometry::Vec3D Pt=LA.getPoint(Res.second);
-	  return Res.first->sideDirection(Pt,LA.getDirect())*
-	    Res.first->getName();
-	}
+      const std::tuple<int,const Geometry::Surface*,Geometry::Vec3D,double>
+	result=outerSurf.trackSurfIntersect(LA.getOrigin(),LA.getDirect());
+
+      return std::get<0>(result);
     }
   return 0;
 }
@@ -678,19 +716,21 @@ ContainedComp::insertExternalObject(Simulation& System,
   /*!
     Insert the ContainedComp into the cell list
     \param System :: Simulation to get objects from
+    \param excludeObj :: object that is added to insert cells
   */
 {
   ELog::RegMethod RegA("ContainedComp","insertExternalObject");
   
   const std::string excludeStr=
     excludeObj.getHeadRule().complement().display();
+
   for(const int CN : insertCells)
     {
       MonteCarlo::Object* outerObj=System.findObject(CN);
       if (outerObj)
 	outerObj->addSurfString(excludeStr);
       else
-	ELog::EM<<"Failed to find outerObject: "<<CN<<ELog::endErr;
+	throw ColErr::InContainerError<int>(CN,"OuterObject");
     }
   return;
 }
@@ -710,9 +750,8 @@ ContainedComp::insertObjects(Simulation& System)
       MonteCarlo::Object* outerObj=System.findObject(CN);
       if (outerObj)
 	outerObj->addSurfString(getExclude());
-
       else
-	ELog::EM<<"Failed to find outerObject: "<<CN<<ELog::endErr;
+	throw ColErr::InContainerError<int>(CN,"Cell in Simulation");
     }
   insertCells.clear();
   return;
@@ -724,11 +763,11 @@ ContainedComp::insertObjects(Simulation& System,
   /*!
     Insert the ContainedComp into the cell list
     \param System :: Simulation to get objects from
-    \param testPts  :: unless TestPts are in teh cell no 
+    \param testPts  :: unless TestPts are in the cell no insert.
     insertion takes place
   */
 {
-  ELog::RegMethod RegA("ContainedComp","insertObjects");
+  ELog::RegMethod RegA("ContainedComp","insertObjects(testPts)");
   if (!hasOuterSurf()) return;
 
   for(const int CN : insertCells)
@@ -754,6 +793,20 @@ ContainedComp::insertObjects(Simulation& System,
 }
 
 void
+ContainedComp::insertInCell(MonteCarlo::Object& outerObj) const
+  /*!
+    Insert the ContainedComp in a single cell.
+    \param outerObj :: Outer Object
+  */
+{
+  ELog::RegMethod RegA("ContainedComp","insertInCell(Obj)");
+  
+  if (!hasOuterSurf()) return;
+  outerObj.addSurfString(getExclude());
+  return;
+}
+
+void
 ContainedComp::insertInCell(Simulation& System,
 			    const int cellN) const
   /*!
@@ -764,14 +817,8 @@ ContainedComp::insertInCell(Simulation& System,
 {
   ELog::RegMethod RegA("ContainedComp","insertInCell");
   
-  if (!hasOuterSurf()) return;
-
-  MonteCarlo::Object* outerObj=System.findObject(cellN);
-
-  if (outerObj)
-    outerObj->addSurfString(getExclude());
-  else
-    throw ColErr::InContainerError<int>(cellN,"Cell not in Simulation");
+  MonteCarlo::Object* outerObj=System.findObjectThrow(cellN);
+  this->insertInCell(*outerObj);
   return;
 }
 
@@ -789,11 +836,8 @@ ContainedComp::insertInCell(Simulation& System,
   if (!hasOuterSurf()) return;
   for(const int cellN : cellVec)
     {
-      MonteCarlo::Object* outerObj=System.findObject(cellN);
-      if (outerObj)
-	outerObj->addSurfString(getExclude());
-      else
-	throw ColErr::InContainerError<int>(cellN,"Cell not in Simulation");
+      MonteCarlo::Object* outerObj=System.findObjectThrow(cellN);
+      outerObj->addSurfString(getExclude());
     }
   return;
 }

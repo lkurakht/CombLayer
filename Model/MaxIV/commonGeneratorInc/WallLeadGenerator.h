@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   commonBeamInc/WallLeadGenerator.h
+ * File:   commonGeneratorInc/WallLeadGenerator.h
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,13 +32,15 @@ namespace setVariable
   \version 1.0
   \author S. Ansell
   \date January 2019
-  \brief WallLeadGenerator for variables
+  \brief Generator for the extra lead wall added to the R3 Rachet End Wall
 */
 
 class WallLeadGenerator
 {
  private:
 
+  double xStep;               ///< X offset
+  
   double frontLength;         ///< Front length
   double backLength;          ///< Back length
 
@@ -75,7 +77,8 @@ class WallLeadGenerator
   ~WallLeadGenerator();
 
   void setWidth(const double,const double);
-
+  void setXOffset(const double);
+  
   void generateWall(FuncDataBase&,const std::string&,const double) const;
 
 };

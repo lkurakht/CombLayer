@@ -3,7 +3,7 @@
  
  * File:   lensModel/siModerator.cxx
  *
- * Copyright (c) 2004-2015 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,34 +33,19 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Sphere.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "LineIntersectVisit.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -146,23 +131,6 @@ siModerator::populate(const FuncDataBase& Control)
   siMat=ModelSupport::EvalMat<int>(Control,keyName+"SiMat");
   polyMat=ModelSupport::EvalMat<int>(Control,keyName+"PolyMat"); 
   surroundMat=ModelSupport::EvalMat<int>(Control,keyName+"SurroundMat"); 
-
-  return;
-}
-
-void
-siModerator::createUnitVector()
-  /*!
-    Create the unit vectors
-    - Y towards the normal of the target
-    - X across the moderator
-    - Z up / down (gravity)
-  */
-{
-  ELog::RegMethod RegA("siModerator","createUnitVector");
-  Z=Geometry::Vec3D(0,0,1);          // Gravity axis [up]
-  Y=Geometry::Vec3D(0,1,0);
-  X=Geometry::Vec3D(1,0,0);
 
   return;
 }
@@ -280,7 +248,9 @@ siModerator::createLinks()
 
 
 void
-siModerator::createAll(Simulation& System)
+siModerator::createAll(Simulation& System,
+		       const attachSystem::FixedComp& FC,
+		       const long int sideIndex)
   /*!
     Extrenal build everything
     \param System :: Simulation
@@ -289,7 +259,7 @@ siModerator::createAll(Simulation& System)
   ELog::RegMethod RegA("siModerator","createAll");
   populate(System.getDataBase());
 
-  createUnitVector();
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System);
   createLinks();

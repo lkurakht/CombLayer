@@ -3,7 +3,7 @@
  
  * File:   photon/makePhoton.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,41 +34,22 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
-#include "Code.h"
-#include "varList.h"
-#include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
-#include "ContainedGroup.h"
 #include "LayerComp.h"
 #include "BoundOuter.h"
 #include "World.h"
-#include "AttachSupport.h"
 #include "CylContainer.h"
 #include "CylLayer.h"
 #include "TubeMod.h"
@@ -77,7 +58,6 @@
 
 #include "makePhoton.h"
 
-#include "Debug.h"
 
 namespace photonSystem
 {
@@ -144,18 +124,17 @@ makePhoton::~makePhoton()
 
 void 
 makePhoton::build(Simulation* SimPtr,
-		  const mainSystem::inputParam& IParam)
-/*!
+		  const mainSystem::inputParam&)
+  /*!
     Carry out the full build
     \param SimPtr :: Simulation system
     \param IParam :: Input parameters
-   */
+  */
 {
   // For output stream
   ELog::RegMethod RControl("makePhoton","build");
 
   int voidCell(74123);
-
   
   OuterObj->addInsertCell(voidCell);
   OuterObj->createAll(*SimPtr,World::masterOrigin(),0);

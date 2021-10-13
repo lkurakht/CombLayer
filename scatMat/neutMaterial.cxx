@@ -3,7 +3,7 @@
  
  * File:   scatMat/neutMaterial.cxx
  *
- * Copyright (c) 2004-2016 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,20 +32,17 @@
 #include <algorithm>
 
 #include "MersenneTwister.h"
-#include "Exception.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "support.h"
 #include "RefCon.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
+#include "particle.h"
 #include "neutron.h"
+#include "Zaid.h"
+#include "MXcards.h"
+#include "Material.h"
 #include "neutMaterial.h"
 
 extern MTRand RNG;
@@ -53,8 +50,8 @@ extern MTRand RNG;
 namespace scatterSystem
 {
 
-neutMaterial::neutMaterial() : 
-  Amass(1.0),density(0),realTemp(0.0),scoh(0.0),
+neutMaterial::neutMaterial() : MonteCarlo::Material(), 
+  Amass(1.0),realTemp(0.0),scoh(0.0),
   sinc(0.0),sabs(0.0),bTotal(0.0)
   /*!
     Constructor
@@ -62,15 +59,16 @@ neutMaterial::neutMaterial() :
 {}
 
 neutMaterial::neutMaterial(const std::string& N,const double M,
-		   const double D,const double B,
-		   const double S,const double I,const double A) : 
-  Name(N),Amass(M),density(D),realTemp(300.0),bcoh(B),
+			   const double D,const double B,
+			   const double S,const double I,const double A) :
+  Material(0,N,D),
+  Amass(M),realTemp(300.0),bcoh(B),
   scoh(S),sinc(I),sabs(A),bTotal(sqrt(S+I)/(4*M_PI))
   /*!
     Constructor for values
     \param N :: neutMaterial name
     \param M :: Mean atomic mass
-    \param D :: density [atom/angtrom^3]
+    \param D :: atomDensity [atom/angtrom^3]
     \param B :: b-coherrent [fm]
     \param S :: scattering cross section [barns]
     \param I :: incoherrent scattering cross section [barns]
@@ -80,12 +78,13 @@ neutMaterial::neutMaterial(const std::string& N,const double M,
 
 neutMaterial::neutMaterial(const double M,const double D,const double B,
 		   const double S,const double I,const double A) : 
-  Amass(M),density(D),realTemp(300.0),bcoh(B),scoh(S),
+  Material(0,"Unmamed",D),
+  Amass(M),realTemp(300.0),bcoh(B),scoh(S),
   sinc(I),sabs(A),bTotal(sqrt(S+I)/(4*M_PI))
   /*!
     Constructor for values
     \param M :: Mean atomic mass
-    \param D :: density [atom/angtrom^3]
+    \param D :: atomDensity [atom/angtrom^3]
     \param B :: b-coherrent [fm]
     \param S :: scattering cross section [barns]
     \param I :: incoherrent scattering cross section [barns]
@@ -93,8 +92,8 @@ neutMaterial::neutMaterial(const double M,const double D,const double B,
   */
 {}
 
-neutMaterial::neutMaterial(const neutMaterial& A) : 
-  Name(A.Name),Amass(A.Amass),density(A.density),
+neutMaterial::neutMaterial(const neutMaterial& A) :
+  Material(A),Amass(A.Amass),
   realTemp(A.realTemp),bcoh(A.bcoh),scoh(A.scoh),
   sinc(A.sinc),sabs(A.sabs),bTotal(A.bTotal)
   /*!
@@ -113,9 +112,8 @@ neutMaterial::operator=(const neutMaterial& A)
 {
   if (this!=&A)
     {
-      Name=A.Name;
+      Material::operator=(A);
       Amass=A.Amass;
-      density=A.density;
       realTemp=A.realTemp;
       bcoh=A.bcoh;
       scoh=A.scoh;
@@ -142,18 +140,6 @@ neutMaterial::~neutMaterial()
    */
 {}
 
-void 
-neutMaterial::setDensity(const double D) 
-  /*!
-    Sets the density
-    \param D :: Density [Atom/Angstrom^3]
-  */
-{
-  density=D;
-  return;
-}
-
-
 void
 neutMaterial::setScat(const double S,const double I,const double A)
   /*!
@@ -171,44 +157,45 @@ neutMaterial::setScat(const double S,const double I,const double A)
 }
   
 double
-neutMaterial::TotalCross(const double Wave) const
+neutMaterial::totalXSection(const MonteCarlo::particle& n0) const
   /*!
     Given Wavelength get the attenuation coefficient.
-    \param Wave :: Wavelength [Angstrom]
-    \return Attenuation (including density)
+    \param n0 :: neutron for Wavelength [Angstrom]
+    \return Attenuation (including atomDensity)
   */
 {
-  return density*(scoh+sinc+Wave*sabs/1.798);
+  return atomDensity*(scoh+sinc+n0.wavelength*sabs/1.798);
 }
 
 double
-neutMaterial::ScatCross(const double) const
+neutMaterial::scatXSection(const MonteCarlo::particle&) const
   /*!
     Given wavelength get the scattering cross section
-    \param :: Wavelength [Angstrom]
-    \return Attenuation (including density)
+    \param  :: particle 
+    \return Attenuation (including atomDensity)
   */
 {
-  return density*(scoh+sinc);
+  return atomDensity*(scoh+sinc);
 }
 
 double
-neutMaterial::calcAtten(const double Wave,const double Length) const
+neutMaterial::calcAtten(const MonteCarlo::particle& N,
+			const double Length) const
   /*!
     Calculate the attenuation factor coefficient.
     \param Wave :: Wavelength [Angstrom]
     \param Length :: Absorption length
-    \return Attenuation (including density)
+    \return Attenuation (including atomDensity)
   */
 {
-  return exp(-Length*density*(scoh+sinc+Wave*sabs/1.798));
+  return exp(-Length*atomDensity*(scoh+sinc+N.wavelength*sabs/1.798));
 }
 
 void
-neutMaterial::scatterNeutron(MonteCarlo::neutron& N) const
+neutMaterial::scatterNeutron(MonteCarlo::particle& N) const
   /*!
     Calculate the new angle and energy of the neutron
-    that is scattered.
+    that is scattered. Full isotropic scattering
     Doesn't change energy:
     \param N :: neutron to scatter
   */
@@ -226,16 +213,16 @@ neutMaterial::scatterNeutron(MonteCarlo::neutron& N) const
 }
 
 double
-neutMaterial::ScatTotalRatio(const double Wave) const
+neutMaterial::scatTotalRatio(const MonteCarlo::particle& N) const
   /*!
-    Given a scatter return the ratio in scattering cross section
-    against total.
+    Return the ratio of scattering / total crosssection
+    [for scaling by absorption coefficient]
     \param Wave :: Wavelength [Angstrom]
     \return sigma_scatter/sigma_total
   */
 {
-  return (density>0) ? 
-    (scoh+sinc)/(scoh+sinc+Wave*sabs/1.798) : 1.0;
+  return (atomDensity>0) ? 
+    (scoh+sinc)/(scoh+sinc+N.wavelength*sabs/1.798) : 1.0;
 }
 
 double
@@ -247,7 +234,7 @@ neutMaterial::ElasticTotalRatio(const double) const
     \return sigma_elastic/sigma_scatter
   */
 {
-  return (density>0) ? scoh/(scoh+sinc) : 1.0;
+  return (atomDensity>0) ? scoh/(scoh+sinc) : 1.0;
 }
 
 
@@ -261,8 +248,8 @@ neutMaterial::calcRefIndex(const double Wave) const
 {
 //  ELog::RegMethod RegA("neutMaterial","calcRefIndex");
 //  ELog::EM<<"Ref ["<<Name<<"]=="
-//	  <<1.0-sqrt(1.0-Wave*Wave*(1e-5*density*bcoh/M_PI))<<ELog::endErr;
-  return sqrt(1.0-Wave*Wave*(1e-5*density*bcoh/M_PI));
+//	  <<1.0-sqrt(1.0-Wave*Wave*(1e-5*atomDensity*bcoh/M_PI))<<ELog::endErr;
+  return sqrt(1.0-Wave*Wave*(1e-5*atomDensity*bcoh/M_PI));
 }
 
 double
@@ -281,8 +268,8 @@ neutMaterial::dSdOdE(const MonteCarlo::neutron& NIn,
   
   // First calculate dSDoDE for the given energy difference.
   // InElastic scatter:
-  const double Ei=NIn.energy();
-  const double Ef=NOut.energy();
+  const double Ei=NIn.energy;
+  const double Ef=NOut.energy;
 
   const double mu=NOut.uVec.dotProd(NIn.uVec);
   
@@ -306,8 +293,9 @@ neutMaterial::write(std::ostream& OX) const
     \param OX :: Output stream
   */
 {
-  OX<<"c "<<Name<<std::endl;
-  OX<<"m"<<mcnpxNum<<" "<<mcnpxNum*1000<<" "<<density<<std::endl;
+  OX<<"c NeutMat:"<<std::endl;
+    
+  Material::write(OX);
   return;
 }
 

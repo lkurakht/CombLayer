@@ -16,30 +16,18 @@
 
 #include <boost/multi_array.hpp>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "support.h"
-#include "stringCombine.h"
 #include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -47,16 +35,12 @@
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
-#include "LayerComp.h"
 #include "World.h"
 #include "AttachSupport.h"
 
-#include "Cave.h"
-#include "sinbadShield.h"
 #include "LayerPlate.h"
 #include "FissionPlate.h"
 #include "sbadDetector.h"
-#include "sinbadSource.h"
 #include "sinbadMaterial.h"
 #include "makeSinbad.h"
 
@@ -135,7 +119,7 @@ makeSinbad::buildDetectors(Simulation& System)
 	(new sbadDetector(preName+"Detector",i));
       
       detArray.push_back(detPtr);   
-      detArray.back()->createAll(System,*Secondary);
+      detArray.back()->createAll(System,*Secondary,0);
       if (detArray.back()->isActive())
 	attachSystem::addToInsertSurfCtrl(System,*Secondary,*detPtr);
     }

@@ -34,16 +34,10 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Code.h"
 #include "varList.h"
@@ -53,11 +47,9 @@
 #include "ChopperGenerator.h"
 #include "PitGenerator.h"
 #include "PipeGenerator.h"
-#include "JawGenerator.h"
 #include "BladeGenerator.h"
 #include "TwinBaseGenerator.h"
 #include "TwinGenerator.h"
-#include "essVariables.h"
 
 namespace setVariable
 {
@@ -103,12 +95,14 @@ CSPECvariables(FuncDataBase& Control)
   Control.addVariable("cspecFANShapeLayers",3);
 
 
-  PipeGen.generatePipe(Control,"cspecPipeB",8.0,46.0);
+  PipeGen.generatePipe(Control,"cspecPipeB",46.0);
+  Control.addVariable("cspecPipeBYStep",8.0);
   FGen.setLayer(1,0.5,"Aluminium");
   FGen.clearYOffset();
   FGen.generateRectangle(Control,"cspecFB",44.0, 10.6,14.8);   
 
-  PipeGen.generatePipe(Control,"cspecPipeC",4.0,1260.0);
+  PipeGen.generatePipe(Control,"cspecPipeC",1260.0);
+  Control.addVariable("cspecPipeCYStep",4.0);
   FGen.generateRectangle(Control,"cspecFC",1256.0, 10.6,14.8);   
 
   CGen.setMainRadius(38.122);   // diameter 70.0 internal
@@ -121,7 +115,8 @@ CSPECvariables(FuncDataBase& Control)
   BGen.addPhase({120},{35.74});
   BGen.generateBlades(Control,"cspecBWDiskA",0.0,20.0,35.0);
 
-  PipeGen.generatePipe(Control,"cspecPipeD",4.0,510.0);
+  PipeGen.generatePipe(Control,"cspecPipeD",510.0);
+  Control.addVariable("cspecPipeDYStep",4.0);
   FGen.generateBender(Control,"cspecBD",506.0, 3.0,3.0,3.0,3.0,20000.0,0.0);
     
   return;

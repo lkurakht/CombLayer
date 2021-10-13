@@ -3,7 +3,7 @@
  
  * File:   test/testSingleObject.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,38 +36,20 @@
 #include <memory>
 #include <tuple>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "mathSupport.h"
-#include "support.h"
-#include "MapSupport.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "surfaceFactory.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
-#include "FItem.h"
 #include "FuncDataBase.h"
-#include "SurInter.h"
-#include "BnId.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
-#include "ReadFunctions.h"
 #include "surfRegister.h"
-#include "ModelSupport.h"
-#include "neutron.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -86,7 +68,6 @@
 #include "CylMod.h"
 
 #include "testFunc.h"
-#include "simpleObj.h"
 #include "testSingleObject.h"
 
 testSingleObject::testSingleObject() 
@@ -268,12 +249,11 @@ testSingleObject::createObj()
 
   cylModVariables(ASim.getDataBase());
 
-  World::createOuterObjects(ASim);  
   constructSystem::CylMod A("H2CylMod");
 
   A.addInsertCell(74123);
-  A.createAll(ASim,World::masterOrigin(),0,0);
-
+  A.createAll(ASim,World::masterOrigin(),0,
+	      World::masterOrigin(),0);
   ASim.createObjSurfMap();
   std::vector<int> rOffset;
   std::vector<int> rRange;  

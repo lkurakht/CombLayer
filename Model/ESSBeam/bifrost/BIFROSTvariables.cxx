@@ -34,16 +34,10 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Code.h"
 #include "varList.h"
@@ -53,6 +47,7 @@
 #include "ChopperGenerator.h"
 #include "PitGenerator.h"
 #include "PipeGenerator.h"
+<<<<<<< HEAD
 #include "RectPipeGenerator.h"
 #include "JawGenerator.h"
 #include "BladeGenerator.h"
@@ -69,6 +64,9 @@ Major axis (a) Vertical direction (diameter equivalent): 9243.211
 Distance from start of guide section to center of horizontal ellipse: 664.511
 Distance from start of guide section to center of vertical ellipse: 3249.748
 Distance from start of guide section to end of guide section: 4396.000
+=======
+#include "BladeGenerator.h"
+>>>>>>> origin/master
 
 Values usefull for double checking:
 Position of end of Ellipse in TCS: (-4311.689, 4747.644, 137.000)
@@ -247,6 +245,7 @@ std::string baseKey="G1BLineTop4";
 
     /*
   
+<<<<<<< HEAD
   FGen.generateTaper(Control,"bifrostFSplit0",15,6.8728 ,2.9978,3.4672,4.73);
   FGen.generateTaper(Control,"bifrostFSplit1",15,6.8728 ,2.9978,3.4672,4.73);
   
@@ -263,6 +262,14 @@ std::string baseKey="G1BLineTop4";
   FGen.generateTaper(Control,"bifrostFSplit7",15,6.8728 ,2.9978,3.4672,4.73);
 
   FGen.generateTaper(Control,"bifrostFSplit8",15,6.8728 ,2.9978,3.4672,4.73);
+=======
+  // Pipe in gamma shield
+  PipeGen.generatePipe(Control,"bifrostPipeB",46.0);
+  Control.addVariable("bifrostPipeBYStep",8.0);
+  FGen.setLayer(1,0.5,"Aluminium");
+  FGen.clearYOffset();
+  FGen.generateTaper(Control,"bifrostFB",44.0, 5.0,4.0, 5.0,4.0);
+>>>>>>> origin/master
 
   FGen.generateTaper(Control,"bifrostFSplit9",15,6.8728 ,2.9978,3.4672,4.73);
 
@@ -387,6 +394,7 @@ FGen.generateTaper(Control,"bifrostSplit19",15,6.8728 ,2.9978,3.4672,4.73);
     //numbers: displacement of chopper blades wrt the box center, inner, outer radius
     
   // VACUUM PIPE: SDisk to T0 (A)
+<<<<<<< HEAD
   PipeGen.setPipe(6.0,0.5); //numbers: radius, wall thickness
   // PipeGen.setWindow(0.0,0.0);
   PipeGen.setFlange(6.5,0.5); //inner radius, flange thickness
@@ -394,6 +402,14 @@ FGen.generateTaper(Control,"bifrostSplit19",15,6.8728 ,2.9978,3.4672,4.73);
   Control.addVariable("bifrostPipeBAFlangeLength",-1.0);
   //  Control.addVariable("bifrostPipeBAYStep",140.0); // will be set WRT Lightshutter
   //    Control.addVariable("bifrostPipeBAYStep",6.0); // will be set w.r.t. ChopperA  
+=======
+  PipeGen.setPipe(12.0,0.5);
+  PipeGen.setWindow(-2.0,0.5);
+  PipeGen.setFlange(-4.0,1.0);
+  PipeGen.generatePipe(Control,"bifrostPipeC",400.0);
+  Control.addVariable("bifrostPipeCYStep",2.0);
+  Control.addVariable("bifrostPipeCNDivision",1);
+>>>>>>> origin/master
 
 
   PipeGen.generatePipe(Control,"bifrostPipeBA",0.0,208.0); //numbers: offset, length
@@ -450,6 +466,7 @@ FGen.generateTaper(Control,"bifrostSplit19",15,6.8728 ,2.9978,3.4672,4.73);
   BGen.generateBlades(Control,"bifrostFOC1Blade",0.0,20.0,35.0);
 
   // VACUUM PIPE: from ChoperB to 6m holding point
+<<<<<<< HEAD
   PipeGen.setPipe(6.0,0.5);
   /*  PipeGen.setWindow(-2.0,0.5);*/
   PipeGen.setFlange(6.5,0.5);
@@ -457,6 +474,13 @@ FGen.generateTaper(Control,"bifrostSplit19",15,6.8728 ,2.9978,3.4672,4.73);
   PipeGen.generatePipe(Control,"bifrostPipeBB",1.0,320.0);
   Control.addVariable("bifrostPipeBBXYAngle",0.15);
   Control.addVariable("bifrostPipeBBNDivision",1);
+=======
+  PipeGen.setPipe(12.0,0.5);
+  PipeGen.setWindow(-2.0,0.5);
+  PipeGen.setFlange(-4.0,1.0);
+  PipeGen.generatePipe(Control,"bifrostPipeD",500.0);
+  Control.addVariable("bifrostPipeDYStep",2.0);
+>>>>>>> origin/master
 
   //  FGen.clearYOffset();
   //  FGen.generateRectangle(Control,"bifrostFD",496.0, 13.0,13.0);   
@@ -465,6 +489,7 @@ FGen.generateTaper(Control,"bifrostSplit19",15,6.8728 ,2.9978,3.4672,4.73);
                       bendRadius,bendAngle);
 
   // VACUUM PIPE: from ChoperB to 6m holding point
+<<<<<<< HEAD
   PipeGen.setPipe(6.0,0.5);
   /*  PipeGen.setWindow(-2.0,0.5);*/
   PipeGen.setFlange(6.5,0.5);
@@ -472,6 +497,13 @@ FGen.generateTaper(Control,"bifrostSplit19",15,6.8728 ,2.9978,3.4672,4.73);
   //  PipeGen.generatePipe(Control,"bifrostPipeE",2.0,400.0);
     PipeGen.generatePipe(Control,"bifrostPipeBC",3.0,320.0);
      Control.addVariable("bifrostPipeBCXYAngle",0.15);
+=======
+  PipeGen.setPipe(12.0,0.5);
+  PipeGen.setWindow(-2.0,0.5);
+  PipeGen.setFlange(-4.0,1.0);
+  PipeGen.generatePipe(Control,"bifrostPipeE",400.0);
+  Control.addVariable("bifrostPipeEYStep",2.0);
+>>>>>>> origin/master
 
     //  FGen.clearYOffset(); //should not be cleared!!!!
   //  FGen.generateRectangle(Control,"bifrostFE",396.0, 13.0,13.0);   
@@ -497,6 +529,7 @@ FGen.generateTaper(Control,"bifrostSplit19",15,6.8728 ,2.9978,3.4672,4.73);
   BGen.generateBlades(Control,"bifrostFOC2Blade",0.0,20.0,35.0);
 
   // VACUUM PIPE: from ChoperC with 4m
+<<<<<<< HEAD
   PipeGen.setPipe(6.0,0.5);
   /* PipeGen.setWindow(-2.0,0.5);
    */
@@ -526,6 +559,13 @@ FGen.generateTaper(Control,"bifrostSplit19",15,6.8728 ,2.9978,3.4672,4.73);
     FGen.generateBender(Control,"bifrostBE",1799.45,2.9534,2.9534,4.7514,4.7514,
                       bendRadius,bendAngle);
   // FGen.generateTaper(Control,"bifrostFF",477.5, 13.0,4.0, 13.0,4.0);   
+=======
+  PipeGen.setPipe(12.0,0.5);
+  PipeGen.setWindow(-2.0,0.5);
+  PipeGen.setFlange(-4.0,1.0);
+  PipeGen.generatePipe(Control,"bifrostPipeF",481.5);
+  Control.addVariable("bifrostPipeFYStep",2.0);
+>>>>>>> origin/master
 
 
 
@@ -660,9 +700,18 @@ FGen.generateTaper(Control,"bifrostSplit19",15,6.8728 ,2.9978,3.4672,4.73);
   
   // VACUUM PIPE: in bunker wall
   PipeGen.setPipe(6.0,0.5);
+<<<<<<< HEAD
   //  PipeGen.setWindow(-2.0,0.5);
   PipeGen.setFlange(6.5,0.5);
   PipeGen.generatePipe(Control,"bifrostPipeWall",1.0,348.0);
+=======
+  PipeGen.setWindow(-2.0,0.5);
+  PipeGen.setFlange(-4.0,1.0);
+  PipeGen.generatePipe(Control,"bifrostPipeWall",348.0);
+  Control.addVariable("bifrostPipeWallYStep",1.0);
+  // Guide in wall
+  FGen.generateTaper(Control,"bifrostFWall",344.0,4.0,5.232, 4.0,5.232);
+>>>>>>> origin/master
 
 
      FGen.setYOffset(0);
@@ -696,10 +745,18 @@ FGen.generateTaper(Control,"bifrostSplit19",15,6.8728 ,2.9978,3.4672,4.73);
     Liny3 = 4.42383,Louty3 = 29.3526, majoraxis_y = 29.3527, smallaxis_y3=0.045;
   
   // VACUUM PIPE: leaving bunker
+<<<<<<< HEAD
   
  
 
   
+=======
+  PipeGen.setPipe(6.0,0.5);
+  PipeGen.setWindow(-2.0,0.5);
+  PipeGen.setFlange(-4.0,1.0);
+  PipeGen.generatePipe(Control,"bifrostPipeOutA",600);
+  Control.addVariable("bifrostPipeOutAYStep",4.0);
+>>>>>>> origin/master
 
   // Guide at 9.2m (part of a 4->8cm in 20m)
  double majoroffset_x = (length3+Linx3+Loutx3)/2 - Loutx3 - length3;
@@ -745,11 +802,17 @@ FGen.generateTaper(Control,"bifrostFWall1",300, 100.0*hIn,100.0*hOut, 100.0*vIn,
 
   /*
   PipeGen.setWindow(-2.0,0.5);
+<<<<<<< HEAD
   */
   //  PipeGen.generatePipe(Control,"bifrostPipeOutA",4.0,600);
 
   
 
+=======
+  PipeGen.setFlange(-4.0,1.0);
+  PipeGen.generatePipe(Control,"bifrostPipeOutB",600);
+  Control.addVariable("bifrostPipeOutBYStep",4.0);
+>>>>>>> origin/master
 
   PipeGen.setMat("Aluminium");
   PipeGen.setWindow(-2.0,0.2); //2.5 mm window = 2*0.5 windows + 2*0.5 beam monitor
@@ -813,6 +876,7 @@ FGen.generateTaper(Control,"bifrostFWall1",300, 100.0*hIn,100.0*hOut, 100.0*vIn,
   PipeGen.setPipe(7.0,0.5);
   PipeGen.setWindow(-2.0,0.5);
   PipeGen.setFlange(-4.0,1.0);
+<<<<<<< HEAD
   PipeGen.generatePipe(Control,"bifrostPipeOutC",4.0,600.0);
 
    majoroffset_x = (length3+Linx3+Loutx3)/2 - Loutx3 - length3 +3.75+6.02+6.04;
@@ -842,6 +906,23 @@ FGen.generateTaper(Control,"bifrostFWall1",300, 100.0*hIn,100.0*hOut, 100.0*vIn,
   Control.addVariable("bifrostPipeOutCCladdingThick",0.3);
   //  Control.addVariable("bifrostPipeOutCCladdingMat","Mirrobor");
     Control.addVariable("bifrostPipeOutCCladdingMat","Air");
+=======
+  PipeGen.generatePipe(Control,"bifrostPipeOutC",480.0);
+  Control.addVariable("bifrostPipeOutCYStep",4.0);
+
+  // Guide at 9.2m (part of a 4->8cm in 20m)
+  FGen.clearYOffset();
+  FGen.generateTaper(Control,"bifrostFOutC",476.0,7.04,8.0,7.04,8.0);   
+
+  // ARRAY SECTION
+  for(size_t i=0;i<8;i++)
+    {
+      const std::string strNum(std::to_string(i));
+      PipeGen.generatePipe(Control,"bifrostPipeR"+strNum,600.0);
+      Control.addVariable("bifrostPipeR"+strNum+"YStep",4.0);
+      FGen.generateRectangle(Control,"bifrostFOutR"+strNum,596.0,8.0,8.0);   
+    }
+>>>>>>> origin/master
 
 
   
@@ -862,6 +943,7 @@ FGen.generateTaper(Control,"bifrostFWall1",300, 100.0*hIn,100.0*hOut, 100.0*vIn,
   //  PipeGen.setMat("Stainless304");
 
 
+<<<<<<< HEAD
 
   PipeGen.setMat("Aluminium");
        PipeGen.setWindow(-2.0,0.05);
@@ -894,6 +976,30 @@ FGen.generateTaper(Control,"bifrostFWall1",300, 100.0*hIn,100.0*hOut, 100.0*vIn,
   PipeGen.generatePipe(Control,
 		       "bifrostPipeR1",0.0,2000);
   Control.addVariable("bifrostPipeR1WindowActive",0);
+=======
+  // ARRAY SECTION
+  double yStep(14.0);
+  for(size_t i=0;i<7;i++)
+    {
+      const std::string strNum(std::to_string(i));
+      PipeGen.generatePipe(Control,"bifrostPipeS"+strNum,600.0);      
+      Control.addVariable("bifrostPipeS"+strNum+"YStep",yStep);
+      FGen.generateRectangle(Control,"bifrostFOutS"+strNum,596.0,8.0,8.0);
+      yStep=4.0;
+    }
+
+  FGen.setLayer(1,0.5,"Copper");
+  double gap(8.0);
+  for(size_t i=0;i<4;i++)
+    {
+      const std::string strNum(std::to_string(i));
+      PipeGen.generatePipe(Control,"bifrostPipeE"+strNum,500.0);
+      Control.addVariable("bifrostPipeE"+strNum+"YStep",yStep);
+      FGen.generateTaper(Control,"bifrostFOutE"+strNum,496.0,
+                         gap,gap-1.0,gap,gap-1.0);
+      gap-=1.0;
+    }
+>>>>>>> origin/master
 
   
   for(int i=0; i<5; i++){
@@ -922,6 +1028,7 @@ Control.addVariable("bifrostFOutR0YStep",12.0);
   Control.addVariable("bifrostWallCutYStep",320);//offset along beam
   			   
 
+<<<<<<< HEAD
   // Shield: leaving bunker
   //Gap between bunker wall and lateral shielding
   SGen.clearLayers();
@@ -1211,6 +1318,14 @@ Control.addVariable("bifrostFOutR0YStep",12.0);
 	   Control.addVariable("bifrostD03SteelVoidNWallLayersL",2);
    	   Control.addVariable("bifrostD03SteelVoidInnerB4LayerThick",0);
 	   Control.addVariable("bifrostD03SteelVoidNRoofLayers",2);
+=======
+  // Second vacuum pipe out of bunker [before chopper pit]
+  PipeGen.setPipe(6.0,0.5);
+  PipeGen.setWindow(-2.0,0.5);
+  PipeGen.setFlange(-4.0,1.0);
+  PipeGen.generatePipe(Control,"bifrostPipeCave",250.0);
+  Control.addVariable("bifrostPipeCaveYStep",2.0);
+>>>>>>> origin/master
 
 	   Control.addVariable("bifrostLeadUpperPlateLeft",27.5);
 	   Control.addVariable("bifrostLeadUpperPlateNWallLayersR",2);

@@ -3,7 +3,7 @@
  
  * File:   Main/singleItem.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,44 +38,23 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "surfRegister.h"
-#include "objectRegister.h"
 #include "InputControl.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "inputParam.h"
-#include "Rules.h"
 #include "surfIndex.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "HeadRule.h"
-#include "Object.h"
 #include "MainProcess.h"
 #include "MainInputs.h"
-#include "SimProcess.h"
 #include "SimInput.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "SimPHITS.h"
-#include "LinkUnit.h"
-#include "FixedComp.h"
-#include "ContainedComp.h"
-#include "SpaceCut.h"
-#include "ContainedGroup.h"
-#include "mainJobs.h"
-#include "DefPhysics.h"
 #include "Volumes.h"
 #include "variableSetup.h"
 #include "DefUnitsESS.h"
-#include "ImportControl.h"
-#include "World.h"
 #include "makeSingleItem.h"
 
 MTRand RNG(12345UL);
@@ -96,7 +75,7 @@ main(int argc,char* argv[])
   int exitFlag(0);                // Value on exit
   ELog::RegMethod RControl("","main");
   mainSystem::activateLogging(RControl);
-
+    
   std::string Oname;
   std::vector<std::string> Names;  
 
@@ -107,18 +86,17 @@ main(int argc,char* argv[])
       InputControl::mainVector(argc,argv,Names);
       mainSystem::inputParam IParam;
       createSingleItemInputs(IParam);
-      
+	  
       SimPtr=createSimulation(IParam,Names,Oname);
       if (!SimPtr) return -1;
-      
+
       // The big variable setting
       setVariable::SingleItemVariables(SimPtr->getDataBase());
       mainSystem::setDefUnits(SimPtr->getDataBase(),IParam);
       InputModifications(SimPtr,IParam,Names);
       mainSystem::setMaterialsDataBase(IParam);
-      
+
       singleItemSystem::makeSingleItem singleItemObj;
-      World::createOuterObjects(*SimPtr);
       singleItemObj.build(*SimPtr,IParam);
       
       mainSystem::buildFullSimulation(SimPtr,IParam,Oname);

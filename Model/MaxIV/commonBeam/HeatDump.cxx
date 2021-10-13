@@ -3,7 +3,7 @@
  
  * File:   commonBeam/HeatDump.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,45 +33,29 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "inputParam.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "ContainedComp.h"
 #include "ContainedGroup.h"
 #include "ExternalCut.h"
 #include "HeatDump.h"
@@ -82,7 +66,7 @@ namespace xraySystem
 
 HeatDump::HeatDump(const std::string& Key) :
   attachSystem::ContainedGroup("Inner","Outer"),
-  attachSystem::FixedOffsetGroup(Key,"Main",6,"Beam",2),
+  attachSystem::FixedOffsetGroup(Key,"Main",6,"Beam",4),
   attachSystem::ExternalCut(),
   attachSystem::CellMap()
   /*!
@@ -91,6 +75,63 @@ HeatDump::HeatDump(const std::string& Key) :
   */
 {}
 
+HeatDump::HeatDump(const HeatDump& A) : 
+  attachSystem::ContainedGroup(A),attachSystem::FixedOffsetGroup(A),
+  attachSystem::ExternalCut(A),attachSystem::CellMap(A),
+  upFlag(A.upFlag),radius(A.radius),height(A.height),
+  width(A.width),thick(A.thick),lift(A.lift),cutHeight(A.cutHeight),
+  cutAngle(A.cutAngle),cutDepth(A.cutDepth),topInnerRadius(A.topInnerRadius),
+  topFlangeRadius(A.topFlangeRadius),topFlangeLength(A.topFlangeLength),
+  bellowLength(A.bellowLength),bellowThick(A.bellowThick),
+  outRadius(A.outRadius),outLength(A.outLength),
+  waterRadius(A.waterRadius),waterZStop(A.waterZStop),
+  mat(A.mat),flangeMat(A.flangeMat),bellowMat(A.bellowMat),
+  waterMat(A.waterMat)
+  /*!
+    Copy constructor
+    \param A :: HeatDump to copy
+  */
+{}
+
+HeatDump&
+HeatDump::operator=(const HeatDump& A)
+  /*!
+    Assignment operator
+    \param A :: HeatDump to copy
+    \return *this
+  */
+{
+  if (this!=&A)
+    {
+      attachSystem::ContainedGroup::operator=(A);
+      attachSystem::FixedOffsetGroup::operator=(A);
+      attachSystem::ExternalCut::operator=(A);
+      attachSystem::CellMap::operator=(A);
+      upFlag=A.upFlag;
+      radius=A.radius;
+      height=A.height;
+      width=A.width;
+      thick=A.thick;
+      lift=A.lift;
+      cutHeight=A.cutHeight;
+      cutAngle=A.cutAngle;
+      cutDepth=A.cutDepth;
+      topInnerRadius=A.topInnerRadius;
+      topFlangeRadius=A.topFlangeRadius;
+      topFlangeLength=A.topFlangeLength;
+      bellowLength=A.bellowLength;
+      bellowThick=A.bellowThick;
+      outRadius=A.outRadius;
+      outLength=A.outLength;
+      waterRadius=A.waterRadius;
+      waterZStop=A.waterZStop;
+      mat=A.mat;
+      flangeMat=A.flangeMat;
+      bellowMat=A.bellowMat;
+      waterMat=A.waterMat;
+    }
+  return *this;
+}
 
 HeatDump::~HeatDump()
   /*!
@@ -168,7 +209,7 @@ HeatDump::createUnitVector(const attachSystem::FixedComp& centreFC,
   applyOffset();
   if (upFlag)
     beamFC.applyShift(0,0,lift);  // only beam offset
-  setDefault("Main");
+  setDefault("Main","Beam");
   return;
 }
 
@@ -179,30 +220,23 @@ HeatDump::createSurfaces()
   */
 {
   ELog::RegMethod RegA("HeatDump","createSurfaces");
+  setDefault("Main","Beam");
+  
+  ModelSupport::buildPlane(SMap,buildIndex+3,bOrigin-bX*(width/2.0),bX);
+  ModelSupport::buildPlane(SMap,buildIndex+4,bOrigin+bX*(width/2.0),bX);
+  ModelSupport::buildPlane(SMap,buildIndex+5,bOrigin-bZ*cutHeight,bZ);
+  ModelSupport::buildPlane(SMap,buildIndex+6,bOrigin+bZ*
+			   (height-cutHeight),bZ);
+  ModelSupport::buildCylinder(SMap,buildIndex+7,bOrigin,bZ,radius);
 
+  const Geometry::Vec3D ZCut(bOrigin+bY*cutDepth); 
 
-  const attachSystem::FixedComp& beamFC=getKey("Beam");
-
-  const Geometry::Vec3D& beamOrg=beamFC.getCentre();
-  const Geometry::Vec3D& beamX=beamFC.getX();
-  const Geometry::Vec3D& beamY=beamFC.getY();
-  const Geometry::Vec3D& beamZ=beamFC.getZ();
-
-  ModelSupport::buildPlane(SMap,buildIndex+3,beamOrg-beamX*(width/2.0),beamX);
-  ModelSupport::buildPlane(SMap,buildIndex+4,beamOrg+beamX*(width/2.0),beamX);
-  ModelSupport::buildPlane(SMap,buildIndex+5,beamOrg-beamZ*cutHeight,beamZ);
-  ModelSupport::buildPlane(SMap,buildIndex+6,beamOrg+beamZ*
-			   (height-cutHeight),beamZ);
-  ModelSupport::buildCylinder(SMap,buildIndex+7,beamOrg,beamZ,radius);
-
-  const Geometry::Vec3D ZCut(beamOrg+beamY*cutDepth); 
-
-  ModelSupport::buildPlane(SMap,buildIndex+15,ZCut,beamZ);
-  ModelSupport::buildPlaneRotAxis(SMap,buildIndex+16,ZCut,beamZ,
-				  beamX,-cutAngle);
+  ModelSupport::buildPlane(SMap,buildIndex+15,ZCut,bZ);
+  ModelSupport::buildPlaneRotAxis(SMap,buildIndex+16,ZCut,bZ,
+				  bX,-cutAngle);
   // water cut
-  ModelSupport::buildPlane(SMap,buildIndex+305,ZCut+beamZ*waterZStop,beamZ);
-  ModelSupport::buildCylinder(SMap,buildIndex+307,beamOrg,beamZ,waterRadius);
+  ModelSupport::buildPlane(SMap,buildIndex+305,ZCut+bZ*waterZStop,bZ);
+  ModelSupport::buildCylinder(SMap,buildIndex+307,bOrigin,bZ,waterRadius);
   // construct surround [Y is upwards]
   if (!isActive("mountSurf"))
     {
@@ -221,7 +255,6 @@ HeatDump::createSurfaces()
   // bellows flange
   const double BL((upFlag) ? bellowLength+lift : bellowLength);
 
-    
   ModelSupport::buildPlane(SMap,buildIndex+201,
 			   Origin+Y*(topFlangeLength+BL),Y);
   ModelSupport::buildPlane(SMap,buildIndex+202,
@@ -314,7 +347,23 @@ HeatDump::createLinks()
   */
 {
   ELog::RegMethod RegA("HeatDump","createLinks");
-  
+
+  //  attachSystem::FixedComp& mainFC=getKey("Main");
+  attachSystem::FixedComp& beamFC=getKey("Beam");
+
+  // Beam position is lift/no-lift so 1-2 are no-lift 3-4 are lifted
+
+  // currently no divider plane provided -- use with caution
+  beamFC.setLinkSurf(0,SMap.realSurf(buildIndex+7));
+  beamFC.setLinkSurf(1,SMap.realSurf(buildIndex+7));
+  beamFC.setLinkSurf(2,SMap.realSurf(buildIndex+7));
+  beamFC.setLinkSurf(3,SMap.realSurf(buildIndex+7));
+
+  beamFC.setConnect(0,bOrigin-bY*radius-bZ*lift,-bY);
+  beamFC.setConnect(1,bOrigin+bY*radius-bZ*lift,bY);
+  beamFC.setConnect(2,bOrigin-bY*radius,-bY);
+  beamFC.setConnect(3,bOrigin+bY*radius,bY);
+    
   return;
 }
 

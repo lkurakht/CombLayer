@@ -3,7 +3,7 @@
  
  * File:   constructInc/PortTube.h
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,23 +39,25 @@ class PortTube :
   public PipeTube
 {
  private:
-    
-  double portAXStep;       ///< In Port
-  double portAZStep;       ///< In Port
-  double portARadius;      ///< In Port
-  double portALen;         ///< In Port
-  double portAThick;       ///< In Port
 
-  double portBXStep;       ///< Out Port
-  double portBZStep;       ///< Out Port
-  double portBRadius;      ///< Out Port
-  double portBLen;         ///< Out Port
-  double portBThick;       ///< Out Port
+  bool portAOuterFlag;     ///< In Port void constructed  
+  double portAXStep;       ///< In Port XStep		  
+  double portAZStep;       ///< In Port YStep		  
+  double portARadius;      ///< In Port Inner Radius	  
+  double portALen;         ///< In Port Length inc flange 
+  double portAThick;       ///< In Port Pipe thickness    
+
+  bool portBOuterFlag;     ///< In Port  void constructed  
+  double portBXStep;       ///< Out Port XStep		  
+  double portBZStep;       ///< Out Port YStep		  
+  double portBRadius;      ///< Out Port Inner Radius	  
+  double portBLen;         ///< Out Port Length inc flange 
+  double portBThick;       ///< Out Port Pipe thickness    
   
-  void populate(const FuncDataBase&);
-  void createSurfaces();
-  void createObjects(Simulation&);
-  void createLinks();
+  virtual void populate(const FuncDataBase&);
+  virtual void createSurfaces();
+  virtual void createObjects(Simulation&);
+  virtual void createLinks();
 
   virtual void applyPortRotation();
   
@@ -65,9 +67,7 @@ class PortTube :
   PortTube(const PortTube&);
   PortTube& operator=(const PortTube&);
   virtual ~PortTube();
-  
-  void createAll(Simulation&,const attachSystem::FixedComp&,
-		 const long int);
+
 
 };
 

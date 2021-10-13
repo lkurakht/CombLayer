@@ -35,18 +35,12 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "XMLwriteVisitor.h"
 #include "support.h"
 #include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
-#include "Vec3D.h"
 #include "XMLload.h"
 #include "XMLattribute.h"
 #include "XMLobject.h"
@@ -192,7 +186,7 @@ FuelLoad::loadXML(const std::string& FName)
       const size_t bladeN=AR->getDefItem<size_t>("Blade",0);
       const size_t IndexN=AR->getDefItem<size_t>("Index",0);
       MatName= AR->getNamedItem<std::string>("Material");
-      MatName=StrFunc::fullBlock(MatName);
+      MatName=StrFunc::removeOuterSpace(MatName);
       const size_t HN=FuelLoad::hash(GridItem,bladeN,IndexN);
       FuelMap.emplace(HN,MatName);
       CO.deleteObj(AR);      
@@ -210,7 +204,7 @@ FuelLoad::loadXML(const std::string& FName)
       const std::string GridItem=AR->getItem<std::string>("Grid");
       const size_t IndexN=AR->getDefItem<size_t>("Index",0);
       MatName= AR->getNamedItem<std::string>("Material");
-      MatName=StrFunc::fullBlock(MatName);
+      MatName=StrFunc::removeOuterSpace(MatName);
       const size_t HN=FuelLoad::hash(GridItem,0,IndexN);
       FuelMap.emplace(HN,MatName);
       CO.deleteObj(AR);

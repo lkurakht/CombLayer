@@ -3,7 +3,7 @@
  
  * File:   transport/PointPointDetector.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,24 +31,16 @@
 #include <map>
 #include <string>
 
-#include "MersenneTwister.h"
-#include "RefCon.h"
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "mathSupport.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Surface.h"
-#include "neutron.h"
-#include "Rules.h"
+#include "particle.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "Zaid.h"
 #include "MXcards.h"
@@ -147,22 +139,21 @@ PointDetector::normalize(const size_t TN)
 }
 
 void
-PointDetector::addEvent(const MonteCarlo::neutron& N) 
+PointDetector::addEvent(const MonteCarlo::particle& N) 
   /*!
     Add a point to the detector
     Tracks from the point to the detector.
     Added correction for solid angle
-    \param N :: Neutron
+    \param N :: Particle
   */
 {
   ELog::RegMethod RegA("PointDetector","addEvent");
   
   if (N.OPtr)
     {
-      const int matNum=(N.OPtr) ? N.OPtr->getMat() : -1;
+      const int matNum=N.OPtr->getMatID();
       const double W=N.weight/(N.travel*N.travel);   // r^2 term +
                                                      // weight
-      
       std::map<int,double>::iterator mc=cnt.find(matNum);
       if (mc==cnt.end())
 	cnt.emplace(matNum,W);
@@ -174,8 +165,8 @@ PointDetector::addEvent(const MonteCarlo::neutron& N)
 }
 
 double
-PointDetector::project(const MonteCarlo::neutron& Nin,
-		       MonteCarlo::neutron& Nout) const
+PointDetector::project(const MonteCarlo::particle& Nin,
+		       MonteCarlo::particle& Nout) const
   /*!
     Project the neutron into the detector.
     The output neutron is copied from Nin and then

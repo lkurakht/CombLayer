@@ -3,7 +3,7 @@
  
  * File:   source/SourceBase.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,12 +35,9 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "support.h"
 #include "MatrixBase.h"
 #include "Matrix.h"
@@ -48,16 +45,9 @@
 #include "Transform.h"
 #include "doubleErr.h"
 #include "Source.h"
-#include "SrcItem.h"
 #include "SrcData.h"
-#include "surfRegister.h"
-#include "ModelSupport.h"
-#include "HeadRule.h"
-#include "LinkUnit.h"
-#include "FixedComp.h"
-#include "FixedOffset.h"
 #include "WorkData.h"
-#include "World.h"
+#include "writeSupport.h"
 
 #include "inputSupport.h"
 #include "particleConv.h"
@@ -69,7 +59,7 @@ namespace SDef
 SourceBase::SourceBase() : 
   particleType("neutron"),cutEnergy(0.0),
   Energy({14}),EWeight({1.0}),weight(1.0),
-  TransPtr(0)
+  TransPtr(0),polarFrac(0.0)
   /*!
     Constructor 
   */
@@ -79,7 +69,8 @@ SourceBase::SourceBase(const SourceBase& A) :
   particleType(A.particleType),cutEnergy(A.cutEnergy),
   Energy(A.Energy),EWeight(A.EWeight),
   weight(A.weight),
-  TransPtr((A.TransPtr) ? new Geometry::Transform(*A.TransPtr) : 0)
+  TransPtr((A.TransPtr) ? new Geometry::Transform(*A.TransPtr) : 0),
+  polarVec(A.polarVec),polarFrac(A.polarFrac)
   /*!
     Copy constructor
     \param A :: SourceBase to copy
@@ -103,15 +94,18 @@ SourceBase::operator=(const SourceBase& A)
       weight=A.weight;
       delete TransPtr;
       TransPtr=(A.TransPtr) ? new Geometry::Transform(*A.TransPtr) : 0;
+      polarVec=A.polarVec;
+      polarFrac=A.polarFrac;
     }
   return *this;
 }
   
   
 int
-SourceBase::populateEFile(const std::string& FName,
-			   const int colE,const int colP)
-  /*!
+SourceBase::setEnergyFile(const std::string& FName,
+			  const int colE,const int colP,
+			  const double energyMin,const double energyMax)
+/*!
     Load a distribution table
     - Care is taken to add an extra energy with zero 
     - Scale weight  onto sum 1.0 in the table 
@@ -121,13 +115,11 @@ SourceBase::populateEFile(const std::string& FName,
     \return 0 on failure / 1 on success
   */
 {
-  ELog::RegMethod RegA("SourceBase","populateEFile");
+  ELog::RegMethod RegA("SourceBase","setEnergyFile");
 
-  const int eCol(colE);
-  const int iCol(colP);
     
   WorkData A;
-  if (FName.empty() || A.load(FName,eCol,iCol,0))
+  if (FName.empty() || A.load(FName,colE,colP,0))
     return 0;
 
 
@@ -156,7 +148,7 @@ SourceBase::populateEFile(const std::string& FName,
 }
 
 int
-SourceBase::populateEnergy(std::string EPts,std::string EProb)
+SourceBase::setEnergy(std::string EPts,std::string EProb)
   /*!
     Read two strings that are the Energy points and the 
     \param EPts :: Energy Points string 
@@ -164,7 +156,7 @@ SourceBase::populateEnergy(std::string EPts,std::string EProb)
     \return 1 on success success
    */
 {
-  ELog::RegMethod RegA("SourceBase","populateEnergy");
+  ELog::RegMethod RegA("SourceBase","setEnergy");
 
   if (!StrFunc::isEmpty(EPts) || !StrFunc::isEmpty(EProb))
     {
@@ -177,8 +169,9 @@ SourceBase::populateEnergy(std::string EPts,std::string EProb)
 	    StrFunc::section(EProb,eP))
 	{
 	  if (!Energy.empty() && eB<=Energy.back())
-	    throw ColErr::IndexError<double>(eB,Energy.back(),
-					     "Energy point not in sequence");
+	    throw ColErr::IndexError<double>
+	      (eB,Energy.back(),"Energy point not in sequence");
+	  
 	  if (eP<0.0)
 	    throw ColErr::IndexError<double>(eP,0.0,"Probablity eP negative");
 	  Energy.push_back(eB);
@@ -235,8 +228,9 @@ SourceBase::populate(const mainSystem::MITYPE& inputMap)
   std::string EFile;
   if (mainSystem::findInput(inputMap,"energyFile",0,EFile) ||
       mainSystem::findInput(inputMap,"EFile",0,EFile) )
-    eFlag=populateEFile(EFile,1,11);
-
+    {
+      eFlag=setEnergyFile(EFile,1,11,0.0,2e9);
+    }
   
   if ( ((mc=inputMap.find("energyProb"))!=inputMap.end() ||
 	(mc=inputMap.find("EProb"))!=inputMap.end()) &&
@@ -245,7 +239,7 @@ SourceBase::populate(const mainSystem::MITYPE& inputMap)
     {
       const std::string EProb=mc->second.front();
       const std::string EList=mcB->second.front();
-      eFlag=populateEnergy(EList,EProb);
+      eFlag=setEnergy(EList,EProb);
     }
 
   if ( !eFlag && mainSystem::hasInput(inputMap,"energyRange"))
@@ -284,6 +278,12 @@ SourceBase::populate(const mainSystem::MITYPE& inputMap)
 	mainSystem::getInput<double>(inputMap,"energy",0);
       Energy.push_back(E);
       EWeight.push_back(1.0);
+    }
+
+  if (!eFlag &&
+      mainSystem::hasInput(inputMap,"momentum"))  // only single momentum
+    {
+      
     }
       
   return;
@@ -405,6 +405,21 @@ SourceBase::createEnergySource(SDef::Source& sourceCard) const
 }  
 
 void
+SourceBase::setPolarization(const Geometry::Vec3D& PValue,
+			    const double PFrac)
+  /*!
+    Set the polarization vector
+    \param PValue :: Polarization vector
+    \param PFrac :: Fraction which is polarized
+  */
+{
+  polarVec=PValue.unit();
+  polarFrac=PFrac;
+  return;
+}
+
+
+void
 SourceBase::writePHITS(std::ostream& OX) const
   /*!
     Write out common part of PHITS source
@@ -431,6 +446,27 @@ SourceBase::writePHITS(std::ostream& OX) const
 	  eStart=Energy[i];
 	}
       OX<<"    "<<eStart<<std::endl;
+    }
+  return;
+}
+
+void
+SourceBase::writeFLUKA(std::ostream& OX) const
+  /*!
+    Write out common part of FLUKA source
+    \param OX :: Output stream
+  */
+{
+  ELog::RegMethod RegA("SourceBase","writeFLUKA");
+
+  
+  if (polarFrac>Geometry::zeroTol &&
+      polarVec.abs()>Geometry::zeroTol)
+    {
+      std::ostringstream cx;
+      cx<<"POLARIZA ";  
+      cx<<polarVec<<" 0 "<<polarFrac<<" 0.0 ";
+      StrFunc::writeFLUKA(cx.str(),OX);
     }
   return;
 }

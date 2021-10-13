@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   maxpeem/SquareFMask.cxx
+ * File:   commonBeam/SquareFMask.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,32 +33,17 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -67,21 +52,24 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
+#include "FixedRotate.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
+#include "ExternalCut.h"
+#include "FrontBackCut.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
 #include "SquareFMask.h"
 
-
 namespace xraySystem
 {
 
 SquareFMask::SquareFMask(const std::string& Key) :
-  attachSystem::ContainedComp(),attachSystem::FixedOffset(Key,6),
-  attachSystem::CellMap(),attachSystem::SurfMap()
+  attachSystem::ContainedComp(),
+  attachSystem::FixedRotate(Key,6),
+  attachSystem::CellMap(),
+  attachSystem::SurfMap(),
+  attachSystem::FrontBackCut()  
   /*!
     Default constructor
     \param Key :: Key name for variables
@@ -98,7 +86,7 @@ SquareFMask::populate(const FuncDataBase& Control)
 {
   ELog::RegMethod RegA("SquareFMask","populate");
 
-  FixedOffset::populate(Control);
+  FixedRotate::populate(Control);
   
   height=Control.EvalVar<double>(keyName+"Height");
   width=Control.EvalVar<double>(keyName+"Width");
@@ -133,30 +121,12 @@ SquareFMask::populate(const FuncDataBase& Control)
     }
   
   mat=ModelSupport::EvalMat<int>(Control,keyName+"Mat");
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   flangeMat=ModelSupport::EvalMat<int>(Control,keyName+"FlangeMat");
 
   
   return;
 }
-
-void
-SquareFMask::createUnitVector(const attachSystem::FixedComp& FC,
-				 const long int sideIndex)
-  /*!
-    Create the unit vectors: Note only to construct front/back surf
-    \param FC :: Centre point
-    \param sideIndex :: Side index
-  */
-{
-  ELog::RegMethod RegA("SquareFMask","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
-  Origin+=Y*(length/2.0); 
-  return;
-}
-
 
 void
 SquareFMask::createSurfaces()
@@ -166,18 +136,50 @@ SquareFMask::createSurfaces()
 {
   ELog::RegMethod RegA("SquareFMask","createSurface");
 
-  const Geometry::Vec3D APt(Origin-Y*(length/2.0));
-  const Geometry::Vec3D MPt(Origin+Y*(minLength-length/2.0));
-  const Geometry::Vec3D BPt(Origin+Y*(length/2.0));
+  Geometry::Vec3D APt;  // front
+  Geometry::Vec3D MPt;  // mid
+  Geometry::Vec3D BPt;  // back
+  
 
-  ModelSupport::buildPlane(SMap,buildIndex+1,APt,Y);
-  ModelSupport::buildPlane(SMap,buildIndex+2,BPt,Y);
+  // four possibilites : front/ back/ both/ none:
+  if (ExternalCut::isActive("front") &&
+      ExternalCut::isActive("back"))
+    {
+      APt=ExternalCut::interPoint("front",Origin,Y);
+      BPt=ExternalCut::interPoint("back",Origin,Y);
+      length=BPt.Distance(APt);
+    } 
+  else if (ExternalCut::isActive("back"))  // front not active
+    {
+      BPt=ExternalCut::interPoint("back",Origin,Y);
+      APt=BPt-Y*length;
+      ModelSupport::buildPlane(SMap,buildIndex+1,APt,Y);
+      ExternalCut::setCutSurf("front",SMap.realSurf(buildIndex+1));
+    }
+  else if (ExternalCut::isActive("front"))  // back not active
+    {
+      APt=ExternalCut::interPoint("front",Origin,Y);
+      BPt=APt+Y*length;
+      ModelSupport::buildPlane(SMap,buildIndex+2,BPt,Y);
+      ExternalCut::setCutSurf("back",-SMap.realSurf(buildIndex+2));
+    }
+  else
+    {
+      APt=Origin-Y*(length/2.0);
+      BPt=Origin+Y*(length/2.0);
+      ModelSupport::buildPlane(SMap,buildIndex+1,APt,Y);
+      ExternalCut::setCutSurf("front",SMap.realSurf(buildIndex+1));
+      ModelSupport::buildPlane(SMap,buildIndex+2,BPt,Y);
+      ExternalCut::setCutSurf("back",-SMap.realSurf(buildIndex+2));
+    }
+  MPt=APt+Y*minLength;
+      
+
   ModelSupport::buildPlane(SMap,buildIndex+3,Origin-X*(width/2.0),X);
   ModelSupport::buildPlane(SMap,buildIndex+4,Origin+X*(width/2.0),X);
   ModelSupport::buildPlane(SMap,buildIndex+5,Origin-Z*(height/2.0),Z);
   ModelSupport::buildPlane(SMap,buildIndex+6,Origin+Z*(height/2.0),Z);
 
- 
   ModelSupport::buildPlane(SMap,buildIndex+11,APt+Y*flangeALength,Y);
   ModelSupport::buildPlane(SMap,buildIndex+12,BPt-Y*flangeBLength,Y);
 
@@ -188,7 +190,7 @@ SquareFMask::createSurfaces()
   ModelSupport::buildCylinder(SMap,buildIndex+18,Origin,Y,flangeBOutRadius);
 
   // Inner Structure
-  ModelSupport::buildPlane(SMap,buildIndex+101,MPt,Y);
+  //ModelSupport::buildPlane(SMap,buildIndex+101,MPt,Y);
   
   const double AH2(innerAHeight/2.0);
   const double MH2(innerMinHeight/2.0);
@@ -237,6 +239,7 @@ SquareFMask::createSurfaces()
     {
       // start from front of collimator
       const Geometry::Vec3D pipeOrgZ(APt-Z*pipeZDepth);
+
       int BI(buildIndex+1000);
       for(size_t i=0;i<4;i++)
 	{
@@ -253,6 +256,7 @@ SquareFMask::createSurfaces()
 	      (SMap,BI+1,pipeOrgZ+Y*((pipeYStep[i]+pipeYStep[i+1])/2.0),Y);
 	  BI+=10;
 	}
+
       // divider [only a pair of left/right needed]
       // 45 deg divider
       ModelSupport::buildPlane(SMap,buildIndex+1003,
@@ -274,119 +278,142 @@ SquareFMask::createObjects(Simulation& System)
   */
 {
   ELog::RegMethod RegA("SquareFMask","createObjects");
-  std::string Out;
 
-  // inner voids
-  Out=ModelSupport::getComposite(SMap,buildIndex,"1 -101 103 -104 105 -106");
-  CellMap::makeCell("Void",System,cellIndex++,voidMat,0.0,Out);
-  
-  Out=ModelSupport::getComposite(SMap,buildIndex,"101 -2 203 -204 205 -206");
-  CellMap::makeCell("Void",System,cellIndex++,voidMat,0.0,Out);
+  const HeadRule frontSurfHR=ExternalCut::getRule("front");
+  const HeadRule backSurfHR=ExternalCut::getRule("back");
+
+  HeadRule HR;
+  // inner void
+  HR=ModelSupport::getHeadRule
+    (SMap,buildIndex,"(103 -104 105 -106) : (203 -204 205 -206)");
+  CellMap::makeCell("Void",System,cellIndex++,voidMat,0.0,
+		    HR*frontSurfHR*backSurfHR);
+
+  const HeadRule frontCut=ModelSupport::getHeadRule
+    (SMap,buildIndex,"3 -4 5 -6 (-103:104:-105:106)");
+  const HeadRule backCut=ModelSupport::getHeadRule
+    (SMap,buildIndex,"3 -4 5 -6 (-203:204:-205:206)");
+  const HeadRule bothCut=ModelSupport::getHeadRule
+    (SMap,buildIndex,"3 -4 5 -6 (-103:104:-105:106) (-203:204:-205:206)");
 
   if (pipeRadius>Geometry::zeroTol)
     {
 
       int BI(buildIndex+1000);
-      const std::string topSurf=
-	ModelSupport::getComposite(SMap,buildIndex," -6 ");
-      const std::string frontSurf=
-	ModelSupport::getComposite(SMap,buildIndex," 1 ");
+      const HeadRule topSurfHR=
+	ModelSupport::getHeadRule(SMap,buildIndex,"-6");
 
-
+      // Make pipes:
       HeadRule pipeHR[4];
       for(size_t i=0;i<4;i++)
-	{	  
-	  Out=ModelSupport::getComposite(SMap,buildIndex,BI,"-7M -1003 -1004 ");
-	  CellMap::makeCell("PipeA",System,cellIndex++,waterMat,0.0,Out);
-	  pipeHR[i].addUnion(Out);
+	{
+	  HR=ModelSupport::getHeadRule(SMap,buildIndex,BI,"-7M -1003 -1004");
+	  CellMap::makeCell("PipeA",System,cellIndex++,waterMat,0.0,HR);
+	  pipeHR[i].addUnion(HR);
 	  
-	  Out=ModelSupport::getComposite(SMap,buildIndex,BI," -8M 1003 ");
+	  HR=ModelSupport::getHeadRule(SMap,buildIndex,BI,"-8M 1003");
 	  CellMap::makeCell("PipeLeft",System,cellIndex++,
-			    waterMat,0.0,Out+topSurf);
-	  pipeHR[i].addUnion(Out);
+			    waterMat,0.0,HR*topSurfHR);
+	  pipeHR[i].addUnion(HR);
 	  
-	  Out=ModelSupport::getComposite(SMap,buildIndex,BI," -9M 1004 ");
+	  HR=ModelSupport::getHeadRule(SMap,buildIndex,BI,"-9M 1004");
 	  CellMap::makeCell("PipeRight",System,cellIndex++,
-			    waterMat,0.0,Out+topSurf);
-	  pipeHR[i].addUnion(Out);
+			    waterMat,0.0,HR*topSurfHR);
+	  pipeHR[i].addUnion(HR);
 	  pipeHR[i].makeComplement();
 	  BI+=10;
 	}
 
-      const std::string FC=ModelSupport::getComposite
-	(SMap,buildIndex," 3 -4 5 -6 (-103:104:-105:106) ");
 
-      Out=ModelSupport::getComposite(SMap,buildIndex," 11 -1001 ");
-      CellMap::makeCell("FrontColl",System,cellIndex++,mat,0.0,
-			FC+Out+pipeHR[0].display());
-      Out=ModelSupport::getComposite(SMap,buildIndex," 1001 -1011 ");
-      CellMap::makeCell("FrontColl",System,cellIndex++,mat,0.0,
-			FC+Out+pipeHR[1].display());
-      Out=ModelSupport::getComposite(SMap,buildIndex," 1011 -101 ");
-      CellMap::makeCell("FrontColl",System,cellIndex++,mat,0.0,
-			FC+Out+pipeHR[2].display());
-      
-      Out=ModelSupport::getComposite
-	(SMap,buildIndex," 101 -12 3 -4 5 -6 (-203:204:-205:206) ");
-      CellMap::makeCell("BackColl",System,cellIndex++,mat,0.0,
-			Out+pipeHR[3].display());
-
+      BI=buildIndex+1000;
+      HeadRule fSurf=ModelSupport::getHeadRule(SMap,buildIndex,"11");
+      for(size_t i=0;i<3;i++)
+	{
+	  HR=ModelSupport::getHeadRule(SMap,BI,"-1");
+	  fSurf*=HR*pipeHR[i];
+	  if (pipeYStep[i+1]<minLength)
+	    {
+	      CellMap::makeCell
+		("Coll"+std::to_string(i),System,cellIndex++,
+		 mat,0.0,fSurf*frontCut);
+	    }
+	  else if (pipeYStep[i]>minLength)
+	    {
+	      CellMap::makeCell
+		("Coll"+std::to_string(i),System,cellIndex++,
+		 mat,0.0,fSurf*backCut);
+	    }
+	  else
+	    {
+	      CellMap::makeCell
+		("Coll"+std::to_string(i),System,cellIndex++,
+		 mat,0.0,fSurf*bothCut);
+	    }
+	  fSurf=HR.complement();
+	  BI+=10;
+	}
+      HR=ModelSupport::getHeadRule(SMap,buildIndex,"-12");
+      CellMap::makeCell("Coll3",System,cellIndex++,mat,0.0,
+			fSurf*HR*pipeHR[3]*bothCut);
     }
-  else   // two simple sections:
+  else   // two simple sections [NO pipes]
     {
+      ELog::EM<<"ASDFASFD "<<ELog::endDiag;
       // metal [ inner section]
-      Out=ModelSupport::getComposite
-	(SMap,buildIndex," 11 -101 3 -4 5 -6 (-103:104:-105:106) ");
-      CellMap::makeCell("FrontColl",System,cellIndex++,mat,0.0,Out);
+      HR=ModelSupport::getHeadRule
+	(SMap,buildIndex,"11 -101 3 -4 5 -6 (-103:104:-105:106)");
+      CellMap::makeCell("FrontColl",System,cellIndex++,mat,0.0,HR);
       
-      Out=ModelSupport::getComposite
-	(SMap,buildIndex," 101 -12 3 -4 5 -6 (-203:204:-205:206) ");
-      CellMap::makeCell("BackColl",System,cellIndex++,mat,0.0,Out);
+      HR=ModelSupport::getHeadRule
+	(SMap,buildIndex,"101 -12 3 -4 5 -6 (-203:204:-205:206)");
+      CellMap::makeCell("BackColl",System,cellIndex++,mat,0.0,HR);
     }
+
+
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"-11 -7 (-103:104:-105:106)");
+  CellMap::makeCell("FrontMat",System,cellIndex++,mat,0.0,
+		    HR*frontSurfHR);
+
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"12 -8 (-203:204:-205:206)");
+  CellMap::makeCell("BackMat",System,cellIndex++,mat,0.0,
+		    HR*backSurfHR);
+
+
   
   // Front flange:
-
-  Out=ModelSupport::getComposite 
-    (SMap,buildIndex,"1 -11 7 -17 ");
-  CellMap::makeCell("FrontFlange",System,cellIndex++,flangeMat,0.0,Out);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"-11 7 -17");
+  CellMap::makeCell("FrontFlange",System,cellIndex++,
+		    flangeMat,0.0,HR*frontSurfHR);
   
-  Out=ModelSupport::getComposite 
-    (SMap,buildIndex,"1 -11  -7 (-103:104:-105:106) ");
-  CellMap::makeCell("FrontFlangeMid",System,cellIndex++,mat,0.0,Out);
-
-  Out=ModelSupport::getComposite 
-    (SMap,buildIndex,"-2 12 8 -18 ");
-  CellMap::makeCell("BackFlange",System,cellIndex++,flangeMat,0.0,Out);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"12 8 -18");
+  CellMap::makeCell("BackFlange",System,cellIndex++,
+		    flangeMat,0.0,HR*backSurfHR);
   
-  Out=ModelSupport::getComposite 
-    (SMap,buildIndex,"-2 12 -8 (-203:204:-205:206) ");
-  CellMap::makeCell("BackFlangeMid",System,cellIndex++,mat,0.0,Out);
-
   if (flangeAOutRadius>=flangeBOutRadius)
     {
-      Out=ModelSupport::getComposite
-	(SMap,buildIndex,"11 -12 -17 (-3:4:-5:6) ");
-      CellMap::makeCell("OutVoid",System,cellIndex++,0,0.0,Out);
+      HR=ModelSupport::getHeadRule
+	(SMap,buildIndex,"11 -12 -17 (-3:4:-5:6)");
+      CellMap::makeCell("OutVoid",System,cellIndex++,0,0.0,HR);
       if (flangeAOutRadius>flangeBOutRadius+Geometry::zeroTol)
 	{
-	  Out=ModelSupport::getComposite(SMap,buildIndex,"12 -2 -17 18");
-	  CellMap::makeCell("OutVoid",System,cellIndex++,0,0.0,Out);
+	  HR=ModelSupport::getHeadRule(SMap,buildIndex,"12  -17 18");
+	  CellMap::makeCell("OutVoid",System,cellIndex++,0,0.0,HR*backSurfHR);
 	}
-      Out=ModelSupport::getComposite(SMap,buildIndex,"1 -2 -17");
+      HR=ModelSupport::getHeadRule(SMap,buildIndex,"-17");
     }
   else
     {
-      Out=ModelSupport::getComposite
-	(SMap,buildIndex,"11 -12 -18 (-3:4:-5:6) ");
-      CellMap::makeCell("OutVoid",System,cellIndex++,0,0.0,Out);
+      HR=ModelSupport::getHeadRule
+	(SMap,buildIndex,"11 -12 -18 (-3:4:-5:6)");
+      CellMap::makeCell("OutVoid",System,cellIndex++,0,0.0,HR);
       if (flangeBOutRadius>flangeAOutRadius+Geometry::zeroTol)
 	{
-	  Out=ModelSupport::getComposite(SMap,buildIndex,"1 -11 -18 17");
-	  CellMap::makeCell("OutVoid",System,cellIndex++,0,0.0,Out);
+	  HR=ModelSupport::getHeadRule(SMap,buildIndex,"-11 -18 17");
+	  CellMap::makeCell("OutVoid",System,cellIndex++,0,0.0,HR*frontSurfHR);
 	}
-      Out=ModelSupport::getComposite(SMap,buildIndex,"1 -2 -18");
+      HR=ModelSupport::getHeadRule(SMap,buildIndex,"-18");
     }
-  addOuterSurf(Out);
+  addOuterSurf(HR*frontSurfHR*backSurfHR);
   return;
 }
 
@@ -398,14 +425,10 @@ SquareFMask::createLinks()
 {
   ELog::RegMethod RegA("SquareFMask","createLinks");
 
-  FixedComp::setConnect(0,Origin-Y*(length/2.0),-Y);
-  FixedComp::setLinkSurf(0,-SMap.realSurf(buildIndex+1));
-  FixedComp::setConnect(1,Origin+Y*(length/2.0),Y);
-  FixedComp::setLinkSurf(1,SMap.realSurf(buildIndex+2));
-
-  const Geometry::Vec3D Axis[]={-X,X,-Z,Z};
-
   
+  FrontBackCut::createLinks(*this,Origin,Y);  //front and back
+  
+  const Geometry::Vec3D Axis[]={-X,X,-Z,Z};  
   const int surfN((flangeAOutRadius>flangeBOutRadius) ? 17 : 18);
   const double R(std::max(flangeAOutRadius,flangeBOutRadius));
   for(size_t i=0;i<4;i++)

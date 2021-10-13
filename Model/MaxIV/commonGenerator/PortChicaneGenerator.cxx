@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   commonBeamVar/PortChicaneGenerator.cxx
+ * File:   commonGenerator/PortChicaneGenerator.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,34 +35,25 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 
-#include "CFFlanges.h"
 #include "PortChicaneGenerator.h"
 
 namespace setVariable
 {
 
 PortChicaneGenerator::PortChicaneGenerator() :
-  width(60.0),height(45.0),clearGap(8.0),downStep(12.0),
+  width(60.0),height(45.0),clearGap(8.0),downGap(10.0),
   overHang(4.0),skinThick(0.3),plateThick(1.2),
   wallThick(0.8),plateMat("Lead"),
-  wallMat("Stainless304")
+  skinMat("Stainless304"),wallMat("Stainless304")
   /*!
     Constructor and defaults
   */
@@ -71,8 +62,10 @@ PortChicaneGenerator::PortChicaneGenerator() :
 
 PortChicaneGenerator::PortChicaneGenerator(const PortChicaneGenerator& A) : 
   width(A.width),height(A.height),clearGap(A.clearGap),
+  downGap(A.downGap),overHang(A.overHang),
   skinThick(A.skinThick),plateThick(A.plateThick),
-  wallThick(A.wallThick),plateMat(A.plateMat),wallMat(A.wallMat)
+  wallThick(A.wallThick),plateMat(A.plateMat),
+  skinMat(A.skinMat),wallMat(A.wallMat)
   /*!
     Copy constructor
     \param A :: PortChicaneGenerator to copy
@@ -92,10 +85,13 @@ PortChicaneGenerator::operator=(const PortChicaneGenerator& A)
       width=A.width;
       height=A.height;
       clearGap=A.clearGap;
+      downGap=A.downGap;
+      overHang=A.overHang;
       skinThick=A.skinThick;
       plateThick=A.plateThick;
       wallThick=A.wallThick;
       plateMat=A.plateMat;
+      skinMat=A.skinMat;
       wallMat=A.wallMat;
     }
   return *this;
@@ -121,7 +117,7 @@ PortChicaneGenerator::setSize(const double G,
 {
   clearGap=G;
   width=W;
-  height=H;    
+  height=H;
   return;
 }
 
@@ -168,8 +164,30 @@ PortChicaneGenerator::generatePortChicane(FuncDataBase& Control,
     \param zStep :: Step up/down fixed centre point
   */
 {
+  ELog::RegMethod RegA("PortChicaneGenerator","generatePortChicane(defWall)");
+
+  generatePortChicane(Control,keyName,"Left",xStep,zStep);
+  return;
+}
+
+void
+PortChicaneGenerator::generatePortChicane(FuncDataBase& Control,
+					  const std::string& keyName,
+					  const std::string& wallName,
+					  const double xStep,
+					  const double zStep) const
+/*!
+    Primary funciton for setting the variables
+    \param Control :: Database to add variables 
+    \param keyName :: head name for variable
+    \param wallName :: Wall name Left/Right/Roof etc
+    \param xStep :: Step left/right fixed centre point
+    \param zStep :: Step up/down fixed centre point
+  */
+{
   ELog::RegMethod RegA("PortChicaneGenerator","generatePortChicane");
-  
+
+  Control.addVariable(keyName+"Wall",wallName);
   Control.addVariable(keyName+"XStep",xStep);
   Control.addVariable(keyName+"YStep",0.0);
   Control.addVariable(keyName+"ZStep",zStep);
@@ -177,7 +195,7 @@ PortChicaneGenerator::generatePortChicane(FuncDataBase& Control,
   Control.addVariable(keyName+"Height",height);
   Control.addVariable(keyName+"Width",width);
   Control.addVariable(keyName+"ClearGap",clearGap);
-  Control.addVariable(keyName+"DownStep",downStep);
+  Control.addVariable(keyName+"DownStep",height-downGap);
   Control.addVariable(keyName+"OverHang",overHang);
   
   Control.addVariable(keyName+"InnerSkin",skinThick);
@@ -189,7 +207,11 @@ PortChicaneGenerator::generatePortChicane(FuncDataBase& Control,
   Control.addVariable(keyName+"WallThick",wallThick);
   Control.addVariable(keyName+"BaseThick",wallThick);
 
+  Control.addVariable(keyName+"FrontRemove",0);
+  Control.addVariable(keyName+"BackRemove",0);
+
   Control.addVariable(keyName+"WallMat",wallMat);
+  Control.addVariable(keyName+"SkinMat",skinMat);
   Control.addVariable(keyName+"PlateMat",plateMat);
 
        

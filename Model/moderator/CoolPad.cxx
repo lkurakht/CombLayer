@@ -3,7 +3,7 @@
  
  * File:   moderator/CoolPad.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,35 +33,19 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDivide.h"
-#include "surfDIter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -71,7 +55,10 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 #include "ContainedComp.h"
+#include "BaseMap.h"
+#include "CellMap.h"
 #include "boxValues.h"
 #include "boxUnit.h"
 #include "BoxLine.h"
@@ -141,24 +128,24 @@ CoolPad::populate(const FuncDataBase& Control)
   ELog::RegMethod RegA("CoolPad","populate");
 
   // Two keys : one with a number and the default
-  //  fixIndex=Control.EvalPair<size_t>(keyName,keyName,"FixIndex");
-  xStep=Control.EvalPair<double>(keyName,baseName,"XStep");
-  zStep=Control.EvalPair<double>(keyName,baseName,"ZStep");
-  thick=Control.EvalPair<double>(keyName,baseName,"Thick");
-  width=Control.EvalPair<double>(keyName,baseName,"Width");
-  height=Control.EvalPair<double>(keyName,baseName,"Height");
+  //  fixIndex=Control.EvalTail<size_t>(keyName,keyName,"FixIndex");
+  xStep=Control.EvalTail<double>(keyName,baseName,"XStep");
+  zStep=Control.EvalTail<double>(keyName,baseName,"ZStep");
+  thick=Control.EvalTail<double>(keyName,baseName,"Thick");
+  width=Control.EvalTail<double>(keyName,baseName,"Width");
+  height=Control.EvalTail<double>(keyName,baseName,"Height");
   Mat=ModelSupport::EvalMat<int>(Control,keyName+"Mat",baseName+"Mat");
-  const size_t nZ=Control.EvalPair<size_t>(keyName,baseName,"NZigZag");
+  const size_t nZ=Control.EvalTail<size_t>(keyName,baseName,"NZigZag");
   CPts.clear();
   for(size_t i=0;i<nZ;i++)
     {
       const std::string tagIndex="Cent"+std::to_string(i+1);
-      CPts.push_back(Control.EvalPair<Geometry::Vec3D>
+      CPts.push_back(Control.EvalTail<Geometry::Vec3D>
 		     (keyName,baseName,tagIndex));
     }
 
-  IWidth=Control.EvalPair<double>(keyName,baseName,"IWidth");
-  IDepth=Control.EvalPair<double>(keyName,baseName,"IDepth");
+  IWidth=Control.EvalTail<double>(keyName,baseName,"IWidth");
+  IDepth=Control.EvalTail<double>(keyName,baseName,"IDepth");
 
   IMat=ModelSupport::EvalMat<int>(Control,keyName+"IMat",baseName+"IMat");
   
@@ -224,7 +211,6 @@ CoolPad::createObjects(Simulation& System)
   System.addCell(MonteCarlo::Object(cellIndex++,Mat,0.0,Out));
   addOuterSurf(Out);
 
-
   return;
 }
 
@@ -242,7 +228,7 @@ CoolPad::createWaterTrack(Simulation& System)
   WaterTrack.addSection(IWidth,IDepth,IMat,0.0);
 
   WaterTrack.setInitZAxis(Y);
-  WaterTrack.createAll(System);
+  WaterTrack.build(System);
   // NoInsert();
   //  WaterTrack.insertPipeToCell(System,cellIndex-1);
   return;

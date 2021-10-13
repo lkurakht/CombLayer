@@ -13,26 +13,18 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "Object.h"
 #include "groupRange.h"
@@ -41,8 +33,6 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "stringCombine.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
@@ -50,7 +40,6 @@
 
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "AttachSupport.h"
 
 #include "OnionCooling.h"
 
@@ -154,6 +143,7 @@ OnionCooling::populate(const FuncDataBase& Control)
 }
 
 void
+<<<<<<< HEAD
 OnionCooling::createUnitVector(const attachSystem::FixedComp& FC)
   /*!
     Create the unit vectors
@@ -168,6 +158,8 @@ OnionCooling::createUnitVector(const attachSystem::FixedComp& FC)
 }
 
 void
+=======
+>>>>>>> origin/master
 OnionCooling::createSurfaces()
   /*!
     Create Surfaces for the Be
@@ -208,6 +200,7 @@ OnionCooling::createObjects(Simulation& System,
   /*!
     Create the onion piping
     \param System :: Simulation to add results
+    \param FC :: Fixd unit ot get cell map from
    */
 {
   ELog::RegMethod RegA("OnionCooling","createObjects");
@@ -276,28 +269,37 @@ OnionCooling::createLinks()
     Links/directions going outwards true.
   */
 {
-
   return;
 }
 
 
+<<<<<<< HEAD
 void OnionCooling::createAll(Simulation& System, const attachSystem::FixedComp& FC)
+=======
+void OnionCooling::createAll(Simulation& System,
+			     const attachSystem::FixedComp& FC,
+			     const long int sideIndex)
+>>>>>>> origin/master
 {
-  /*!
-    Extrenal build everything
+  /*!  Extrenal build everything 
+
+    In our case the reflector has to be built relative to an origin 
+    and an axes set.  If you take a simple
+    fixed object, then the axes is the axes set of this fixed object
+    and the origin is the origin of this fixed object, which does not
+    mean that the reflector and the object have the same origin,
+    that's just the way you start and then you add the next bits.
+
     \param System :: Simulation
     \param FC :: FixedComponent for origin
-
-    In our case the reflector has to be built relative to an origin and an axes set. 
-    If you take a simple fixed object, then the axes is the axes set of this fixed object and the origin is the origin of this fixed object,
-    which does not mean that the reflector and the object have the same origin, that's just the way you start and then you add the next bits.
+    \parma sideIndex :: lin point
    */
 
   ELog::RegMethod RegA("OnionCooling","createAll");
   // the order matters:
 
   populate(System.getDataBase()); // populate variables
-  createUnitVector(FC); // take fixed component, then apply shift and angle rotation (transformation) for this object centre
+  createUnitVector(FC,sideIndex); 
   createSurfaces();
   createObjects(System,FC);
   createLinks();

@@ -1,9 +1,9 @@
 /********************************************************************* 
-  CombLayer : MNCPX Input builder
+  CombLayer : MCNP(X) Input builder
  
  * File:   scatMat/DBNeutMaterial.cxx
  *
- * Copyright (c) 2004-2014 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,21 +37,16 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "Triple.h"
-#include "support.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "Element.h"
 #include "Zaid.h"
 #include "MXcards.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
+#include "Material.h"
 #include "Vec3D.h"
-#include "neutron.h"
 #include "SQWtable.h"
 #include "SEtable.h"
 #include "ENDFmaterial.h"
@@ -134,9 +129,9 @@ DBNeutMaterial::initMaterial()
 		(DB.getIndex("Li7ClD2O6Mol"),Li7Cl6DMol.clone()));
   MStore.insert(MTYPE::value_type(DB.getIndex("B4C"),B4C.clone()));
 
-  // Set MNCPX numbers:
-  for(MTYPE::value_type& MItem : MStore)
-    MItem.second->setNumber(MItem.first);
+  // Set MCNPX numbers:
+  for(const auto& [matN , matPtr] : MStore)
+    matPtr->setID(matN);
   
   return;
 }

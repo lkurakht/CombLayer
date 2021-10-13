@@ -3,7 +3,7 @@
  
  * File:   source/SourceCreate.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,39 +35,19 @@
 #include <functional>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "ManagedPtr.h"
-#include "mathSupport.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Code.h"
-#include "varList.h"
-#include "FuncDataBase.h"
-#include "Zaid.h"
-#include "MXcards.h"
-#include "Material.h"
-#include "DBMaterial.h"
-#include "SrcData.h"
-#include "SrcItem.h"
-#include "DSTerm.h"
-#include "Source.h"
 #include "surfRegister.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
-#include "BaseMap.h"
-#include "CellMap.h"
-#include "World.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
+#include "FixedRotateUnit.h"
 #include "particleConv.h"
 #include "inputSupport.h"
 #include "SourceBase.h"
@@ -78,23 +58,17 @@
 #include "GaussBeamSource.h"
 #include "ParabolicSource.h"
 #include "PointSource.h"
-#include "SurfNormSource.h"
 #include "LensSource.h"
 #include "KCodeSource.h"
-#include "doubleErr.h"
-#include "WorkData.h"
 #include "activeUnit.h"
 #include "activeFluxPt.h"
 #include "ActivationSource.h"
 #include "sourceDataBase.h"
 
-#include "SourceCreate.h" 
 
 
 namespace SDef
 {
-
-
   
 std::shared_ptr<SDef::SourceBase>
 makeActivationSource(const std::string& ASName)
@@ -198,6 +172,43 @@ createESSSource(const mainSystem::MITYPE& inputMap,
   return PSource.getKeyName();
 }
 
+
+std::string
+createBeamSource(const mainSystem::MITYPE& inputMap,
+		 const std::string& keyName,
+		 const attachSystem::FixedComp& FC,
+		 const long int sideIndex,
+		 const std::string& energyFile)
+  /*!
+    Creates a spectrum from a position with a given energy 
+    file spectrum [only for MCNP/PHITS.
+    \param inputMap :: inputMap system
+    \param FC :: Link point
+    \param sideIndex :: Link point [signed] 
+    \param energyFile  :: Energy file
+    \return keyName of source
+   */
+{
+  ELog::RegMethod RegA("SourceCreate","createBeamSource(energyFile)");
+
+  const particleConv& PC=particleConv::Instance();  
+  
+  sourceDataBase& SDB=sourceDataBase::Instance();
+
+  const double Emin=
+    mainSystem::getDefInput<double>(inputMap,"energyMin",0,1e-3); // 1keV
+  const double Emax=
+    mainSystem::getDefInput<double>(inputMap,"energyMax",0,1e-6); // 1MeV
+
+  BeamSource GX(keyName);
+
+  GX.setEnergyFile(energyFile,0,1,Emin,Emax);
+  GX.setParticle(PC.mcnpITYP("photon"));
+  GX.createAll(inputMap,FC,sideIndex);
+
+  SDB.registerSource(GX.getKeyName(),GX);  
+  return GX.getKeyName();      
+}
 
 std::string
 createWigglerSource(const mainSystem::MITYPE& inputMap,
@@ -431,6 +442,7 @@ createBeamSource(const mainSystem::MITYPE& inputMap,
 {
   ELog::RegMethod RegA("SourceCreate","createBeamSource");
 
+  ELog::EM<<"BEAM SORUCE "<<ELog::endDiag;
   sourceDataBase& SDB=sourceDataBase::Instance();
   BeamSource GX(keyName);
 
@@ -439,14 +451,37 @@ createBeamSource(const mainSystem::MITYPE& inputMap,
   return GX.getKeyName();      
 }
 
+std::string
+createBeamSource(const mainSystem::MITYPE& inputMap,
+		 const std::string& keyName,
+		 const Geometry::Vec3D& Org,
+		 const Geometry::Vec3D& Axis,
+		 const Geometry::Vec3D& ZAxis)
+  /*!
+    Create a beam source along an axis
+    \param inputMap :: Variables data base
+    \param keyName :: keyname for Gamma source
+    \param FC :: link surface for origin
+    \param sideIndex ::surface number
+    \return keyName of source
+   */
+{
+  ELog::RegMethod RegA("SourceCreate","createBeamSource");
 
+  sourceDataBase& SDB=sourceDataBase::Instance();
+  BeamSource GX(keyName);
+
+  GX.createAll(inputMap,Org,Axis,ZAxis);
+  SDB.registerSource(GX.getKeyName(),GX);  
+  return GX.getKeyName();      
+}
 
 std::string
 createFlukaSource(const mainSystem::MITYPE& inputMap,
 		  const std::string& keyName,
 		  const attachSystem::FixedComp& FC,
 		  const long int sideIndex)
-/*!
+  /*!
     Create the fluka source driven by the source.f routine
     Note this still can use both BEAM and BEAMAXIS
     \param inputMap :: Variables data base
@@ -454,7 +489,7 @@ createFlukaSource(const mainSystem::MITYPE& inputMap,
     \param FC :: link surface for origin
     \param sideIndex ::surface number
     \return keyName of source
-   */
+  */
 {
   ELog::RegMethod RegA("SourceCreate","createFlukaSource");
 
@@ -463,7 +498,32 @@ createFlukaSource(const mainSystem::MITYPE& inputMap,
 
   GX.createAll(inputMap,FC,sideIndex);
   SDB.registerSource(GX.getKeyName(),GX);
-  ELog::EM<<"Axis = "<<FC.getLinkAxis(sideIndex)<<ELog::endDiag;
+
+  return GX.getKeyName();      
+}
+
+std::string
+createTDCSource(const mainSystem::MITYPE& inputMap,
+		  const std::string& keyName,
+		  const attachSystem::FixedComp& FC,
+		  const long int sideIndex)
+  /*!
+    Create the fluka source driven by the source.f routine
+    Note this still can use both BEAM and BEAMAXIS
+    \param inputMap :: Variables data base
+    \param keyName :: keyname for FlukaSource
+    \param FC :: link surface for origin
+    \param sideIndex ::surface number
+    \return keyName of source
+  */
+{
+  ELog::RegMethod RegA("SourceCreate","createFlukaSource");
+
+  sourceDataBase& SDB=sourceDataBase::Instance();
+  FlukaSource GX(keyName);
+
+  GX.createAll(inputMap,FC,sideIndex);
+  SDB.registerSource(GX.getKeyName(),GX);
 
   return GX.getKeyName();      
 }
@@ -482,7 +542,7 @@ createRectSource(const mainSystem::MITYPE& inputMap,
     \return keyName of source
    */
 {
-  ELog::RegMethod RegA("SourceCreate","createBeamSource");
+  ELog::RegMethod RegA("SourceCreate","createRectSource");
 
   sourceDataBase& SDB=sourceDataBase::Instance();
   RectangleSource GX(keyName);

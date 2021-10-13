@@ -33,32 +33,17 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -67,10 +52,8 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
 #include "FixedRotate.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
@@ -113,7 +96,7 @@ LCollimator::populate(const FuncDataBase& Control)
   innerBHeight=Control.EvalVar<double>(keyName+"InnerBHeight");
   
   mat=ModelSupport::EvalMat<int>(Control,keyName+"Mat");
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   
   return;
 }
@@ -158,8 +141,8 @@ LCollimator::createSurfaces()
   const Geometry::Vec3D backPt(Origin-X*innerBWidth+Y*(length/2.0)
 			       -Z*innerBHeight);
 
-  const Geometry::Vec3D innerX(Origin-X*innerBWidth+Y*(length/2.0));
-  const Geometry::Vec3D innerZ(Origin-Z*innerBHeight+Y*(length/2.0));
+  const Geometry::Vec3D innerX(frontPt+Z);
+  const Geometry::Vec3D innerZ(frontPt+X);
 
   ModelSupport::buildPlane(SMap,buildIndex+13,frontPt,backPt,innerX,X);
   ModelSupport::buildPlane(SMap,buildIndex+15,frontPt,backPt,innerZ,Z);

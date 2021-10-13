@@ -3,7 +3,11 @@
  
  * File:   essBuild/essVariables.cxx
  *
+<<<<<<< HEAD
  * Copyright (c) 2004-2017 by Stuart Ansell/Konstantin Batkov
+=======
+ * Copyright (c) 2004-2021 by Stuart Ansell/Konstantin Batkov
+>>>>>>> origin/master
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,12 +41,8 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "support.h"
 #include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Code.h"
 #include "varList.h"
@@ -250,7 +250,7 @@ EssVariables(mainSystem::inputParam& IParam,FuncDataBase& Control)
   Control.addVariable("TSMainBuildingXYangle", 0.0);
   Control.addVariable("TSMainBuildingZangle", 0.0);
   Control.addVariable("TSMainBuildingLength", 2200*2.0);
-  Control.addVariable("TSMainBuildingWidth",  1090*2.0);
+  Control.addVariable("TSMainBuildingWidth",  890*2.0);  // from 1090
   Control.addVariable("TSMainBuildingHeight", 1000.0);
   Control.addVariable("TSMainBuildingDepth",  750.0);
   Control.addVariable("TSMainBuildingMainMat",  "Concrete");
@@ -719,17 +719,7 @@ EssInstrumentVariables(const std::set<std::string>& BL,
      {"TREX",        &TREXvariables},
      {"TESTBEAM",    &TESTBEAMvariables},
      {"VESPA",       &VESPAvariables},
-     {"VOR",         &VORvariables},
-     {"SHORTNMX",    &NMXvariables},
-     {"SHORTNMX",    &shortNMXvariables},
-     {"SHORTDREAM",  &DREAMvariables},
-     {"SHORTDREAM",  &shortDREAMvariables},
-     {"SHORTDREAM2", &DREAMvariables},
-     {"SHORTDREAM2", &shortDREAM2variables},
-     {"SHORTODIN",   &ODINvariables},
-     {"SHORTODIN",   &shortODINvariables}
-
-       
+     {"VOR",         &VORvariables}
    });
 
   

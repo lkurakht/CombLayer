@@ -3,7 +3,7 @@
  
  * File:   commonBeam/FlangeMountGenerator.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,18 +35,10 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
@@ -183,7 +175,7 @@ FlangeMountGenerator::setBlade(const double W,const double H,
 			       const int BF)
   /*!
     Set the blade
-    \param H :: heigh of bea
+    \param H :: heigh of blade
     \param W :: Width of blade (across beam)
     \param T :: Thickness of blade
     \param Ang :: Angle of blade

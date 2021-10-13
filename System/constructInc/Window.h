@@ -3,7 +3,7 @@
  
  * File:   constructInc/Window.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,8 +59,6 @@ class Window : public attachSystem::ContainedComp,
   std::vector<int> layerMat;        ///< Material number [nlayer]
   std::vector<int> layerSurf;       ///< Surface layres
   
-  void createUnitVector(const attachSystem::FixedComp&);
-
   void createCentre(Simulation&);
   void createSurfaces();
   void createObjects(Simulation&);
@@ -73,14 +71,13 @@ class Window : public attachSystem::ContainedComp,
   Window& operator=(const Window&);
   ~Window();
 
-  std::string getComposite(const std::string&) const;
-
   void setSize(const double,const double);
   void setCentre(const Geometry::Vec3D&,const Geometry::Vec3D&);
   void setBaseCell(const int);
   
   void createAll(Simulation&,
-		 const attachSystem::FixedComp&);
+		 const attachSystem::FixedComp&,
+		 const long int);
 };
 
 }

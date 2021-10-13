@@ -3,7 +3,7 @@
  
  * File:   attachComp/ExtractCut.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,24 +36,12 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Surface.h"
 #include "surfRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
-#include "varList.h"
-#include "Code.h"
 #include "HeadRule.h"
 #include "generateSurf.h"
 #include "LinkUnit.h"  
@@ -64,6 +52,16 @@
 namespace attachSystem
 {
 
+std::ostream&
+operator<<(std::ostream& OX,const ExternalCut& A)
+  /*!
+    Stream output
+   */
+{
+  A.write(OX);
+  return OX;
+}
+  
 ExternalCut::ExternalCut() 
   /*!
     Constructor [default]
@@ -143,7 +141,8 @@ ExternalCut::getUnit(const std::string& extName)
   
   return mx.first->second;
 }
-  
+
+
 void
 ExternalCut::copyCutSurf(const std::string& extName,
 			const ExternalCut& ESurf,
@@ -155,7 +154,7 @@ ExternalCut::copyCutSurf(const std::string& extName,
     \param outerName :: external-cut name
   */
 {
-  ELog::RegMethod RegA("ExternalCut","copyCutSurf(ExternalCut)");
+  ELog::RegMethod RegA("ExternalCut","setCutSurf(ExternalCut)");
 
   cutUnit& A=getUnit(extName);
   const cutUnit* BPtr=ESurf.findUnit(otherName);
@@ -164,9 +163,12 @@ ExternalCut::copyCutSurf(const std::string& extName,
       (otherName,"Other exteralCut not found");
 
   A = *BPtr;
+  A.main.populateSurf();
+  A.divider.populateSurf();
+	
   return;
 }
-
+  
 void
 ExternalCut::setCutSurf(const std::string& extName,
 			const int ESurf)
@@ -199,6 +201,7 @@ ExternalCut::setCutSurf(const std::string& extName,
   cutUnit& A=getUnit(extName);
   A.main=ESurfHR;
   A.divider.reset();
+  A.main.populateSurf();
   return;
 }
 
@@ -220,6 +223,7 @@ ExternalCut::setCutSurf(const std::string& extName,
     throw ColErr::InvalidLine(ERule,"ERule failed");
   A.main.populateSurf();
   A.divider.reset();
+  
   return;
 }
 
@@ -242,24 +246,25 @@ ExternalCut::setCutSurf(const std::string& extName,
 
 void
 ExternalCut::setCutSurf(const std::string& extName,
-		     const attachSystem::FixedComp& WFC,
-		     const long int sideIndex)
-  /*!
+			const attachSystem::FixedComp& WFC,
+			const long int sideIndex)
+/*!
     Set a surface from a linkpoint
     \param extName :: external-cut name
     \param WFC :: Fixedcomp
     \param sideIndex :: link point
   */
 {
-  ELog::RegMethod RegA("ExternalCut","setCutSurf");
+  ELog::RegMethod RegA("ExternalCut","setCutSurf(FC,long)");
 
-  // FixedComp::setLinkSignedCopy(0,FC,sideIndex);
+  // FixedComp::setLinkCopy(0,FC,sideIndex);
   cutUnit& A=getUnit(extName);
-  
+
   A.main=WFC.getMainRule(sideIndex);
   A.divider=WFC.getCommonRule(sideIndex);
   A.main.populateSurf();
   A.divider.populateSurf();
+  
   return;
 }
 
@@ -273,7 +278,7 @@ ExternalCut::setCutDivider(const std::string& extName,
     \param EDRule :: Divider rule
   */
 {
-  ELog::RegMethod RegA("ExternalCut","setCutDivider");
+  ELog::RegMethod RegA("ExternalCut","setCutDivider(string)");
   
   cutUnit& A=getUnit(extName);
   if (!A.divider.procString(EDRule))
@@ -296,6 +301,7 @@ ExternalCut::setCutDivider(const std::string& extName,
   
   cutUnit& A=getUnit(extName);
   A.divider=HR;
+  A.divider.populateSurf();
   return;
 }
 
@@ -348,7 +354,7 @@ ExternalCut::getRule(const std::string& extName) const
   /*!
     Accessor to main rule
     \param extName :: external-cut name
-    \return frontRule with divider
+    \return frontRule without divider
   */
 {
   ELog::RegMethod RegA("ExternalCut","getRule");
@@ -356,6 +362,18 @@ ExternalCut::getRule(const std::string& extName) const
   
   const cutUnit* CU=findUnit(extName);
   return (CU) ? CU->main :  nullOut;    
+}
+
+HeadRule
+ExternalCut::getComplementRule(const std::string& extName) const
+  /*!
+    Accessor to main rule
+    \param extName :: external-cut name
+    \return frontRule without divider (in complement form)
+  */
+{
+  ELog::RegMethod RegA("ExternalCut","getComplementRule");
+  return getRule(extName).complement();
 }
 
 const HeadRule&
@@ -373,6 +391,23 @@ ExternalCut::getDivider(const std::string& extName) const
   return (CU) ? CU->divider :  nullOut;    
 }
 
+HeadRule
+ExternalCut::getValidRule(const std::string& extName,
+			  const Geometry::Vec3D& Pt) const
+  /*!
+    Get a rule and make it true relative to the test point0
+    \param extName :: external-cut name
+    \param Pt :: point to test
+    \return frontRule on a valid direction to pt
+  */
+{
+  ELog::RegMethod RegA("ExternalCut","getValidRule");
+  static HeadRule nullOut;
+  
+  const cutUnit* CU=findUnit(extName);
+  return (CU) ? CU->main.makeValid(Pt) :  nullOut;    
+}
+
 void
 ExternalCut::createLink(const std::string& extName,
 			attachSystem::FixedComp& FC,
@@ -380,7 +415,9 @@ ExternalCut::createLink(const std::string& extName,
 			const Geometry::Vec3D& Org,
 			const Geometry::Vec3D& YAxis) const
   /*!
-    Generate the front/back links if active
+    Generate the front/back links if active from a named surface
+    The intersect of the line Org + lamdba.YAxis with the surface
+    is used as the link point.
     \param extName :: Cut Unit item
     \param FC :: Fixed component [most likely this]
     \param linkIndex :: link point to build
@@ -388,32 +425,35 @@ ExternalCut::createLink(const std::string& extName,
     \param YAxis :: YAxis
    */
 {
-  ELog::RegMethod RegA("ExternalCut","createLinks");
+  ELog::RegMethod RegA("ExternalCut","createLink");
 
   const cutUnit* CU=findUnit(extName);
   if (CU)  
     {
+      if (CU->main.isEmpty())
+	throw ColErr::InContainerError<std::string>
+	  (extName,"FC:"+FC.getKeyName()+" has no surface rule");
 
+      const std::string keyN=FC.getKeyName();
       FC.setLinkSurf(linkIndex,CU->main.complement());
       FC.setBridgeSurf(linkIndex,CU->divider);
       FC.setConnect(linkIndex,
-	 SurInter::getLinePoint(Org+YAxis*10.0,-YAxis,CU->main,CU->divider),YAxis);
+	 SurInter::getLinePoint(Org+YAxis,-YAxis,CU->main,CU->divider),YAxis);
     }
   return;
 }
   
-
-
 void
 ExternalCut::makeShiftedSurf(ModelSupport::surfRegister& SMap,
 			     const HeadRule& HR,
-			     const int index,
-			     const int dFlag,
+			     const int newSN,
 			     const Geometry::Vec3D& YAxis,
 			     const double length)
   /*!
     Support function to calculate the shifted surface based
-    on surface type and form
+    on surface type and form. Shift is in the YAxis IF a cylinder.
+
+    \todo allow planes to be moved by a distanse in YAxis.
     \param SMap :: local surface register
     \param HR :: HeadRule to extract plane surf
     \param index :: offset index
@@ -422,13 +462,13 @@ ExternalCut::makeShiftedSurf(ModelSupport::surfRegister& SMap,
     \param length :: length to shift by
   */
 {
-  ELog::RegMethod RegA("ExternalCut","makeShiftedSurf");
+  ELog::RegMethod RegA("ExternalCut","makeShiftedSurf(HR)");
   
   std::set<int> FS=HR.getSurfSet();
-  for(const int& SN : FS)
+  for(const int& refSN : FS)
     {
       const Geometry::Surface* SPtr=
-	ModelSupport::buildShiftedSurf(SMap,SN,index,dFlag,YAxis,length);
+	ModelSupport::buildShiftedSurf(SMap,newSN,refSN,YAxis,length);
       if (SPtr) return;
     }
   throw ColErr::EmptyValue<int>("HeadRule contains no planes/cylinder");
@@ -483,7 +523,6 @@ ExternalCut::interPoint(const std::string& extName,
   if (!CU) 
     throw ColErr::InContainerError<std::string>(extName,"Unit not found");
   
-  
   return SurInter::getLinePoint(Centre,CAxis,CU->main,CU->divider);
 }
 
@@ -491,19 +530,17 @@ ExternalCut::interPoint(const std::string& extName,
 
 void
 ExternalCut::makeShiftedSurf(ModelSupport::surfRegister& SMap,
-			    const std::string& extName,
-			    const int index,
-			    const int dFlag,
-			    const Geometry::Vec3D& YAxis,
-			    const double length) const
+			     const std::string& extName,
+			     const int newSN,
+			     const Geometry::Vec3D& YAxis,
+			     const double length) const
   /*!
     Support function to calculate the shifted surface based
     on surface type and form
     \param SMap :: local surface register
     \param extName :: cut unit name
-    \param index :: offset index
-    \param dFlag :: direction of surface axis (relative to HR.Plane) [-1/1]
-    \param YAxis :: Direction of cylindical shift [NOT PLANE]
+    \param newSN :: new surface number
+    \param YAxis :: Direction of normal/shift (approximate)
     \param dExtra :: displacement extra [cm]
   */
 {
@@ -513,7 +550,7 @@ ExternalCut::makeShiftedSurf(ModelSupport::surfRegister& SMap,
   if (!CU)
     throw ColErr::InContainerError<std::string>(extName,"Unit not named");
   
-  makeShiftedSurf(SMap,CU->main,index,dFlag,YAxis,length);
+  makeShiftedSurf(SMap,CU->main,newSN,YAxis,length);
 
   return;
 }
@@ -545,5 +582,20 @@ ExternalCut::makeExpandedSurf(ModelSupport::surfRegister& SMap,
   return;
 }
 
-  
+void
+ExternalCut::write(std::ostream& OX) const
+  /*!
+    Debug stream output
+    \param OX :: Output stream
+   */
+{
+  for(const auto& [name,CU] : cutItems)
+    {
+      OX<<"["<<name<<"]:Main == "<<CU.main<<"\n";
+      OX<<"["<<name<<"]:divider == "<<CU.divider<<"\n";
+      OX<<std::endl;
+    }
+  return;
+}
+
 }  // NAMESPACE attachSystem

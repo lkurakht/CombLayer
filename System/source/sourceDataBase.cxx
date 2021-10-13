@@ -36,39 +36,14 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "localRotate.h"
-#include "masterRotate.h"
-#include "support.h"
-#include "varList.h"
-#include "Code.h"
-#include "FuncDataBase.h"
-#include "stringCombine.h"
-#include "surfIndex.h"
-#include "surfRegister.h"
-#include "HeadRule.h"
-#include "LinkUnit.h"
-#include "FixedComp.h"
-#include "FixedGroup.h"
-#include "ContainedComp.h"
-#include "SpaceCut.h"
-#include "ContainedGroup.h"
-#include "BaseMap.h"
-#include "CellMap.h"
-#include "SurfMap.h"
 #include "inputSupport.h"
 #include "SourceBase.h"
 #include "sourceDataBase.h"
 
-#include "FixedOffset.h"
-#include "PointSource.h"
 
 namespace SDef
 {
@@ -140,7 +115,6 @@ sourceDataBase::getInternalSource(const std::string& Name) const
   ELog::RegMethod RegA("sourceDataBase","getInternalSource() const");
 
   SMAP::const_iterator mc=Components.find(Name);
-  ELog::EM<<"Get item == "<<Name<<ELog::endDiag;
   return (mc!=Components.end()) ? mc->second.get() : 0;
 }
 

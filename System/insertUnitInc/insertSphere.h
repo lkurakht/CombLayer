@@ -3,7 +3,7 @@
  
  * File:   insertUnitInc/insertSphere.h
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,6 +56,7 @@ class insertSphere : public insertObject
  public:
 
   insertSphere(const std::string&);
+  insertSphere(const std::string&,const std::string&);
   insertSphere(const insertSphere&);
   insertSphere& operator=(const insertSphere&);
   virtual ~insertSphere();
@@ -63,6 +64,7 @@ class insertSphere : public insertObject
   void setValues(const double,const int);
   void setValues(const double,const std::string&);
 
+  using FixedComp::createAll;
   void createAll(Simulation&,const Geometry::Vec3D&,
 		 const attachSystem::FixedComp&);
 

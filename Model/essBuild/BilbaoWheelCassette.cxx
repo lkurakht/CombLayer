@@ -3,7 +3,7 @@
 
  * File:   essBuild/BilbaoWheelCassette.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell / Konstantin Batkov
+ * Copyright (c) 2004-2019 by Stuart Ansell / Konstantin Batkov
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,37 +35,25 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
 #include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
 #include "Quadratic.h"
-#include "Plane.h"
 #include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ReadFunctions.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
@@ -73,13 +61,7 @@
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
-#include "BaseMap.h"
-#include "surfDBase.h"
-#include "surfDIter.h"
-#include "surfDivide.h"
 #include "SurInter.h"
-#include "mergeTemplate.h"
-#include "AttachSupport.h"
 
 #include "BilbaoWheelCassette.h"
 
@@ -95,7 +77,9 @@ namespace essSystem
   commonName(baseKey+extraKey)
   /*!
     Constructor BUT ALL variable are left unpopulated.
-    \param Key :: Name for item in search
+    \param baseKey :: Name for item in search
+    \param extraKey :: individual key name
+    \param Index :: counter of unit
   */
 {}
 
@@ -288,13 +272,13 @@ BilbaoWheelCassette::populate(const FuncDataBase& Control)
   FixedOffset::populate(Control);
 
 
-  engActive=Control.EvalPair<int>(keyName,"","EngineeringActive");
-  bricksActive=Control.EvalDefPair<int>(keyName,commonName,"BricksActive", 0);
+  engActive=Control.EvalTail<int>(keyName,"","EngineeringActive");
+  bricksActive=Control.EvalDefTail<int>(keyName,commonName,"BricksActive", 0);
 
   const double nSectors = Control.EvalVar<double>(baseName+"NSectors");
   delta = 360.0/nSectors;
 
-  wallThick=Control.EvalPair<double>(keyName,commonName,"WallThick");
+  wallThick=Control.EvalTail<double>(keyName,commonName,"WallThick");
   wallThick /= 2.0; // there is half wall from each side of neighbouring sectors
   wallMat=ModelSupport::EvalMat<int>(Control,commonName+"WallMat",
 				     keyName+"WallMat");
@@ -304,29 +288,29 @@ BilbaoWheelCassette::populate(const FuncDataBase& Control)
   temp=Control.EvalVar<double>(baseName+"Temp");
 
   // for detailed wall geometry (if bricksActive=true)
-  nWallSeg=Control.EvalPair<size_t>(keyName,commonName,"NWallSeg");
+  nWallSeg=Control.EvalTail<size_t>(keyName,commonName,"NWallSeg");
   for (size_t i=0; i<nWallSeg; i++)
     {
-      wallSegLength.push_back(Control.EvalPair<double>
+      wallSegLength.push_back(Control.EvalTail<double>
 			      (keyName,commonName,
 			       "WallSegLength"+std::to_string(i)));
-      nBricks.push_back(Control.EvalPair<size_t>
+      nBricks.push_back(Control.EvalTail<size_t>
 			(keyName,commonName,
 			 "WallSegNBricks"+std::to_string(i)));
     }
   wallSegDelta=delta/2.0; // otherwise wall planes near bricks are not parallel
-  wallSegThick=Control.EvalPair<double>(keyName,commonName,"WallSegThick");
+  wallSegThick=Control.EvalTail<double>(keyName,commonName,"WallSegThick");
 
-  brickWidth=Control.EvalPair<double>(keyName,commonName,"BrickWidth");
-  brickLength=Control.EvalPair<double>(keyName,commonName,"BrickLength");
-  brickGap=Control.EvalPair<double>(keyName,commonName,"BrickGap");
+  brickWidth=Control.EvalTail<double>(keyName,commonName,"BrickWidth");
+  brickLength=Control.EvalTail<double>(keyName,commonName,"BrickLength");
+  brickGap=Control.EvalTail<double>(keyName,commonName,"BrickGap");
   brickSteelMat=ModelSupport::EvalMat<int>(Control,commonName+"BrickSteelMat",
 					   keyName+"BrickSteelMat");
   brickWMat=ModelSupport::EvalMat<int>(Control,commonName+"BrickWMat",
 				       keyName+"BrickWMat");
-  nSteelRows=Control.EvalPair<size_t>(keyName,commonName,"NSteelRows");
+  nSteelRows=Control.EvalTail<size_t>(keyName,commonName,"NSteelRows");
 
-  pipeCellThick=Control.EvalPair<double>(keyName,commonName,"PipeCellThick");
+  pipeCellThick=Control.EvalTail<double>(keyName,commonName,"PipeCellThick");
   pipeCellMat=ModelSupport::EvalMat<int>(Control,commonName+"PipeCellMat",
 					 keyName+"PipeCellMat");
 
@@ -650,9 +634,6 @@ BilbaoWheelCassette::createLinks()
 
   return;
 }
-
-
-
 
 void
 BilbaoWheelCassette::createAll(Simulation& System,

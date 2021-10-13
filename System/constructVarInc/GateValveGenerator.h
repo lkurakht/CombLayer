@@ -3,7 +3,7 @@
  
  * File:   constructVarInc/GateValveGenerator.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,24 +40,31 @@ class GateValveGenerator
  private:
 
   double length;                ///< Void length
+  double radius;                ///< Radius if round
   double width;                 ///< Void width (full)
   double height;                ///< height 
   double depth;                 ///< depth
   
   double wallThick;             ///< Wall thickness
-  double portRadius;            ///< Port inner radius (opening)
-  double portThick;             ///< Port outer ring
-  double portLen;               ///< Forward step of port
+
+  double portARadius;            ///< Port inner radius (opening)
+  double portAThick;             ///< Port outer ring
+  double portALen;               ///< Forward step of port
+
+  double portBRadius;            ///< Port inner radius (opening)
+  double portBThick;             ///< Port outer ring
+  double portBLen;               ///< Forward step of port
   
-  bool closed;                  ///< Shutter closed
   double bladeLift;             ///< Height of blade up
   double bladeThick;            ///< moving blade thickness
   double bladeRadius;           ///< moving blade radius
-  
+
+  double liftWidth;             ///< Lifting width
+  double liftHeight;            ///< Height of lifting space
+
   std::string voidMat;          ///< Void material
   std::string bladeMat;         ///< Void material
   std::string wallMat;          ///< Pipe material
-    
 
  public:
 
@@ -66,16 +73,27 @@ class GateValveGenerator
   GateValveGenerator& operator=(const GateValveGenerator&);
   ~GateValveGenerator();
 
-  template<typename CF> void setCF();
+  template<typename CF> void setCylCF();
+  template<typename CF> void setCubeCF();
+  template<typename CF> void setAPortCF();
+  template<typename CF> void setBPortCF();
+
+  template<typename innerCF,typename outerCF> void setPortPairCF();
+
   
   /// set wall thickness
   void setWallThick(const double T) { wallThick=T; }
+  /// set blade thickness
+  void setBladeThick(const double T) { bladeThick=T; }
 
   /// set total thickness
   void setLength(const double L) { length=L; }
   void setOuter(const double,const double,
 		const double,const double);
   void setPort(const double,const double,const double);
+  void setAPort(const double,const double,const double);
+  void setBPort(const double,const double,const double);
+  
   /// set void material
   void setVoidMat(const std::string& M) { voidMat=M; }
   /// set wall material

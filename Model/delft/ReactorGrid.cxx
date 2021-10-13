@@ -37,7 +37,6 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
@@ -45,29 +44,14 @@
 #include "BaseModVisit.h"
 #include "support.h"
 #include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "surfDIter.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDivide.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "LineIntersectVisit.h"
-#include "Rules.h"
-#include "SurInter.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
-#include "SimProcess.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -82,7 +66,6 @@
 #include "FixedComp.h"
 #include "FixedOffset.h" 
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
@@ -645,7 +628,6 @@ ReactorGrid::getFuelCells(const Simulation& System,
    */
 {
   ELog::RegMethod RegA("ReactorGrid","getFuelCells");
-  const ModelSupport::DBMaterial& DB=ModelSupport::DBMaterial::Instance();
   
   std::vector<int> cellOut;
   for(long int i=0;i<static_cast<long int>(NX);i++)
@@ -660,9 +642,8 @@ ReactorGrid::getFuelCells(const Simulation& System,
 		System.findObject(index);
 	      if (OPtr)
 		{
-		  const int matN=OPtr->getMat();
-		  const MonteCarlo::Material& cellMat=DB.getMaterial(matN);
-		  if (cellMat.hasZaid(zaid,0,0))
+		  const MonteCarlo::Material* matPtr=OPtr->getMatPtr();
+		  if (matPtr->hasZaid(zaid,0,0))
 		    cellOut.push_back(index);
 		}
 	    }

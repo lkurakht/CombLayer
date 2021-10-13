@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   physics/cellValueSet.cxx
+ * File:   flukaProcess/cellValueSet.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,20 +37,14 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "support.h"
 #include "stringCombine.h"
 #include "writeSupport.h"
-#include "MapRange.h"
-#include "Triple.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 
-#include "particleConv.h"
 #include "cellValueSet.h"
 
 namespace flukaSystem
@@ -396,10 +390,16 @@ cellValueSet<N>::setValues(const int cN,
   */
 {
   valTYPE A;
-  A[0].first=1;
-  A[0].second=StrFunc::makeString(V);
-  A[1].first=1;
-  A[1].second=StrFunc::makeString(V2);
+  if constexpr (N>0)
+    {
+      A[0].first=1;
+      A[0].second=StrFunc::makeString(V);
+    }
+  else if constexpr (N>1)
+    {
+      A[1].first=1;
+      A[1].second=StrFunc::makeString(V2);
+    }
   dataMap[cN]=A;
   return;
 }
@@ -417,12 +417,22 @@ cellValueSet<N>::setValues(const int cN,const double V,
   */
 {
   valTYPE A;
-  A[0].first=1;         // 1: values
-  A[0].second=StrFunc::makeString(V);
-  A[1].first=1;
-  A[1].second=StrFunc::makeString(V2);
-  A[2].first=1;
-  A[2].second=StrFunc::makeString(V3);
+  if constexpr (N>0)
+    {		 
+      A[0].first=1;         // 1: values
+      A[0].second=StrFunc::makeString(V);
+    }
+  else if constexpr (N>1)
+    {
+      A[1].first=1;
+      A[1].second=StrFunc::makeString(V2);
+    }
+  else if constexpr (N>2)
+    {
+      A[2].first=1;
+      A[2].second=StrFunc::makeString(V3);
+    }
+    
   dataMap[cN]=A;
   return;
 }
@@ -461,18 +471,20 @@ cellValueSet<N>::setValues(const int cN,const std::string& V1,
   */
 {
   valTYPE A;
-  const std::vector<const std::string*> VStr({&V1,&V2});
-  for(size_t i=0;i<VStr.size() && i<N;i++)
-    {
-      if (*VStr[i]=="def" || *VStr[i]=="Def")
-	A[i].first=0;
-      else
+  if constexpr (N>0)
+    {		 
+      const std::vector<const std::string*> VStr({&V1,&V2});
+      for(size_t i=0;i<2 && i<N;i++)
 	{
-	  double D;
-	  A[i].first= (StrFunc::convert(*VStr[i],D)) ? 1 : -1;
-	  A[i].second= *VStr[i];
+	  if (*VStr[i]=="def" || *VStr[i]=="Def")
+	    A[i].first=0;
+	  else
+	    {
+	      double D;
+	      A[i].first= (StrFunc::convert(*VStr[i],D)) ? 1 : -1;
+	      A[i].second= *VStr[i];
+	    }
 	}
-      
     }
   dataMap[cN]=A;
   return;

@@ -3,7 +3,7 @@
  
  * File:   construct/OffsetFlangePipe.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,31 +34,18 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -69,10 +56,9 @@
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "SurfMap.h"
 
@@ -212,7 +198,7 @@ OffsetFlangePipe::populate(const FuncDataBase& Control)
   flangeBZAngle=Control.EvalDefVar<double>
     (keyName+"FlangeBackZAngle",0.0);
 
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   feMat=ModelSupport::EvalMat<int>(Control,keyName+"FeMat");
 
   return;
@@ -293,7 +279,7 @@ OffsetFlangePipe::createSurfaces()
 			       Origin-Y*(length/2.0),flangeAYAxis); 
       FrontBackCut::setFront(SMap.realSurf(buildIndex+1));
     }
-  getShiftedFront(SMap,buildIndex+11,1,flangeAYAxis,flangeALength);
+  getShiftedFront(SMap,buildIndex+11,flangeAYAxis,flangeALength);
 
   
   if (!backActive())
@@ -309,7 +295,7 @@ OffsetFlangePipe::createSurfaces()
 			       Origin+Y*(length/2.0),flangeBYAxis);
       FrontBackCut::setBack(-SMap.realSurf(buildIndex+2));
     }
-  getShiftedBack(SMap,buildIndex+12,-1,flangeBYAxis,flangeBLength);
+  getShiftedBack(SMap,buildIndex+12,flangeBYAxis,-flangeBLength);
 
   ModelSupport::buildCylinder(SMap,buildIndex+7,Origin,Y,radius);
   ModelSupport::buildCylinder(SMap,buildIndex+17,Origin,Y,radius+feThick);
@@ -391,9 +377,13 @@ OffsetFlangePipe::createLinks()
   FixedComp::setLinkSurf(7,SMap.realSurf(buildIndex+17));
   FixedComp::setLinkSurf(8,SMap.realSurf(buildIndex+17));
 
+  FixedComp::nameSideIndex(7,"outerPipe");
+  FixedComp::nameSideIndex(7,"pipeOuterBase");
+  FixedComp::nameSideIndex(8,"pipeOuterTop");
+
   // flange mid point
-  FixedComp::setLinkSignedCopy(9,*this,1);
-  FixedComp::setLinkSignedCopy(10,*this,2);
+  FixedComp::setLinkCopy(9,*this,1);
+  FixedComp::setLinkCopy(10,*this,2);
   FixedComp::setConnect
     (9,FixedComp::getLinkPt(1)+X*flangeAXStep+Z*flangeAZStep,flangeAYAxis);
   FixedComp::setConnect
@@ -403,9 +393,8 @@ OffsetFlangePipe::createLinks()
 }
   
 void
-OffsetFlangePipe::setFront(const attachSystem::FixedComp& FC,
-			   const long int sideIndex,
-			   const bool joinFlag)
+OffsetFlangePipe::setJoinFront(const attachSystem::FixedComp& FC,
+			       const long int sideIndex)
   /*!
     Set front surface
     \param FC :: FixedComponent 
@@ -417,36 +406,31 @@ OffsetFlangePipe::setFront(const attachSystem::FixedComp& FC,
 
   
   FrontBackCut::setFront(FC,sideIndex);
-  if (joinFlag)
-    {
-      frontJoin=1;
-      FPt=FC.getLinkPt(sideIndex);
-      FAxis=FC.getLinkAxis(sideIndex);
-    }
+
+  frontJoin=1;
+  FPt=FC.getLinkPt(sideIndex);
+  FAxis=FC.getLinkAxis(sideIndex);
     
   return;
 }
   
 void
-OffsetFlangePipe::setBack(const attachSystem::FixedComp& FC,
-			  const long int sideIndex,
-			  const bool joinFlag)
+OffsetFlangePipe::setJoinBack(const attachSystem::FixedComp& FC,
+			  const long int sideIndex)
   /*!
     Set Back surface
     \param FC :: FixedComponent 
     \param sideIndex ::  Direction to link
-    \param joinFlag :: joint front to link object 
    */
 {
   ELog::RegMethod RegA("OffsetFlangePipe","setBack");
   
   FrontBackCut::setBack(FC,sideIndex);
-  if (joinFlag)
-    {
-      backJoin=1;
-      BPt=FC.getLinkPt(sideIndex);
-      BAxis=FC.getLinkAxis(sideIndex);
-    }
+  
+  backJoin=1;
+  BPt=FC.getLinkPt(sideIndex);
+  BAxis=FC.getLinkAxis(sideIndex);
+
   return;
 }
   

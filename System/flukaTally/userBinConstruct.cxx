@@ -3,7 +3,7 @@
  
  * File:   flukaTally/userBinConstruct.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,32 +38,19 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "support.h"
-#include "stringCombine.h"
-#include "surfRegister.h"
-#include "Rules.h"
-#include "HeadRule.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "LinkUnit.h"
-#include "FixedComp.h"
-#include "LinkSupport.h"
 #include "inputParam.h"
 
 #include "SimFLUKA.h"
 #include "flukaGenParticle.h"
-#include "TallySelector.h"
 #include "meshConstruct.h"
 #include "flukaTally.h"
 #include "userBin.h"
@@ -94,7 +81,7 @@ userBinConstruct::createTally(SimFLUKA& System,
 {
   ELog::RegMethod RegA("userBinConstruct","createTally");
 
-  userBin UB(fortranTape);
+  userBin UB(fortranTape,fortranTape);
   UB.setParticle(PType);
   UB.setCoordinates(APt,BPt);
   UB.setIndex(MPts);
@@ -114,14 +101,8 @@ userBinConstruct::convertTallyType(const std::string& TType)
   ELog::RegMethod RegA("userBinConstruct","convertTallyType");
   const flukaGenParticle& pConv=flukaGenParticle::Instance();
   
-  if (TType=="help")
-    {
-      ELog::EM<<"Tally Type:"<<ELog::endDiag;
-      ELog::EM<<" -- Particle"<<ELog::endDiag;
-      throw ColErr::ExitAbort("Help termianted");
-    }
-      
-  
+  if (TType=="help" || TType=="help") return "help";
+        
   std::ostringstream cx;
   
   if (pConv.hasName(TType))
@@ -147,7 +128,11 @@ userBinConstruct::processMesh(SimFLUKA& System,
     IParam.getValueError<std::string>("tally",Index,1,"tallyType");
   const std::string tallyParticle=
     userBinConstruct::convertTallyType(tallyType);
-
+  if (tallyParticle=="help")
+    {
+      ELog::EM<<userBinConstruct::writeHelp()<<ELog::endDiag;
+      return;
+    }
   // This needs to be more sophisticated
   const int nextId=System.getNextFTape();
   
@@ -157,30 +142,28 @@ userBinConstruct::processMesh(SimFLUKA& System,
   std::array<size_t,3> Nxyz;
   
   if (PType=="object")
-    tallySystem::meshConstruct::getObjectMesh
+    mainSystem::meshConstruct::getObjectMesh
       (System,IParam,"tally",Index,3,APt,BPt,Nxyz);
   else if (PType=="free")
-    tallySystem::meshConstruct::getFreeMesh(IParam,"tally",Index,3,APt,BPt,Nxyz);
+    mainSystem::meshConstruct::getFreeMesh(IParam,"tally",Index,3,APt,BPt,Nxyz);
 
-  userBinConstruct::createTally(System,tallyParticle,nextId,APt,BPt,Nxyz);
+  userBinConstruct::createTally(System,tallyParticle,-nextId,APt,BPt,Nxyz);
   
   return;      
 }
   
-void
-userBinConstruct::writeHelp(std::ostream& OX) 
+std::string
+userBinConstruct::writeHelp()
   /*!
     Write out help
-    \param OX :: Output stream
+    \return help string
   */
 {
-  OX<<
+  return
     "tallyType free Vec3D Vec3D Nx Ny Nz \n"
     "tallyType object objectName LinkPt  Vec3D Vec3D Nx Ny Nz \n"
     "  -- Object-link point is used to construct basis set \n"
     "     Then the Vec3D are used as the offset points ";
-
-  return;
 }
 
 }  // NAMESPACE tallySystem

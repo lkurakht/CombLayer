@@ -32,22 +32,13 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "ManagedPtr.h"
-#include "mathSupport.h"
 #include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "SrcData.h"
-#include "SrcItem.h"
 #include "DSTerm.h"
 #include "Source.h"
 
@@ -74,12 +65,12 @@ testSource::checkSDef(const std::string& Res,const std::string& Expect)
   */
 {
   
-  if (StrFunc::fullBlock(Res)!=Expect)
+  if (StrFunc::removeOuterSpace(Res)!=Expect)
     {
       ELog::EM<<"Test Failed"<<ELog::endDiag;
       ELog::EM<<"Expect:"<<Expect<<":"<<ELog::endDiag;
-      ELog::EM<<"Out   :"<<StrFunc::fullBlock(Res)<<":"<<ELog::endDiag;
-      const std::string Out=StrFunc::fullBlock(Res);
+      ELog::EM<<"Out   :"<<StrFunc::removeOuterSpace(Res)<<":"<<ELog::endDiag;
+      const std::string Out=StrFunc::removeOuterSpace(Res);
       for(size_t i=0;i<Out.size();i++)
 	if (isspace(Out[i]))
 	  ELog::EM<<"<spc>";

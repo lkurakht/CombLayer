@@ -3,7 +3,7 @@
  
  * File:   source/FlukaSource.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,32 +35,20 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "support.h"
 #include "writeSupport.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "doubleErr.h"
-#include "varList.h"
 #include "inputSupport.h"
 #include "Source.h"
-#include "SrcItem.h"
-#include "SrcData.h"
 #include "surfRegister.h"
-#include "ModelSupport.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
-#include "WorkData.h"
-#include "World.h"
-#include "particleConv.h"
+#include "FixedRotate.h"
+#include "FixedRotateUnit.h"
 
 #include "SourceBase.h"
 #include "FlukaSource.h"
@@ -85,7 +73,7 @@ operator<<(std::ostream& OX,const SDef::unitTYPE& unit)
   
   
 FlukaSource::FlukaSource(const std::string& keyName) : 
-  FixedOffset(keyName,0),SourceBase()
+  FixedRotateUnit(keyName,0),SourceBase()
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param keyName :: main name
@@ -96,7 +84,7 @@ FlukaSource::FlukaSource(const std::string& keyName) :
 }
 
 FlukaSource::FlukaSource(const FlukaSource& A) : 
-  attachSystem::FixedOffset(A),SourceBase(A),
+  attachSystem::FixedRotateUnit(A),SourceBase(A),
   sourceName(A.sourceName),sValues(A.sValues)
   /*!
     Copy constructor
@@ -114,7 +102,7 @@ FlukaSource::operator=(const FlukaSource& A)
 {
   if (this!=&A)
     {
-      attachSystem::FixedOffset::operator=(A);
+      attachSystem::FixedRotate::operator=(A);
       SourceBase::operator=(A);
       sourceName=A.sourceName;
       sValues=A.sValues;
@@ -148,48 +136,43 @@ FlukaSource::populate(const ITYPE& inputMap)
 {
   ELog::RegMethod RegA("FlukaSource","populate");
 
-  attachSystem::FixedOffset::populate(inputMap);
+  attachSystem::FixedRotate::populate(inputMap);
   SourceBase::populate(inputMap);
 
-  const size_t NPts=mainSystem::sizeInput(inputMap,"source");
+  std::string unitName("source");
+  size_t NPts=mainSystem::sizeInput(inputMap,unitName);
+  if (!NPts)
+    {
+      unitName="tdc";
+      NPts=mainSystem::sizeInput(inputMap,unitName);
+    }
   for(size_t index=0;index<NPts && index<12;index++)
     {
       double D;
       const std::string IStr=
-	mainSystem::getInput<std::string>(inputMap,"source",index);
+	mainSystem::getInput<std::string>(inputMap,unitName,index);
       if (StrFunc::convert(IStr,D))
 	sValues[index]=unitTYPE(1,IStr);
       else if (!IStr.empty() &&
 	       IStr!="-" &&
 	       StrFunc::toUpperString(IStr)!="DEF")
 	sValues[index]=unitTYPE(-1,IStr);
-    }      
+    }
+  if (unitName=="tdc")
+    sourceName="TDC";
   if (mainSystem::hasInput(inputMap,"logWeight"))
     sourceName="LOG";
 
   if (sourceName=="LOG")
     ELog::EM<<"Source log type == "<<sourceName<<ELog::endDiag;
+  else if  (sourceName=="TDC")
+    ELog::EM<<"Source type  == "<<sourceName<<ELog::endDiag;
   else
     ELog::EM<<"Source flat probability type "<<ELog::endDiag;
   
   return;
 }
 
-void
-FlukaSource::createUnitVector(const attachSystem::FixedComp& FC,
-			      const long int linkIndex)
-  /*!
-    Create the unit vector
-    \param FC :: Fixed Component
-    \param linkIndex :: Link index [signed for opposite side]
-   */
-{
-  ELog::RegMethod RegA("FlukaSource","createUnitVector");
-
-  attachSystem::FixedComp::createUnitVector(FC,linkIndex);
-  applyOffset();
-  return;
-}
 
 void
 FlukaSource::rotate(const localRotate& LR)
@@ -199,6 +182,7 @@ FlukaSource::rotate(const localRotate& LR)
   */
 {
   ELog::RegMethod Rega("FlukaSource","rotate");
+
   FixedComp::applyRotation(LR);  
   return;
 }
@@ -228,14 +212,13 @@ FlukaSource::createAll(const attachSystem::FixedComp& FC,
   createUnitVector(FC,linkIndex);
   return;
 }
-
   
 void
 FlukaSource::createAll(const ITYPE& inputMap,
-		      const attachSystem::FixedComp& FC,
-		      const long int linkIndex)
+		       const attachSystem::FixedComp& FC,
+		       const long int linkIndex)
 
-  /*!
+ /*!
     Create all the source
     \param Control :: DataBase for variables
     \param FC :: Fixed Point for origin/axis of beam
@@ -265,7 +248,7 @@ FlukaSource::write(std::ostream& OX) const
 }
 
 void
-FlukaSource::writePHITS(std::ostream& OX) const
+FlukaSource::writePHITS(std::ostream&) const
   /*!
     Write out as a PHITS source system
     \param OX :: Output stream
@@ -304,11 +287,9 @@ FlukaSource::writeFLUKA(std::ostream& OX) const
   cx<<X<<" "<<Y;
   cx<<" &";
   StrFunc::writeFLUKA(cx.str(),OX);
-  
+
+  SourceBase::writeFLUKA(OX);
   return;
 }
-
-
-
 
 } // NAMESPACE SDef

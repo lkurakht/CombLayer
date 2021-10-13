@@ -3,7 +3,7 @@
  
  * File:   include/objectGroups.h
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,8 +53,8 @@ class objectGroups
 
  private:
 
-  const int cellZone;              ///< Range for each segment
-  int cellNumber;                  ///< Current new cell number
+  const int cellZone;              ///< Range size for each segment
+  int cellNumber;                  ///< Current next new cell number
 
   MTYPE regionMap;                 ///< Index of object numbers [name:grp]
   RTYPE rangeMap;                  ///< Range of objects [index : name]
@@ -79,12 +79,15 @@ class objectGroups
   objectGroups& operator=(const objectGroups&);
   ~objectGroups();
 
+  void reset();
+  
   int getNextCell(const int) const;
   
   int cell(const std::string&,const size_t = 10000);
   
   std::string inRange(const int) const;
   bool hasCell(const std::string&,const int) const;
+  bool builtFCName(const std::string&) const;
 
   int calcRenumber(const int) const;
     
@@ -98,7 +101,12 @@ class objectGroups
     getObjectThrow(const std::string&,const std::string&) const;
   template<typename T> T*
     getObjectThrow(const std::string&,const std::string&);
+
+  CTYPE getSharedPtr(const std::string&) const;
+
+  bool hasRegion(const std::string&) const;
   bool hasObject(const std::string&) const;
+  bool hasActiveObject(const std::string&) const;  
 
   bool isActive(const int) const;
   
@@ -117,12 +125,16 @@ class objectGroups
   int getFirstCell(const std::string&) const;
   int getLastCell(const std::string&) const;
   std::vector<int> getObjectRange(const std::string&) const;
+
   const groupRange& getGroup(const std::string&) const;
+  groupRange getZoneGroup(const std::string&) const;
   
-  void reset();
+  std::set<std::string> getAllObjectNames() const;
   void rotateMaster();
+
+  void removeObject(const std::string&);
   
-  void write(const std::string&) const;
+  void write(const std::string&,const int =0) const;
 
   std::ostream& writeRange(std::ostream&,const std::string&) const;
   

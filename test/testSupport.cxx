@@ -3,7 +3,7 @@
  
  * File:   test/testSupport.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,13 +36,10 @@
 #include <regex>
 #endif
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "mathSupport.h"
 #include "support.h"
 #include "stringCombine.h"
 #include "regexSupport.h"
@@ -303,7 +300,7 @@ testSupport::testExtractWord()
 int
 testSupport::testFullBlock()
   /*!
-    Applies a test to the fullBlock Command 
+    Applies a test to the removeOuterSpace Command 
     \retval -1 :: failed find word in string
     when the pattern exists.
   */
@@ -318,7 +315,7 @@ testSupport::testFullBlock()
   
   for(const TTYPE& tc : Tests)
     {
-      std::string Out=StrFunc::fullBlock(std::get<0>(tc));
+      std::string Out=StrFunc::removeOuterSpace(std::get<0>(tc));
       if (Out!=std::get<1>(tc))
 	{
 	  ELog::EM<<"Input  == "<<std::get<0>(tc)<<" =="<<ELog::endTrace;

@@ -1,9 +1,9 @@
-/********************************************************************* 
+/*********************************************************************
   CombLayer : MCNP(X) Input builder
- 
- * File:   constructVar/VacBoxGenerator.cxx
+
+ * File:   constructVar/PipeTubeGenerator.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  ****************************************************************************/
 #include <fstream>
@@ -35,18 +35,10 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
@@ -70,11 +62,11 @@ PipeTubeGenerator::PipeTubeGenerator() :
   */
 {}
 
-PipeTubeGenerator::PipeTubeGenerator(const PipeTubeGenerator& A) : 
+PipeTubeGenerator::PipeTubeGenerator(const PipeTubeGenerator& A) :
   radius(A.radius),wallThick(A.wallThick),flangeALen(A.flangeALen),
   flangeARadius(A.flangeARadius),flangeBLen(A.flangeBLen),
-  flangeBRadius(A.flangeBRadius),voidMat(A.voidMat),
-  wallMat(A.wallMat)
+  flangeBRadius(A.flangeBRadius),ACap(A.ACap),BCap(A.BCap),
+  voidMat(A.voidMat),wallMat(A.wallMat),capMat(A.capMat)
   /*!
     Copy constructor
     \param A :: PipeTubeGenerator to copy
@@ -97,14 +89,17 @@ PipeTubeGenerator::operator=(const PipeTubeGenerator& A)
       flangeARadius=A.flangeARadius;
       flangeBLen=A.flangeBLen;
       flangeBRadius=A.flangeBRadius;
+      ACap=A.ACap;
+      BCap=A.BCap;
       voidMat=A.voidMat;
       wallMat=A.wallMat;
+      capMat=A.capMat;
     }
   return *this;
 }
 
-  
-PipeTubeGenerator::~PipeTubeGenerator() 
+
+PipeTubeGenerator::~PipeTubeGenerator()
  /*!
    Destructor
  */
@@ -131,7 +126,7 @@ PipeTubeGenerator::setPipe(const double R,const double W,
   BCap=0.0;
   return;
 }
-  
+
 template<typename CF>
 void
 PipeTubeGenerator::setCF()
@@ -147,6 +142,19 @@ PipeTubeGenerator::setCF()
   return;
 }
 
+void
+PipeTubeGenerator::setFlangeLength(const double LA,const double LB)
+  /*!
+    Setter for flange A/B length
+    \param LA :: Length of flange A
+    \param LB :: Length of flange B
+   */
+{
+  flangeALen=LA;
+  flangeBLen=LB;
+  return;
+}
+
 template<typename CF>
 void
 PipeTubeGenerator::setAFlangeCF()
@@ -156,7 +164,9 @@ PipeTubeGenerator::setAFlangeCF()
 {
   flangeARadius=CF::flangeRadius;
   flangeALen=CF::flangeLength;
-  ACap=0.0;
+  if (ACap>Geometry::zeroTol)
+    ACap=flangeALen;
+
   return;
 }
 
@@ -169,7 +179,9 @@ PipeTubeGenerator::setBFlangeCF()
 {
   flangeBRadius=CF::flangeRadius;
   flangeBLen=CF::flangeLength;
-  BCap=0.0;
+  if (BCap>Geometry::zeroTol)
+    BCap=flangeBLen;
+
   return;
 }
 
@@ -202,7 +214,7 @@ PipeTubeGenerator::setBFlange(const double R,const double L)
 void
 PipeTubeGenerator::setFlangeCap(const double AC,const double BC)
   /*!
-    Set the flange cap values
+    Set the flange cap thicknesses
     \param AC :: Flange cap A
     \param BC :: Flange cap B
    */
@@ -215,7 +227,9 @@ PipeTubeGenerator::setFlangeCap(const double AC,const double BC)
 void
 PipeTubeGenerator::setCap(const bool AFlag,const bool BFlag)
   /*!
-    Set the flange cap values
+    Set the flange cap thickness to standared flange thickness
+    \param AFlag :: First Cap true
+    \param BFlag :: Second Cap true
    */
 {
   ACap= (AFlag) ? flangeALen : 0;
@@ -223,52 +237,88 @@ PipeTubeGenerator::setCap(const bool AFlag,const bool BFlag)
   return;
 }
 
-  
-  
+
 void
 PipeTubeGenerator::generateTube(FuncDataBase& Control,
 				const std::string& keyName,
-				const double yStep,
 				const double length) const
  /*!
     Primary funciton for setting the variables
-    \param Control :: Database to add variables 
+    \param Control :: Database to add variables
     \param keyName :: head name for variable
-    \param yStep :: y-offset 
+    \param yStep :: y-offset
     \param length :: length of box - ports
   */
 {
   ELog::RegMethod RegA("PipeTubeGenerator","generatorTube");
-  
 
-  Control.addVariable(keyName+"YStep",yStep);   // step + flange
-  
   Control.addVariable(keyName+"Radius",radius);
   Control.addVariable(keyName+"Length",length);
   Control.addVariable(keyName+"WallThick",wallThick);
-	
+
   Control.addVariable(keyName+"FlangeARadius",flangeARadius);
   Control.addVariable(keyName+"FlangeALength",flangeALen);
   Control.addVariable(keyName+"FlangeBRadius",flangeBRadius);
   Control.addVariable(keyName+"FlangeBLength",flangeBLen);
 
-  Control.addVariable(keyName+"FlangeACap",ACap);
-  Control.addVariable(keyName+"FlangeBCap",BCap);
+  Control.addVariable(keyName+"FlangeACapThick",ACap);
+  Control.addVariable(keyName+"FlangeBCapThick",BCap);
   Control.addVariable(keyName+"FlangeCapMat",capMat);
 
   Control.addVariable(keyName+"VoidMat",voidMat);
   Control.addVariable(keyName+"WallMat",wallMat);
-       
+  Control.addVariable(keyName+"CapMat",capMat);
+
+  return;
+
+}
+
+void
+PipeTubeGenerator::generateBlank(FuncDataBase& Control,
+				 const std::string& keyName,
+				 const double length) const
+ /*!
+    Primary funciton for setting the variables
+    \param Control :: Database to add variables
+    \param keyName :: head name for variable
+    \param yStep :: y-offset
+    \param length :: length of box - ports
+  */
+{
+  ELog::RegMethod RegA("PipeTubeGenerator","generatorBlank");
+
+  Control.addVariable(keyName+"Radius",radius);
+  Control.addVariable(keyName+"Length",length);
+  Control.addVariable(keyName+"WallThick",wallThick);
+  Control.addVariable(keyName+"BlankThick",wallThick);
+
+  Control.addVariable(keyName+"FlangeRadius",flangeARadius);
+  Control.addVariable(keyName+"FlangeLength",flangeALen);
+
+  Control.addVariable(keyName+"FlangeCapThick",ACap);
+  Control.addVariable(keyName+"FlangeCapMat",capMat);
+
+  Control.addVariable(keyName+"VoidMat",voidMat);
+  Control.addVariable(keyName+"CapMat",capMat);
+  Control.addVariable(keyName+"WallMat",wallMat);
+
   return;
 
 }
 
 ///\cond TEMPLATE
+  template void PipeTubeGenerator::setCF<CF34_TDC>();
+  template void PipeTubeGenerator::setCF<CF35_TDC>();
+  template void PipeTubeGenerator::setCF<CF37_TDC>();
+  template void PipeTubeGenerator::setCF<CF40_22>();
   template void PipeTubeGenerator::setCF<CF40>();
   template void PipeTubeGenerator::setCF<CF63>();
+  template void PipeTubeGenerator::setCF<CF66_TDC>();
   template void PipeTubeGenerator::setCF<CF100>();
   template void PipeTubeGenerator::setCF<CF120>();
   template void PipeTubeGenerator::setCF<CF150>();
+  template void PipeTubeGenerator::setCF<CF200>();
+  template void PipeTubeGenerator::setCF<CF350>();
   template void PipeTubeGenerator::setAFlangeCF<CF40>();
   template void PipeTubeGenerator::setAFlangeCF<CF63>();
   template void PipeTubeGenerator::setAFlangeCF<CF100>();
@@ -279,7 +329,7 @@ PipeTubeGenerator::generateTube(FuncDataBase& Control,
   template void PipeTubeGenerator::setBFlangeCF<CF100>();
   template void PipeTubeGenerator::setBFlangeCF<CF120>();
   template void PipeTubeGenerator::setBFlangeCF<CF150>();
-  
+
 ///\endcond TEMPLATE
 
 }  // NAMESPACE setVariable

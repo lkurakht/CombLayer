@@ -3,7 +3,7 @@
  
  * File:   essBuild/BunkerInsert.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,39 +35,23 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
 #include "SurInter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ReadFunctions.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
@@ -77,9 +61,7 @@
 #include "ContainedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "SurfMap.h"
-#include "FrontBackCut.h"
-#include "Bunker.h"
+#include "ExternalCut.h"
 #include "BunkerInsert.h"
 
 namespace essSystem
@@ -87,7 +69,7 @@ namespace essSystem
 
 BunkerInsert::BunkerInsert(const std::string& Key)  :
   attachSystem::ContainedComp(),attachSystem::FixedOffset(Key,15),
-  attachSystem::CellMap(),attachSystem::FrontBackCut()
+  attachSystem::CellMap(),attachSystem::ExternalCut()
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Name for item in search
@@ -96,7 +78,7 @@ BunkerInsert::BunkerInsert(const std::string& Key)  :
 
 BunkerInsert::BunkerInsert(const BunkerInsert& A) : 
   attachSystem::ContainedComp(A),attachSystem::FixedOffset(A),
-  attachSystem::CellMap(A),attachSystem::FrontBackCut(A),
+  attachSystem::CellMap(A),attachSystem::ExternalCut(A),
   backStep(A.backStep),
   height(A.height),width(A.width),topWall(A.topWall),
   lowWall(A.lowWall),leftWall(A.leftWall),rightWall(A.rightWall),
@@ -120,7 +102,7 @@ BunkerInsert::operator=(const BunkerInsert& A)
       attachSystem::ContainedComp::operator=(A);
       attachSystem::FixedOffset::operator=(A);
       attachSystem::CellMap::operator=(A);
-      attachSystem::FrontBackCut::operator=(A);
+      attachSystem::ExternalCut::operator=(A);
       backStep=A.backStep;
       height=A.height;
       width=A.width;
@@ -161,26 +143,11 @@ BunkerInsert::populate(const FuncDataBase& Control)
   rightWall=Control.EvalVar<double>(keyName+"RightWall");
 
   wallMat=ModelSupport::EvalMat<int>(Control,keyName+"WallMat");
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   
   return;
 }
   
-void
-BunkerInsert::createUnitVector(const attachSystem::FixedComp& FC,
-			       const long int orgIndex)
-  /*!
-    Create the unit vectors
-    \param FC :: Linked object
-    \param orgIndex :: link point
-  */
-{
-  ELog::RegMethod RegA("BunkerInsert","createUnitVector");
-
-  FixedComp::createUnitVector(FC,orgIndex);
-  applyOffset();
-  return;
-}
   
 void
 BunkerInsert::createSurfaces()
@@ -282,16 +249,15 @@ BunkerInsert::createObjects(Simulation& System,
 }
   
 void
-BunkerInsert::createLinks(const attachSystem::FixedComp& BUnit)
+BunkerInsert::createLinks()
   /*!
     Create all the linkes [OutGoing]
-    \param BUnit :: Bunker unit						
   */
 {
   ELog::RegMethod RegA("BunkerInsert","createLinks");
 
-  FixedComp::setLinkSignedCopy(0,BUnit,1);
-  FixedComp::setLinkSignedCopy(1,BUnit,2);
+  FixedComp::setLinkCopy(0,*bunkerObj,1);
+  FixedComp::setLinkCopy(1,*bunkerObj,2);
 
 
   // Calc bunker edge intersectoin
@@ -300,8 +266,8 @@ BunkerInsert::createLinks(const attachSystem::FixedComp& BUnit)
   std::vector<int> SNum;
 
   // Inner point
-  HeadRule HM(BUnit.getMainRule(1));
-  HM.addIntersection(BUnit.getCommonRule(1));
+  HeadRule HM(bunkerObj->getMainRule(1));
+  HM.addIntersection(bunkerObj->getCommonRule(1));
   HM.populateSurf();
   HM.calcSurfIntersection(Origin,Y,Pts,SNum);
   const size_t indexA=SurInter::closestPt(Pts,Origin);
@@ -309,8 +275,8 @@ BunkerInsert::createLinks(const attachSystem::FixedComp& BUnit)
   endMidPt.push_back(Pts[indexA]);
   
   // Outer point
-  HM=BUnit.getMainRule(2);
-  HM.addIntersection(BUnit.getCommonRule(2));
+  HM=bunkerObj->getMainRule(2);
+  HM.addIntersection(bunkerObj->getCommonRule(2));
   HM.populateSurf();
   HM.calcSurfIntersection(Origin,Y,Pts,SNum);
   const size_t indexB=SurInter::closestPt(Pts,Origin);
@@ -355,8 +321,7 @@ BunkerInsert::createLinks(const attachSystem::FixedComp& BUnit)
 void
 BunkerInsert::createAll(Simulation& System,
 			const attachSystem::FixedComp& FC,
-			const long int orgIndex,
-			const attachSystem::FixedComp& bunkerObj)
+			const long int orgIndex)
 
 /*!
     Generic function to create everything
@@ -368,15 +333,18 @@ BunkerInsert::createAll(Simulation& System,
 {
   ELog::RegMethod RegA("BunkerInsert","createAll");
 
+  if (!bunkerObj)
+    throw ColErr::EmptyContainer("Bunker Object missing");
+
   populate(System.getDataBase());
   createUnitVector(FC,orgIndex);
   createSurfaces();
 
-  // Walls : [put 
-  const std::string BWallStr=bunkerObj.getLinkString(-1)+" "+
-    bunkerObj.getLinkString(-2);
+  // Walls : [put]
+  const std::string BWallStr=bunkerObj->getLinkString(-1)+" "+
+    bunkerObj->getLinkString(-2);
   createObjects(System,BWallStr);
-  createLinks(bunkerObj);
+  createLinks();
   
   insertObjects(System);              
 

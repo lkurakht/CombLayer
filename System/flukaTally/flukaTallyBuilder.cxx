@@ -3,7 +3,7 @@
  
  * File:   flukaTally/flukaTallyBuilder.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,25 +34,15 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "support.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "MainProcess.h"
 #include "inputParam.h"
-#include "Rules.h"
-#include "HeadRule.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -62,6 +52,8 @@
 #include "userDumpConstruct.h"
 #include "userBdxConstruct.h"
 #include "userRadDecayConstruct.h"
+#include "userTrackConstruct.h"
+#include "userYieldConstruct.h"
 #include "resnucConstruct.h"
 #include "flukaTallyBuilder.h"
 
@@ -82,7 +74,7 @@ tallySelection(SimFLUKA& System,
   
   System.populateCells();
   System.createObjSurfMap();
-
+  
   for(size_t i=0;i<IParam.setCnt("tally");i++)
     {
       const std::string TType=
@@ -99,17 +91,20 @@ tallySelection(SimFLUKA& System,
 	userBinConstruct::processMesh(System,IParam,i);
       else if (TType=="dump")
 	userDumpConstruct::processDump(System,IParam,i);
-      else if (TType=="surface")
-	userBdxConstruct::processBDX(System,IParam,i);
       else if (TType=="raddecay")
 	userRadDecayConstruct::processRadDecay(System,IParam,i);
+      else if (TType=="surface")
+	userBdxConstruct::processBDX(System,IParam,i);
+      else if (TType=="track" || TType=="cell")
+	userTrackConstruct::processTrack(System,IParam,i);
       else if (TType=="resnuc")
 	resnucConstruct::processResNuc(System,IParam,i);
+      else if (TType=="yield")
+	userYieldConstruct::processYield(System,IParam,i);
       else
 	ELog::EM<<"Unable to understand tally type :"<<TType<<ELog::endErr;
 
     }
-
   //if (IParam.flag("Txml"))
     //   tallySystem::addXMLtally(System,IParam.getValue<std::string>("Txml"));
       
@@ -133,9 +128,11 @@ helpTallyType(const std::string& HType)
 	      <<"-- mesh : \n"
 	      <<"-- dump : \n"
 	      <<"-- surface : \n"
-	      <<"-- cell : \n"
+	      <<"-- cell :  particle FC index eMin eMax NE \n"
 	      <<"-- raddecay : \n"
-	      <<"-- resnuc : \n";
+	      <<"-- resnuc : \n"
+	      <<"-- track :  particle FC index eMin eMax NE \n";
+
     }
   
   ELog::EM<<ELog::endBasic;

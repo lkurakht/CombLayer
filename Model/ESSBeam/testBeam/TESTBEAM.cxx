@@ -3,7 +3,7 @@
  
  * File:   essBuild/TESTBEAM.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,24 +35,13 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -64,26 +53,24 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "World.h"
-#include "AttachSupport.h"
 #include "beamlineSupport.h"
 #include "GuideItem.h"
 #include "GuideLine.h"
 #include "DiskChopper.h"
-#include "VacuumBox.h"
-#include "VacuumPipe.h"
 #include "Bunker.h"
-#include "BunkerInsert.h"
 #include "SingleChopper.h"
 #include "Motor.h"
 #include "TwinBase.h"
@@ -98,7 +85,7 @@ namespace essSystem
 TESTBEAM::TESTBEAM(const std::string& keyName) :
   attachSystem::CopiedComp("testBeam",keyName),
   startPoint(0),stopPoint(0),
-  testAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  testAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
 
   FocusA(new beamlineSystem::GuideLine(newName+"FA")),
   
@@ -120,8 +107,6 @@ TESTBEAM::TESTBEAM(const std::string& keyName) :
   ModelSupport::objectRegister& OR=
     ModelSupport::objectRegister::Instance();
 
-  // This is necessary as not directly constructed:
-  //OR.cell(newName+"Axis");
   OR.addObject(testAxis);
 
   OR.addObject(FocusA);

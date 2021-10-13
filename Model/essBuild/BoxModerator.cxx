@@ -3,7 +3,7 @@
 
  * File:   essBuild/BoxModerator.cxx
  *
- * Copyright (c) 2004-2018 by Konstantin Batkov / Stuart Ansell
+ * Copyright (c) 2004-2019 by Konstantin Batkov / Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +35,6 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
@@ -43,19 +42,12 @@
 #include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
-#include "Plane.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "Object.h"
 #include "groupRange.h"
@@ -64,8 +56,6 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "stringCombine.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
@@ -73,6 +63,7 @@
 #include "LayerComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
+#include "ExternalCut.h"
 #include "EssModBase.h"
 //#include "H2Wing.h"
 #include "Box.h"
@@ -298,10 +289,17 @@ BoxModerator::createLinks()
 
   // copy surface top/bottom from H2Wing and Orign from center
   
+<<<<<<< HEAD
   FixedComp::setLinkSignedCopy(4,*MidH2,5);
   FixedComp::setLinkSignedCopy(5,*MidH2,6);
   const double LowV= LU[4].getConnectPt().Z();
   const double HighV= LU[5].getConnectPt().Z();
+=======
+  FixedComp::setLinkCopy(4,*MidH2,5);
+  FixedComp::setLinkCopy(5,*MidH2,6);
+  const double LowV= LU[4].getConnectPt().Z()-wallDepth*Z[2];
+  const double HighV= LU[5].getConnectPt().Z()+wallHeight*Z[2];
+>>>>>>> origin/master
   const Geometry::Vec3D LowPt(Origin.X(),Origin.Y(),LowV);
   const Geometry::Vec3D HighPt(Origin.X(),Origin.Y(),HighV);
   FixedComp::setConnect(4,LowPt,-Z);
@@ -424,11 +422,30 @@ BoxModerator::getRightExclude() const
 
 void
 BoxModerator::createAll(Simulation& System,
+<<<<<<< HEAD
 			      const attachSystem::FixedComp& orgFC,
                               const long int orgIndex,
 			      const attachSystem::FixedComp& axisFC,
 			      const long int axisIndex)
   /*!
+=======
+                        const attachSystem::FixedComp& FC,
+                        const long int sideIndex)
+{
+  ELog::RegMethod RegA("BoxModerator","createAll");
+  createAll(System,FC,sideIndex,FC,sideIndex);
+  return;
+}
+  
+
+void
+BoxModerator::createAll(Simulation& System,
+                        const attachSystem::FixedComp& orgFC,
+                        const long int orgIndex,
+                        const attachSystem::FixedComp& axisFC,
+                        const long int axisIndex)
+/*!
+>>>>>>> origin/master
     Construct the butterfly components
     \param System :: Simulation
     \param axisFC :: FixedComp to get axis [origin if orgFC == 0]
@@ -445,9 +462,17 @@ BoxModerator::createAll(Simulation& System,
   MidH2->createAll(System,*this,0);
 
   const std::string Exclude=
+<<<<<<< HEAD
     ModelSupport::getComposite(SMap,buildIndex," -7 5 -6 ");
   LeftWater->createAll(System,*MidH2,4,Exclude);
   RightWater->createAll(System,*MidH2,3,Exclude);
+=======
+    ModelSupport::getComposite(SMap,buildIndex," -7 15 -16 ");
+  LeftWater->setCutSurf("Container",Exclude);
+  RightWater->setCutSurf("Container",Exclude);
+  LeftWater->createAll(System,*MidH2,4); 
+  RightWater->createAll(System,*MidH2,3);
+>>>>>>> origin/master
 
   createExternal();  // makes intermediate
 

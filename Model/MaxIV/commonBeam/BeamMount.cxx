@@ -3,7 +3,7 @@
  
  * File:   commonBeam/BeamMount.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,44 +35,28 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "inputParam.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "ExternalCut.h"
 #include "BeamMount.h"
@@ -119,6 +103,7 @@ BeamMount::populate(const FuncDataBase& Control)
 
   if (blockFlag)
     {
+      blockXYAngle=Control.EvalDefVar<double>(keyName+"BlockXYAngle",0.0);
       width=Control.EvalVar<double>(keyName+"Width");
       height=Control.EvalVar<double>(keyName+"Height");
       length=Control.EvalVar<double>(keyName+"Length");
@@ -175,21 +160,15 @@ BeamMount::createUnitVector(const attachSystem::FixedComp& centreFC,
   else
     {
       beamFC.createUnitVector(flangeFC,fIndex);
-      ELog::EM<<"XAXIS Fail["<<keyName<<"]X == "<<XBeam<<ELog::endDiag;
-      ELog::EM<<"XAXIS Fail["<<keyName<<"]Y == "<<YBeam<<ELog::endDiag;
-      ELog::EM<<"XAXIS Fail["<<keyName<<"]Z == "<<ZBeam<<ELog::endErr;
     }
   applyOffset();
-
 
   if (upFlag)
     beamFC.applyShift(0,0,-outLift);  // only lift offset
   else
     beamFC.applyShift(0,0,-beamLift);  // only beam offset
 
-
-  setDefault("Main");
-  
+  setDefault("Main","Beam");
 
   return;
 }
@@ -203,14 +182,7 @@ BeamMount::createSurfaces()
   ELog::RegMethod RegA("BeamMount","createSurfaces");
 
 
-  const attachSystem::FixedComp& beamFC=getKey("Beam");
-
   // Not can have a local rotation of the beam component
-  const Geometry::Vec3D& beamOrg=beamFC.getCentre();
-  const Geometry::Vec3D& beamX=beamFC.getX();
-  const Geometry::Vec3D& beamY=beamFC.getY();
-  const Geometry::Vec3D& beamZ=beamFC.getZ();
-
   // construct support
   ModelSupport::buildCylinder(SMap,buildIndex+7,Origin,Y,supportRadius);
 
@@ -222,32 +194,32 @@ BeamMount::createSurfaces()
 
   if (blockFlag==0)
     {
-      ModelSupport::buildPlane(SMap,buildIndex+5,beamOrg,Y);
+      ModelSupport::buildPlane(SMap,buildIndex+5,bOrigin,Y);
     }
   else             // make centre block
     {
       ModelSupport::buildPlane(SMap,buildIndex+1,
-			       beamOrg-beamY*(length/2.0),beamY);
+			       bOrigin-bY*(length/2.0),bY);
       ModelSupport::buildPlane(SMap,buildIndex+2,
-			       beamOrg+beamY*(length/2.0),beamY);
+			       bOrigin+bY*(length/2.0),bY);
       ModelSupport::buildPlane(SMap,buildIndex+3,
-			       beamOrg-beamX*(width/2.0),beamX);
+			       bOrigin-bX*(width/2.0),bX);
       ModelSupport::buildPlane(SMap,buildIndex+4,
-			       beamOrg+beamX*(width/2.0),beamX);
+			       bOrigin+bX*(width/2.0),bX);
       
       if (blockFlag==1)  // make centre
 	{
 	  ModelSupport::buildPlane(SMap,buildIndex+5,
-				   beamOrg-beamZ*(height/2.0),beamZ);
+				   bOrigin-bZ*(height/2.0),bZ);
 
 	  ModelSupport::buildPlane(SMap,buildIndex+6,
-				   beamOrg+beamZ*(height/2.0),beamZ);
+				   bOrigin+bZ*(height/2.0),bZ);
 	}
       else             // make on lower edge
 	{
 	  ModelSupport::buildPlane(SMap,buildIndex+5,
-				   beamOrg-beamZ*height,beamZ);
-	  ModelSupport::buildPlane(SMap,buildIndex+6,beamOrg,beamZ);
+				   bOrigin-bZ*height,bZ);
+	  ModelSupport::buildPlane(SMap,buildIndex+6,bOrigin,bZ);
 	}
     }
   return; 
@@ -295,6 +267,45 @@ BeamMount::createLinks()
 {
   ELog::RegMethod RegA("BeamMount","createLinks");
   
+  return;
+}
+
+void
+BeamMount::createAll(Simulation& ,
+		      const attachSystem::FixedComp&,
+		      const long int)
+ /*!
+    Generic function to create everything
+    \param System :: Simulation item
+    \param portFC :: FixedComp
+    \param portIndex :: Fixed Index
+  */
+{
+  ELog::RegMethod RegA("BeamFlange","createAll(FC)");
+
+  throw ColErr::AbsObjMethod("Single value createAll");
+  return;
+}
+
+void
+BeamMount::createAll(Simulation& System,
+		     const attachSystem::FixedComp& centreFC,
+		     const std::string& cName,
+		     const attachSystem::FixedComp& flangeFC,
+		     const std::string& fName)
+  /*!
+    Extrenal build everything
+    \param System :: Simulation
+    \param centreFC :: FixedComp for beam origin
+    \param cName :: link point of centre [and axis]
+    \param flangeFC :: link point of flange center
+    \param fName :: direction for links
+   */
+{
+  ELog::RegMethod RegA("BeamMount","createAll(name,name)");
+
+  createAll(System,centreFC,centreFC.getSideIndex(cName),
+	    flangeFC,flangeFC.getSideIndex(fName));
   return;
 }
 

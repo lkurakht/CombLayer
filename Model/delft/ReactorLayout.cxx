@@ -3,7 +3,7 @@
  
  * File:   delft/ReactorLayout.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,17 +38,12 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "inputParam.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "variableSetup.h"
 
 namespace setVariable
 {
@@ -126,7 +121,7 @@ DelftCoreType(mainSystem::inputParam& IParam,
 
 void
 DelftCompactModel(mainSystem::inputParam& IParam,
-		  FuncDataBase& Control)
+		  FuncDataBase& )
   /*!
     Function to set system for a given form of reactor.
     This is the compact model from 

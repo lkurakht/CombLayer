@@ -3,7 +3,7 @@
  
  * File:   construct/CylMod.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,6 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
@@ -44,18 +43,12 @@
 #include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -63,7 +56,6 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
@@ -508,8 +500,10 @@ CylMod::createWedges(Simulation& System)
     {
       WTYPE WPtr(new WedgeInsert(keyName+"Wedge",i+1));
       OR.addObject(WPtr);
-      WPtr->createAll(System,CellMap::getCell(keyName,0),
-		      *this,1,1);   // +ve Y direction [cylinder]
+      WPtr->addInsertCell(CellMap::getCell(keyName,0));
+      WPtr->addInsertCell(CellMap::getCell(keyName,1));
+      WPtr->setLayer(*this,1,1);      
+      WPtr->createAll(System,*this,0);   // +ve Y direction [cylinder]
       Wedges.push_back(WPtr);
     }
   return;
@@ -517,8 +511,9 @@ CylMod::createWedges(Simulation& System)
 
 void
 CylMod::createAll(Simulation& System,
+		  const attachSystem::FixedComp& orgFC,
+		  const long int orgIndex,
 		  const attachSystem::FixedComp& axisFC,
-		  const attachSystem::FixedComp* orgFC,
 		  const long int sideIndex)
   /*!
     Extrenal build everything
@@ -531,7 +526,7 @@ CylMod::createAll(Simulation& System,
   ELog::RegMethod RegA("CylMod","createAll");
   populate(System.getDataBase());
 
-  ModBase::createUnitVector(axisFC,orgFC,sideIndex);
+  ModBase::createUnitVector(orgFC,orgIndex,axisFC,sideIndex);
   createSurfaces();
   createObjects(System);
   createLinks();

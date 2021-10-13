@@ -3,7 +3,7 @@
  
  * File:   attachComp/FixedRotate.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,24 +33,12 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "surfEqual.h"
-#include "Rules.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
@@ -67,11 +55,47 @@ FixedRotate::FixedRotate(const std::string& KN,const size_t NL) :
   FixedComp(KN,NL),
   preXAngle(0.0),preYAngle(0.0),preZAngle(0.0),
   xStep(0.0),yStep(0.0),zStep(0.0),
-  xAngle(0.0),yAngle(0.0),zAngle(0.0)
+  xAngle(0.0),yAngle(0.0),zAngle(0.0),flipX(0)
  /*!
     Constructor 
     \param KN :: KeyName
     \param NL :: Number of links
+  */
+{}
+
+FixedRotate::FixedRotate(const size_t NL,const std::string& KN) :
+  FixedComp(NL,KN),
+  preXAngle(0.0),preYAngle(0.0),preZAngle(0.0),
+  xStep(0.0),yStep(0.0),zStep(0.0),
+  xAngle(0.0),yAngle(0.0),zAngle(0.0),flipX(0)
+ /*!
+    Constructor 
+    \param KN :: KeyName
+    \param NL :: Number of links
+  */
+{}
+
+  
+FixedRotate::FixedRotate(const size_t NL) :
+  FixedRotate(NL,"Null")
+ /*!
+    Null version Constructor 
+    \param NL :: Number of links
+  */
+{}
+
+
+FixedRotate::FixedRotate(const std::string& KN,const size_t NL,
+			   const size_t resSize) :
+  FixedComp(KN,NL,resSize),
+  preXAngle(0.0),preYAngle(0.0),preZAngle(0.0),
+  xStep(0.0),yStep(0.0),zStep(0.0),
+  xAngle(0.0),yAngle(0.0),zAngle(0.0),flipX(0)
+ /*!
+    Constructor 
+    \param KN :: KeyName
+    \param NL :: Number of links
+    \param resSize :: Reserved Space						
   */
 {}
 
@@ -80,7 +104,8 @@ FixedRotate::FixedRotate(const FixedRotate& A) :
   preXAngle(A.preXAngle),preYAngle(A.preYAngle),
   preZAngle(A.preZAngle),
   xStep(A.xStep),yStep(A.yStep),zStep(A.zStep),
-  xAngle(A.xAngle),yAngle(A.yAngle),zAngle(A.zAngle)
+  xAngle(A.xAngle),yAngle(A.yAngle),zAngle(A.zAngle),
+  flipX(A.flipX)
   /*!
     Copy constructor
     \param A :: FixedRotate to copy
@@ -107,6 +132,7 @@ FixedRotate::operator=(const FixedRotate& A)
       xAngle=A.xAngle;
       yAngle=A.yAngle;
       zAngle=A.zAngle;
+      flipX=A.flipX;
     }
   return *this;
 }
@@ -122,13 +148,15 @@ FixedRotate::populate(const FuncDataBase& Control)
   ELog::RegMethod RegA("FixedRotate","populate");
 
   // defaults used to fixedoffset can be used in a setting class.
+  // note extra so can use a fixedoffset angle system if over-step
+  preZAngle=Control.EvalDefVar<double>(keyName+"PreXYAngle",preZAngle);
   preXAngle=Control.EvalDefVar<double>(keyName+"PreXAngle",preXAngle);
   preYAngle=Control.EvalDefVar<double>(keyName+"PreYAngle",preYAngle);
   preZAngle=Control.EvalDefVar<double>(keyName+"PreZAngle",preZAngle);
 
   const Geometry::Vec3D CentOffset=Control.EvalDefVar<Geometry::Vec3D>
-    (keyName+"CentOffset",Geometry::Vec3D(xStep,yStep,zStep));
-  
+    (keyName+"Offset",Geometry::Vec3D(xStep,yStep,zStep));
+
   xStep=CentOffset.X();
   yStep=CentOffset.Y();
   zStep=CentOffset.Z();
@@ -136,11 +164,15 @@ FixedRotate::populate(const FuncDataBase& Control)
   xStep=Control.EvalDefVar<double>(keyName+"XStep",xStep);
   yStep=Control.EvalDefVar<double>(keyName+"YStep",yStep);
   zStep=Control.EvalDefVar<double>(keyName+"ZStep",zStep);
-  
+
+  // note extra so can use a fixedoffset angle system if over-step
+  zAngle=Control.EvalDefVar<double>(keyName+"XYAngle",zAngle);
   xAngle=Control.EvalDefVar<double>(keyName+"XAngle",xAngle);
   yAngle=Control.EvalDefVar<double>(keyName+"YAngle",yAngle);
   zAngle=Control.EvalDefVar<double>(keyName+"ZAngle",zAngle);
-  
+
+  flipX=Control.EvalDefVar<int>(keyName+"FlipX",flipX);
+
   return;
   
 }
@@ -155,17 +187,20 @@ FixedRotate::populate(const std::map<std::string,
 {
   ELog::RegMethod RegA("FixedRotate","populate(map)");
 
+  mainSystem::findInput(inputMap,"preXYAngle",0,preZAngle);
   mainSystem::findInput(inputMap,"preXAngle",0,preXAngle);
   mainSystem::findInput(inputMap,"preYAngle",0,preYAngle);
   mainSystem::findInput(inputMap,"preZAngle",0,preZAngle);
+  mainSystem::findInput(inputMap,"xyAngle",0,xAngle);
   mainSystem::findInput(inputMap,"xAngle",0,xAngle);
   mainSystem::findInput(inputMap,"yAngle",0,yAngle);
   mainSystem::findInput(inputMap,"zAngle",0,zAngle);
   mainSystem::findInput(inputMap,"xStep",0,xStep);
   mainSystem::findInput(inputMap,"yStep",0,yStep);
   mainSystem::findInput(inputMap,"zStep",0,zStep);
+  mainSystem::findInput(inputMap,"flipX",0,flipX);
+
   return;
-  
 }
 
 void
@@ -180,23 +215,26 @@ FixedRotate::populate(const std::string& baseName,
   ELog::RegMethod RegA("FixedRotate","populate(baseName)");
 
   // defaults used to fixedoffset can be used in a setting class.
-  preXAngle=Control.EvalDefPair<double>(keyName,baseName,"PreXAngle",preXAngle);
-  preYAngle=Control.EvalDefPair<double>(keyName,baseName,"PreYAngle",preYAngle);
-  preZAngle=Control.EvalDefPair<double>(keyName,baseName,"PreZAngle",preZAngle);
+  preXAngle=Control.EvalDefTail<double>(keyName,baseName,"PreXAngle",preXAngle);
+  preYAngle=Control.EvalDefTail<double>(keyName,baseName,"PreYAngle",preYAngle);
+  preZAngle=Control.EvalDefTail<double>(keyName,baseName,"PreZAngle",preZAngle);
 
-  const Geometry::Vec3D CentOffset=Control.EvalDefPair<Geometry::Vec3D>
-    (keyName,baseName,"CentOffset",Geometry::Vec3D(0,0,0));
+  const Geometry::Vec3D CentOffset=Control.EvalDefTail<Geometry::Vec3D>
+    (keyName,baseName,"Offset",Geometry::Vec3D(0,0,0));
   xStep=CentOffset.X();
   yStep=CentOffset.Y();
   zStep=CentOffset.Z();
 
-  xStep=Control.EvalDefPair<double>(keyName,baseName,"XStep",xStep);
-  yStep=Control.EvalDefPair<double>(keyName,baseName,"YStep",yStep);
-  zStep=Control.EvalDefPair<double>(keyName,baseName,"ZStep",zStep);
-  
-  xAngle=Control.EvalDefPair<double>(keyName,baseName,"XAngle",xAngle);
-  yAngle=Control.EvalDefPair<double>(keyName,baseName,"YAngle",yAngle);
-  zAngle=Control.EvalDefPair<double>(keyName,baseName,"ZAngle",zAngle);
+  xStep=Control.EvalDefTail<double>(keyName,baseName,"XStep",xStep);
+  yStep=Control.EvalDefTail<double>(keyName,baseName,"YStep",yStep);
+  zStep=Control.EvalDefTail<double>(keyName,baseName,"ZStep",zStep);
+
+  zAngle=Control.EvalDefTail<double>(keyName,baseName,"XYAngle",zAngle);
+  xAngle=Control.EvalDefTail<double>(keyName,baseName,"XAngle",xAngle);
+  yAngle=Control.EvalDefTail<double>(keyName,baseName,"YAngle",yAngle);
+  zAngle=Control.EvalDefTail<double>(keyName,baseName,"ZAngle",zAngle);
+
+  flipX=Control.EvalDefTail<int>(keyName,baseName,"FlipX",flipX);
   return;
   
 }
@@ -246,7 +284,104 @@ FixedRotate::setOffset(const double XS,const double YS,const double ZS)
   zStep=ZS;
   return;
 }
+
+void
+FixedRotate::createUnitVector(const attachSystem::FixedComp& FC,
+			      const long int sideIndex)
+  /*!
+    Create the unit vectors
+    \param FC :: Fixed Component
+    \param sideIndex :: signed linkpt			
+  */
+{
+  ELog::RegMethod RegA("FixedRotate","createUnitVector");
+      
+  FixedComp::createUnitVector(FC,sideIndex);  
+  applyOffset();
+    
+  return;
+}
+
+void
+FixedRotate::createUnitVector(const attachSystem::FixedComp& FC,
+			      const long int orgIndex,
+			      const long int basisIndex)
+  /*!
+    Create the unit vectors
+    \param FC :: Fixed Component
+    \param orgIndex :: link point for origin
+    \param basisIndex :: link point for basis (xyz)
+  */
+{
+  ELog::RegMethod RegA("FixedRotate","createUnitVector(int,int)");
+
+  FixedComp::createUnitVector(FC,orgIndex,basisIndex);  
+  applyOffset();
+    
+  return;
+}
+
+
+void
+FixedRotate::createUnitVector(const Geometry::Vec3D& Org,
+			      const Geometry::Vec3D& YAxis,
+			      const Geometry::Vec3D& ZAxis)
+  /*!
+    Create the unit vectors
+    \param Orrg :: Origin
+    \param YAxis :: Primary axis
+    \param ZAxis :: Secondary axis
+  */
+{
+  ELog::RegMethod RegA("FixedRotate","createUnitVector(Vec,Vec,Vec)");
+      
+  FixedComp::createUnitVector(Org,YAxis,ZAxis);  
+  applyOffset();
+
+  return;
+}
+
+void
+FixedRotate::createCentredUnitVector(const attachSystem::FixedComp& FC,
+				     const long int sideIndex,
+				     const double length)
+  /*!
+    Create the unit vectors
+    \param FC :: Fixed Component
+    \param sideIndex :: signed linkpt			
+    \param length :: full length of object
+  */
+{
+  ELog::RegMethod RegA("FixedRotate","createUnitVector(length)");
+
+  FixedComp::createUnitVector(FC,sideIndex);
+  applyOffset();
+    
+  Origin+=Y*length;
+  return;
+}
   
+void
+FixedRotate::createCentredUnitVector(const attachSystem::FixedComp& FC,
+				     const long int sideIndex,
+				     const Geometry::Vec3D& offsetVec)
+  /*!
+    Create the unit vectors
+    \param FC :: Fixed Component
+    \param sideIndex :: signed linkpt			
+    \param offset :: offset position
+  */
+{
+  ELog::RegMethod RegA("FixedRotate","createUnitVector(Vec)");
+
+  FixedComp::createUnitVector(FC,sideIndex);
+
+  applyOffset();
+  Origin+=X*offsetVec.X()+Y*offsetVec.Y()+Z*offsetVec.Z();
+  return;
+}
+  
+
 void
 FixedRotate::applyOffset()
   /*!
@@ -254,10 +389,13 @@ FixedRotate::applyOffset()
   */
 {
   ELog::RegMethod RegA("FixedRotate","applyOffset");
+
   FixedComp::applyAngleRotate(preXAngle,preYAngle,preZAngle);
   FixedComp::applyShift(xStep,yStep,zStep);
   FixedComp::applyAngleRotate(xAngle,yAngle,zAngle);
   FixedComp::reOrientate();      // this might still be active
+
+  if (flipX) FixedComp::reverseX();
   return;
 }
 

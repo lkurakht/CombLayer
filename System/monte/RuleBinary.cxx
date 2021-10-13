@@ -3,7 +3,7 @@
  
  * File:   monte/RuleBinary.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,23 +35,13 @@
 #include <functional>
 #include <iterator>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "support.h"
-#include "mathSupport.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "BnId.h"
 #include "RotCounter.h"
 #include "MatrixBase.h"
-#include "Matrix.h"
-#include "Vec3D.h"
-#include "Transform.h"
-#include "Surface.h"
 #include "Rules.h"
 #include "RuleBinary.h"
 
@@ -314,7 +304,7 @@ RuleBinary::createTree() const
     }
 
   // Join up all the EPI rule groups
-  if (EPIrules.size()==0)       // No work/no rule
+  if (EPIrules.empty())       // No work/no rule
     return 0;
   if (EPIrules.size()==1)
     return EPIrules.front();
@@ -594,7 +584,6 @@ RuleBinary::write(std::ostream& OX) const
     \param OX :: ostream parameter
   */
 {
-  std::vector<BnId>::const_iterator vc;
   int cnt(0);
   OX<<"DNF: ";
   for(const BnId& id : DNFobj)

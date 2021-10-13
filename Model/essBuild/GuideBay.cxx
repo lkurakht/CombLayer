@@ -3,7 +3,7 @@
  
  * File:   essBuild/GuideBay.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,31 +34,23 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
 #include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
 #include "Quadratic.h"
-#include "Plane.h"
 #include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -73,15 +65,12 @@
 #include "FixedOffsetGroup.h"
 #include "SurInter.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "World.h"
 #include "GuideItem.h"
 #include "GuideBay.h"
 
-#include "AttachSupport.h"
 
 namespace essSystem
 {
@@ -172,16 +161,16 @@ GuideBay::populate(const FuncDataBase& Control)
 
   FixedOffset::populate(baseKey,Control);
   
-  height=Control.EvalPair<double>(keyName,baseKey,"Height");
-  depth=Control.EvalPair<double>(keyName,baseKey,"Depth");
-  midRadius=Control.EvalPair<double>(keyName,baseKey,"MidRadius");
-  viewAngle=Control.EvalPair<double>(keyName,baseKey,"ViewAngle")*M_PI/180.0;
-  innerHeight=Control.EvalPair<double>(keyName,baseKey,"InnerHeight");
-  innerDepth=Control.EvalPair<double>(keyName,baseKey,"InnerDepth");
+  height=Control.EvalTail<double>(keyName,baseKey,"Height");
+  depth=Control.EvalTail<double>(keyName,baseKey,"Depth");
+  midRadius=Control.EvalTail<double>(keyName,baseKey,"MidRadius");
+  viewAngle=Control.EvalTail<double>(keyName,baseKey,"ViewAngle")*M_PI/180.0;
+  innerHeight=Control.EvalTail<double>(keyName,baseKey,"InnerHeight");
+  innerDepth=Control.EvalTail<double>(keyName,baseKey,"InnerDepth");
 
   mat=ModelSupport::EvalMat<int>(Control,keyName+"Mat",baseKey+"Mat");
 
-  nItems=Control.EvalPair<size_t>(keyName,baseKey,"NItems");
+  nItems=Control.EvalTail<size_t>(keyName,baseKey,"NItems");
   return;
 }
   
@@ -351,7 +340,7 @@ GuideBay::outerMerge(Simulation& System,
     }
 
   // Delete common stuff and build object
-  const int mat=AB->getMat();
+  const int mat=AB->getMatID();
   const double temp=AB->getTemp();
   System.removeCell(AB->getName());
   System.removeCell(BB->getName());
@@ -383,7 +372,7 @@ GuideBay::createGuideItems(Simulation& System,
   const attachSystem::FixedComp* ModFC=
     System.getObjectThrow<attachSystem::FixedComp>(modName+"Focus",
                                                "Focus unit not found");
-  const std::string BL=StrFunc::makeString("G",bayNumber)+"BLine"+modName;
+  const std::string BL="G"+std::to_string(bayNumber)+"BLine"+modName;
   
   const long int lFocusIndex=(bayNumber==1) ? 2 : 3;
   const long int rFocusIndex=(bayNumber==1) ? 1 : 4;
@@ -408,7 +397,8 @@ GuideBay::createGuideItems(Simulation& System,
       GA->addInsertCell("Inner",getCell("Inner"));
       GA->addInsertCell("Outer",getCell("Outer"));
 
-      GA->createAll(System,*ModFC,FI,GB);
+      GA->setNeighbour(GB);
+      GA->createAll(System,*ModFC,FI);
       GUnit.push_back(GA);
 
       // Add wheel to inner cell if required

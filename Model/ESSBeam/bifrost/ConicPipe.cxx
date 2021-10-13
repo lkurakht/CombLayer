@@ -241,7 +241,7 @@ rEnd=Control.EvalDefVar<double>(keyName+"RadiusEnd",-1.0);
     (keyName+"WindowFrontHeight",keyName+"WindowHeight",-1.0);
   windowFront.width=Control.EvalDefPair<double>
     (keyName+"WindowFrontWidth",keyName+"WindowWidth",-1.0);
-  windowFront.mat=ModelSupport::EvalDefMat<int>
+  windowFront.mat=ModelSupport::EvalDefMat
     (Control,keyName+"WindowFrontMat",keyName+"WindowMat",0);
 
     
@@ -253,7 +253,7 @@ rEnd=Control.EvalDefVar<double>(keyName+"RadiusEnd",-1.0);
     (keyName+"WindowBackHeight",keyName+"WindowHeight",-1.0);
   windowBack.width=Control.EvalDefPair<double>
     (keyName+"WindowBackWidth",keyName+"WindowWidth",-1.0);
-  windowBack.mat=ModelSupport::EvalDefMat<int>
+  windowBack.mat=ModelSupport::EvalDefMat
     (Control,keyName+"WindowBackMat",keyName+"WindowMat",0);
 
   if ((activeWindow & 1) && windowFront.thick<Geometry::zeroTol)
@@ -274,9 +274,9 @@ rEnd=Control.EvalDefVar<double>(keyName+"RadiusEnd",-1.0);
     throw ColErr::EmptyContainer("Pipe:["+keyName+"] has neither "
                                  "windowBack:Radius or Height/Width");
 
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   feMat=ModelSupport::EvalMat<int>(Control,keyName+"FeMat");
-  claddingMat=ModelSupport::EvalDefMat<int>(Control,keyName+"CladdingMat",0);
+  claddingMat=ModelSupport::EvalDefMat(Control,keyName+"CladdingMat",0);
 
   nDivision=Control.EvalDefVar<size_t>(keyName+"NDivision",0);
   return;

@@ -3,7 +3,7 @@
  
  * File:   insertUnit/insertShell.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,32 +34,19 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "LineIntersectVisit.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -77,6 +64,7 @@
 #include "BaseMap.h"
 #include "SurfMap.h"
 #include "CellMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "ContainedComp.h"
 #include "World.h"
@@ -142,7 +130,7 @@ insertShell::populate(const FuncDataBase& Control)
       insertObject::populate(Control);
       innerRadius=Control.EvalVar<double>(keyName+"InnerRadius");
       outerRadius=Control.EvalVar<double>(keyName+"OuterRadius");
-      innerMat=ModelSupport::EvalDefMat<int>(Control,keyName+"InnerMat",-1);
+      innerMat=ModelSupport::EvalDefMat(Control,keyName+"InnerMat",-1);
     }
   return;
 }
@@ -235,39 +223,35 @@ insertShell::findObjects(Simulation& System)
       // normal directions
       const std::array<Geometry::Vec3D,6> XYZ=
 	{ { -X,-Y,-Z,X,Y,Z } };
-      Geometry::Vec3D TP(Origin);
-      for(size_t i=0;i<6;i++)
-        {          
-	  TP=Origin+XYZ[i]*innerRadius;
-          OPtr=System.findCell(TP,OPtr);
-          if (OPtr)
-            ICells.insert(OPtr->getName());
-	  TP=Origin+XYZ[i]*outerRadius;
-          OPtr=System.findCell(TP,OPtr);
-          if (OPtr)
-            ICells.insert(OPtr->getName());
-        }
       
       // sqrt directions // and normal directions
       const double innerRR=innerRadius/sqrt(2);
       const double outerRR=outerRadius/sqrt(2);
+      Geometry::Vec3D TP;
       for(size_t i=0;i<6;i++)
-	for(size_t j=i;j<6;j++)
-	  {
-	    if (i!=((j+3) % 6))
-	      {
-		Geometry::Vec3D TP(Origin);
-		TP=Origin+(XYZ[i]+XYZ[j])*innerRR;
-		OPtr=System.findCell(TP,OPtr);
-		if (OPtr)
-		  ICells.insert(OPtr->getName());
+	{
+	  for(size_t j=i;j<6;j++)
+	    {	      
+	      if (i!=((j+3) % 6))
+		{
+		  TP = (i!=j) ? 
+		    Origin+(XYZ[i]+XYZ[j])*innerRR :
+		    Origin+XYZ[i]*innerRadius;
+		    
+		  OPtr=System.findCell(TP,OPtr);
+		  if (OPtr)
+		    ICells.insert(OPtr->getName());
+		  
+		  TP = (i!=j) ? 
+		    Origin+(XYZ[i]+XYZ[j])*outerRR :
+		    Origin+XYZ[i]*outerRadius;
 
-		TP=Origin+(XYZ[i]+XYZ[j])*outerRR;
-		OPtr=System.findCell(TP,OPtr);
-		if (OPtr)
-		  ICells.insert(OPtr->getName());
-	      }
-	  }
+		  OPtr=System.findCell(TP,OPtr);
+		  if (OPtr)
+		    ICells.insert(OPtr->getName());
+		}
+	    }
+	}
       for(const int IC : ICells)
         attachSystem::ContainedComp::addInsertCell(IC);
     }

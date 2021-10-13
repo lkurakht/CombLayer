@@ -3,7 +3,7 @@
  
  * File:   test/testSimpleObj.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,29 +35,16 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Surface.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
-#include "FItem.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
-#include "ObjSurfMap.h"
 #include "surfRegister.h"
-#include "ModelSupport.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -76,9 +63,7 @@ testSimpleObj::testSimpleObj()
   /*!
     Constructor
   */
-{
-  initSim();
-}
+{}
 
 testSimpleObj::~testSimpleObj() 
   /*!
@@ -137,6 +122,7 @@ testSimpleObj::applyTest(const int extra)
     {
       if (extra<0 || extra==i+1)
         {
+	  initSim();
 	  TestFunc::regTest(TestName[i]);
 	  const int retValue= (this->*TPtr[i])();
 	  if (retValue || extra>0)
@@ -155,19 +141,17 @@ testSimpleObj::testCreateObj()
 {
   ELog::RegMethod RegA("testSimpleObj","testCreateObj");
 
-  initSim();
-  World::createOuterObjects(ASim);
   
   testSystem::simpleObj A("simple");
   A.addInsertCell(74123);
-  A.createAll(ASim,World::masterOrigin());
+  A.createAll(ASim,World::masterOrigin(),0);
 
   testSystem::simpleObj B("simpleB");
   B.addInsertCell(74123);
   B.setOffset(Geometry::Vec3D(-10,0,0));
   B.setMat(5);
   B.setRefFlag(1);
-  B.createAll(ASim,World::masterOrigin());
+  B.createAll(ASim,World::masterOrigin(),0);
 
   std::vector<int> rOffset;
   std::vector<int> rRange;  
@@ -187,9 +171,6 @@ testSimpleObj::testRotateAngle()
 {
   ELog::RegMethod RegA("testSimpleObj","testAngleRotate");
 
-  initSim();
-  World::createOuterObjects(ASim);
-  
   testSystem::simpleObj A("simpleBase");
   A.addInsertCell(74123);
   A.setMat(11);

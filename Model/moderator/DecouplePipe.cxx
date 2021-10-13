@@ -3,7 +3,7 @@
  
  * File:   moderator/DecouplePipe.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,43 +36,26 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "localRotate.h"
-#include "masterRotate.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "SimProcess.h"
-#include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
+#include "FixedUnit.h"
 #include "ContainedComp.h"
+#include "BaseMap.h"
+#include "CellMap.h"
 #include "VacVessel.h"
-#include "Decoupled.h"
 #include "pipeUnit.h"
 #include "PipeLine.h"
 #include "DecouplePipe.h"
@@ -82,8 +65,7 @@ namespace moderatorSystem
 {
 
 DecouplePipe::DecouplePipe(const std::string& Key)  :
-  attachSystem::FixedComp(Key,0),
-  populated(0),
+  attachSystem::FixedUnit(Key,0),
   Outer("dOuter"),HeIn("HeIn"),HeOut("HeOut"),CH4In("CH4In"),
   CH4Out("CH4Out")
   /*!
@@ -93,8 +75,8 @@ DecouplePipe::DecouplePipe(const std::string& Key)  :
 {}
 
 DecouplePipe::DecouplePipe(const DecouplePipe& A) : 
-  attachSystem::FixedComp(A),
-  populated(A.populated),Outer(A.Outer),HeIn(A.HeIn),HeOut(A.HeOut),
+  attachSystem::FixedUnit(A),
+  Outer(A.Outer),HeIn(A.HeIn),HeOut(A.HeOut),
   CH4In(A.CH4In),CH4Out(A.CH4Out),Xoffset(A.Xoffset),Yoffset(A.Yoffset),
   HeInXStep(A.HeInXStep),HeInYStep(A.HeInYStep),HeOutXStep(A.HeOutXStep),
   HeOutYStep(A.HeOutYStep),outMat(A.outMat),outAlMat(A.outAlMat),
@@ -120,7 +102,6 @@ DecouplePipe::operator=(const DecouplePipe& A)
   if (this!=&A)
     {
       attachSystem::FixedComp::operator=(A);
-      populated=A.populated;
       Outer=A.Outer;
       HeIn=A.HeIn;
       HeOut=A.HeOut;
@@ -193,7 +174,7 @@ DecouplePipe::populate(const FuncDataBase& Control)
       index++;
     }
   if (!index)
-    ColErr::EmptyContainer(keyName+" HeTrack::TrackPts");
+    throw ColErr::EmptyContainer(keyName+" HeTrack::TrackPts");
 
   outMat=ModelSupport::EvalMat<int>(Control,keyName+"OutMat"); 
   outAlMat=ModelSupport::EvalMat<int>(Control,keyName+"OutAlMat"); 
@@ -203,7 +184,6 @@ DecouplePipe::populate(const FuncDataBase& Control)
   heMat=ModelSupport::EvalMat<int>(Control,keyName+"HeMat"); 
   heAlMat=ModelSupport::EvalMat<int>(Control,keyName+"HeAlMat"); 
   
-  populated |= 1;
   return;
 }
   
@@ -254,7 +234,7 @@ DecouplePipe::insertOuter(Simulation& System,const VacVessel& VC)
   Outer.addRadius(outAlRadius,outAlMat,0.0);
   Outer.addRadius(outRadius,outMat,0.0);
    
-  Outer.createAll(System);
+  Outer.build(System);
   return;
 }
 
@@ -294,7 +274,7 @@ DecouplePipe::insertHePipe(Simulation& System,const VacVessel& VC)
   HeIn.addRadius(heRadius,heMat,0.0);
   HeIn.addRadius(heAlRadius,heAlMat,0.0); 
 
-  HeIn.createAll(System);
+  HeIn.build(System);
   return;
 }
 
@@ -318,11 +298,11 @@ DecouplePipe::insertPipes(Simulation& System)
 
   
 void
-DecouplePipe::createAll(Simulation& System,
-			const attachSystem::FixedComp& FUnit,
-			const long int sideIndex,
-			const VacVessel& VCell,
-			const int flag)
+DecouplePipe::build(Simulation& System,
+		    const attachSystem::FixedComp& FUnit,
+		    const long int sideIndex,
+		    const VacVessel& VCell,
+		    const int flag)
   /*!
     Generic function to create everything
     \param System :: Simulation to create objects in
@@ -332,7 +312,7 @@ DecouplePipe::createAll(Simulation& System,
     \param flag :: decide if to add the He Pipe
   */
 {
-  ELog::RegMethod RegA("DecouplePipe","createAll");
+  ELog::RegMethod RegA("DecouplePipe","build");
 
 
   // First job is to re-create the OSM and populate cells

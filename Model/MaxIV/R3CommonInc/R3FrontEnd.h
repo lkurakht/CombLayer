@@ -3,7 +3,7 @@
  
  * File:   R3CommonInc/R3FrontEnd.h
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 
 namespace insertSystem
 {
+  class insertPlate;
   class insertCylinder;
 }
 
@@ -31,7 +32,7 @@ namespace constructSystem
 {
   class Bellows;
   class CrossPipe;
-  class GateValve;
+  class GateValveCube;
   class OffsetFlangePipe;
   class portItem;
   class PipeTube;
@@ -52,12 +53,20 @@ namespace constructSystem
 namespace xraySystem
 {
 
+  class CylGateValve;
   class HeatDump;
   class LCollimator;
   class SqrCollimator;
   class SquareFMask;
   class BeamMount;
+  class PreDipole;
+  class MagnetM1;
 
+  class PreBendPipe;
+  class EPSeparator;
+  class EPCombine;
+  class R3ChokeChamber;
+  class R3ChokeInsert;
     
   /*!
     \class balderFrontEnd
@@ -70,7 +79,7 @@ namespace xraySystem
 class R3FrontEnd :
   public attachSystem::CopiedComp,
   public attachSystem::ContainedComp,
-  public attachSystem::FixedOffset,
+  public attachSystem::FixedRotate,
   public attachSystem::FrontBackCut,
   public attachSystem::CellMap,
   public attachSystem::SurfMap
@@ -79,36 +88,48 @@ class R3FrontEnd :
 
   /// point to stop [normal none]
   std::string stopPoint;          
+
   /// Inner buildzone
-  attachSystem::InnerZone buildZone;
+  attachSystem::BlockZone buildZone;
   
   /// Shared point to use for last component:
   std::shared_ptr<attachSystem::FixedComp> lastComp;
+
+  /// transfer pipe from undulator/wiggler
+  std::shared_ptr<constructSystem::VacuumPipe> transPipe;
   
+  /// First magnetic block out of undulator
+  std::shared_ptr<xraySystem::MagnetM1> magBlockM1;
+
+  
+  std::shared_ptr<xraySystem::EPSeparator> epSeparator;
+  
+  /// Electron/photon separator to choke 1
+  std::shared_ptr<xraySystem::R3ChokeChamber> chokeChamber;
+
+  /// Electron/photon separator to choke 1
+  std::shared_ptr<xraySystem::R3ChokeInsert> chokeInsert;
+
   /// dipole connection pipe
   std::shared_ptr<constructSystem::VacuumPipe> dipolePipe;
   /// electron cut cell
   std::shared_ptr<insertSystem::insertCylinder> eCutDisk;
+  /// electron cut cell [with magnetic field]
+  std::shared_ptr<insertSystem::insertCylinder> eCutMagDisk;
   /// bellow infront of collimator
   std::shared_ptr<constructSystem::Bellows> bellowA;
-  /// box for collimator
-  std::shared_ptr<constructSystem::PipeTube> collTubeA;
   /// collimator A
-  std::shared_ptr<xraySystem::SqrCollimator> collA;
+  std::shared_ptr<xraySystem::SquareFMask> collA;
   /// bellow after collimator
   std::shared_ptr<constructSystem::Bellows> bellowB;
   /// Mask1:2 connection pipe
   std::shared_ptr<constructSystem::VacuumPipe> collABPipe;
   /// bellow after collimator
   std::shared_ptr<constructSystem::Bellows> bellowC;
-  /// box for collimator
-  std::shared_ptr<constructSystem::PipeTube> collTubeB;
   /// collimator B
-  std::shared_ptr<xraySystem::SqrCollimator> collB;
-  /// box for collimator C (joined to B)
-  std::shared_ptr<constructSystem::PipeTube> collTubeC;
+  std::shared_ptr<xraySystem::SquareFMask> collB;
   /// collimator C
-  std::shared_ptr<xraySystem::SqrCollimator> collC;
+  std::shared_ptr<xraySystem::SquareFMask> collC;
   /// Pipe from collimator B to heat dump
   std::shared_ptr<constructSystem::VacuumPipe> collExitPipe;
 
@@ -119,7 +140,7 @@ class R3FrontEnd :
   /// bellow after HeatShield
   std::shared_ptr<constructSystem::Bellows> bellowD;
   /// Gate box
-  std::shared_ptr<constructSystem::PipeTube> gateTubeA;
+  std::shared_ptr<xraySystem::CylGateValve> gateTubeA;
   /// Real Ion pump (KF40) 26cm vertioal
   std::shared_ptr<constructSystem::CrossPipe> ionPB;
   /// Pipe to third optic table
@@ -149,7 +170,7 @@ class R3FrontEnd :
 
    
   /// Exit of movables [?]
-  std::shared_ptr<constructSystem::GateValve> gateA;
+  std::shared_ptr<constructSystem::GateValveCube> gateA;
   /// bellows for florescence system
   std::shared_ptr<constructSystem::Bellows> bellowI;
   /// florescence screen tube
@@ -157,7 +178,7 @@ class R3FrontEnd :
   /// bellows for florescence system
   std::shared_ptr<constructSystem::Bellows> bellowJ;
   /// Gate box B
-  std::shared_ptr<constructSystem::PipeTube> gateTubeB;
+  std::shared_ptr<xraySystem::CylGateValve> gateTubeB;
   /// Front port connection for shutterbox
   std::shared_ptr<constructSystem::OffsetFlangePipe> offPipeA;
   /// Main shutters
@@ -171,27 +192,27 @@ class R3FrontEnd :
   
   std::shared_ptr<constructSystem::VacuumPipe> exitPipe;
 
+  bool collFM3Active;   ///< Coll C active
   double outerRadius;   ///< radius of tube for divisions
+  double frontOffset;   ///< Distance to move start point from origin
 
-  void insertFlanges(Simulation&,const constructSystem::PipeTube&);
+  void insertFlanges(Simulation&,const constructSystem::PipeTube&,
+		     const size_t);
   virtual const attachSystem::FixedComp&
     buildUndulator(Simulation&,
-		   MonteCarlo::Object*,
 		   const attachSystem::FixedComp&,
 		   const long int) =0;
 
 
-  void buildHeatTable(Simulation&,MonteCarlo::Object*,
-		      const attachSystem::FixedComp&,const long int);
-  void buildApertureTable(Simulation&,MonteCarlo::Object*,
+  void buildHeatTable(Simulation&);
+  void buildApertureTable(Simulation&,
 			  const attachSystem::FixedComp&,const long int);
-  void buildShutterTable(Simulation&,MonteCarlo::Object*,
-			 const attachSystem::FixedComp&,const long int);  
+  void buildShutterTable(Simulation&,
+			 const attachSystem::FixedComp&,
+			 const std::string&);  
 
   
   void populate(const FuncDataBase&);
-  void createUnitVector(const attachSystem::FixedComp&,
-			const long int);  
   void createSurfaces();
   virtual void createLinks()=0;
 
@@ -204,6 +225,8 @@ class R3FrontEnd :
   R3FrontEnd& operator=(const R3FrontEnd&);
   virtual ~R3FrontEnd();
 
+  /// remove FM3
+  void deactivateFM3() { collFM3Active=0; }
   /// set stop point
   void setStopPoint(const std::string& S) { stopPoint=S; }
   void createAll(Simulation&,const attachSystem::FixedComp&,

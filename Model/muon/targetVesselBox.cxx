@@ -3,7 +3,7 @@
  
  * File:   muon/targetVesselBox.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell/Goran Skoro
+ * Copyright (c) 2004-2019 by Stuart Ansell/Goran Skoro
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,35 +34,20 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
-#include "Convex.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
-#include "SimProcess.h"
-#include "SurInter.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -72,13 +57,14 @@
 #include "ContainedComp.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedRotate.h"
 #include "targetVesselBox.h"
 
 namespace muSystem
 {
 
 targetVesselBox::targetVesselBox(const std::string& Key)  : 
-  attachSystem::FixedComp(Key,6),attachSystem::ContainedComp()
+  attachSystem::FixedRotate(Key,6),attachSystem::ContainedComp()
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Key to use
@@ -101,10 +87,7 @@ targetVesselBox::populate(const FuncDataBase& Control)
 {
   ELog::RegMethod RegA("targetVesselBox","populate");
 
-  xStep=Control.EvalVar<double>(keyName+"XStep");
-  yStep=Control.EvalVar<double>(keyName+"YStep");
-  zStep=Control.EvalVar<double>(keyName+"ZStep");
-  xyAngle=Control.EvalVar<double>(keyName+"XYAngle");
+  FixedRotate::populate(Control);
 
   height=Control.EvalVar<double>(keyName+"Height");
   depth=Control.EvalVar<double>(keyName+"Depth");
@@ -113,22 +96,6 @@ targetVesselBox::populate(const FuncDataBase& Control)
   
   steelMat=ModelSupport::EvalMat<int>(Control,keyName+"SteelMat");    
        
-  return;
-}
-
-void
-targetVesselBox::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    \param FC :: Master Origin
-  */
-{
-  ELog::RegMethod RegA("targetVesselBox","createUnitVector");
-
-  attachSystem::FixedComp::createUnitVector(FC);
-  applyShift(xStep,yStep,zStep);
-  applyAngleRotate(xyAngle,0);    
-
   return;
 }
 
@@ -212,7 +179,8 @@ targetVesselBox::createLinks()
 
 void
 targetVesselBox::createAll(Simulation& System,
-			   const attachSystem::FixedComp& FC)
+			   const attachSystem::FixedComp& FC,
+			   const long int sideIndex)
 
   /*!
     Global creation of the hutch
@@ -222,7 +190,7 @@ targetVesselBox::createAll(Simulation& System,
 {
   ELog::RegMethod RegA("targetVesselBox","createAll");
   populate(System.getDataBase());
-  createUnitVector(FC);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System);
   createLinks();

@@ -3,7 +3,7 @@
 
  * File:   essBuild/PBIP.cxx
  *
- * Copyright (c) 2017 by Konstantin Batkov
+ * Copyright (c) 2017-2019 by Konstantin Batkov
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,56 +32,34 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ReadFunctions.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedOffsetUnit.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
-#include "BaseMap.h"
 #include "FixedOffset.h"
-#include "surfDBase.h"
-#include "surfDIter.h"
-#include "surfDivide.h"
-#include "SurInter.h"
-#include "mergeTemplate.h"
 
 #include "PBIP.h"
 
@@ -90,7 +68,7 @@ namespace essSystem
 
 PBIP::PBIP(const std::string& Key)  :
   attachSystem::ContainedGroup("before","main","after"),
-  attachSystem::FixedOffset(Key,6)
+  attachSystem::FixedOffsetUnit(Key,6)
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Name for item in search
@@ -99,7 +77,7 @@ PBIP::PBIP(const std::string& Key)  :
 
 PBIP::PBIP(const PBIP& A) :
   attachSystem::ContainedGroup(A),
-  attachSystem::FixedOffset(A),
+  attachSystem::FixedOffsetUnit(A),
   engActive(A.engActive),
   length(A.length),width(A.width),height(A.height),
   wallThick(A.wallThick),
@@ -182,7 +160,7 @@ PBIP::populate(const FuncDataBase& Control)
   ELog::RegMethod RegA("PBIP","populate");
 
   FixedOffset::populate(Control);
-  engActive=Control.EvalPair<int>(keyName,"","EngineeringActive");
+  engActive=Control.EvalTail<int>(keyName,"","EngineeringActive");
 
   length=Control.EvalVar<double>(keyName+"Length");
   width=Control.EvalVar<double>(keyName+"Width");
@@ -312,7 +290,7 @@ PBIP::createObjects(Simulation& System,
 
   const std::string BSurf=(lpEnd>0) ?
     FCend.getLinkString(lpEnd) : FCend.getCommonRule(lIndex+1).display() ;
-  FixedComp::setLinkSignedCopy(0,FCend,-lpEnd);
+  FixedComp::setLinkCopy(0,FCend,-lpEnd);
 
   std::string Out;
   // main

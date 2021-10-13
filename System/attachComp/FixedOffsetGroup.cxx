@@ -3,7 +3,7 @@
  
  * File:   attachComp/FixedOffsetGroup.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,22 +35,11 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "surfEqual.h"
-#include "Rules.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
@@ -212,7 +201,7 @@ FixedOffsetGroup::populateOffset(const FuncDataBase& Control,
     \param GO :: offset parameter
    */
 {
-  ELog::RegMethod RegA("FixedOffsetGroup","populate");
+  ELog::RegMethod RegA("FixedOffsetGroup","populateOffset");
 
   GO.preXYAngle=Control.EvalDefVar<double>(keyItem+"PreXYAngle",0.0);
   GO.preZAngle=Control.EvalDefVar<double>(keyItem+"PreZAngle",0.0);
@@ -280,5 +269,21 @@ FixedOffsetGroup::applyOffset()
   return;
 }
 
+void
+FixedOffsetGroup::createUnitVector(const attachSystem::FixedComp& FC,
+			      const long int sideIndex)
+  /*!
+    Create the unit vectors
+    \param FC :: Fixed Component
+    \param sideIndex :: signed linkpt			
+  */
+{
+  ELog::RegMethod RegA("FixedOffset","createUnitVector");
+
+  FixedGroup::createUnitVector(FC,sideIndex);
+  applyOffset();
+    
+  return;
+}
  
 }  // NAMESPACE attachSystem

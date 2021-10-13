@@ -3,7 +3,7 @@
  
  * File:   attachCompInc/FixedRotate.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,13 +44,18 @@ class FixedRotate  : public FixedComp
   double xStep;          ///< x step
   double yStep;          ///< y step
   double zStep;          ///< z step
-  double xAngle;         ///< xy Angle
-  double yAngle;         ///< xy Angle
+  double xAngle;         ///< x Angle
+  double yAngle;         ///< y Angle
   double zAngle;         ///< z Angle
+
+  int flipX;            ///< Flip X coordinate
   
  public:
 
+  explicit FixedRotate(const size_t);
+  FixedRotate(const size_t,const std::string&);
   FixedRotate(const std::string&,const size_t);
+  FixedRotate(const std::string&,const size_t,const size_t);
   FixedRotate(const FixedRotate&);
   FixedRotate& operator=(const FixedRotate&);
   virtual ~FixedRotate() {}     ///< Destructor
@@ -58,8 +63,21 @@ class FixedRotate  : public FixedComp
   virtual void populate(const FuncDataBase&);
   virtual void populate(const std::map<std::string,
 			std::vector<std::string>>&);
-  
   virtual void populate(const std::string&,const FuncDataBase&);
+  virtual void createUnitVector(const attachSystem::FixedComp&,
+				const long int);
+  virtual void createUnitVector(const Geometry::Vec3D&,
+				const Geometry::Vec3D&,
+				const Geometry::Vec3D&);
+  virtual void createUnitVector(const attachSystem::FixedComp&,
+				const long int,const long int);
+
+  virtual void createCentredUnitVector
+    (const attachSystem::FixedComp&,const long int,const double);
+  virtual void createCentredUnitVector
+  (const attachSystem::FixedComp&,const long int,const Geometry::Vec3D&);
+
+  
   void setOffset(const double,const double,const double);
   void setPreRotation(const double,const double,const double);
   void setRotation(const double,const double,const double);

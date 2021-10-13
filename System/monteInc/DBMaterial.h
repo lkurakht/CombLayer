@@ -3,7 +3,7 @@
  
  * File:   monteInc/DBMaterial.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,9 +53,6 @@ class DBMaterial
   MTYPE  MStore;     ///< Store of materials
   NTYPE  NStore;     ///< Store of neutron materials [if exist]
 
-  /// Active list
-  std::set<int> active;
-
   DBMaterial();
 
   ///\cond SINGLETON
@@ -84,8 +81,15 @@ class DBMaterial
   const MTYPE& getStore() const { return MStore; }
   /// Get neutron material list
   const NTYPE& getNeutMat() const { return NStore; }
+
+  // to be deprecated:
   const MonteCarlo::Material& getMaterial(const int) const;
   const MonteCarlo::Material& getMaterial(const std::string&) const;
+
+  const MonteCarlo::Material* getMaterialPtr(const int) const;
+  const MonteCarlo::Material* getMaterialPtr(const std::string&) const;
+
+  const MonteCarlo::Material* getVoidPtr() const;
 
   void resetMaterial(const MonteCarlo::Material&);
   void setMaterial(const MonteCarlo::Material&);
@@ -101,25 +105,15 @@ class DBMaterial
   const std::string& getKey(const int) const;
   int getIndex(const std::string&) const;
   void removeThermal(const std::string&);
+  void removeAllThermal();
   void cloneMaterial(const std::string&,const std::string&);
   void overwriteMaterial(const std::string&,const std::string&);
 
   void deactivateParticle(const std::string&);
   
-  void resetActive();
-  void setActive(const int);
-  bool isActive(const int) const;
-  /// accessor
-  const std::set<int> getActive() const { return active; }
   void setENDF7();
 
   void readFile(const std::string&);
-  
-  void writeCinder(std::ostream&) const;
-  void writeMCNPX(std::ostream&) const;
-  void writeFLUKA(std::ostream&) const;
-  void writePHITS(std::ostream&) const;
-  void writePOVRay(std::ostream&) const;
 };
 
 }

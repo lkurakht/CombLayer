@@ -3,7 +3,7 @@
  
  * File:   insertUnitInc/insertPlate.h
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,6 +58,7 @@ class insertPlate : public insertSystem::insertObject
  public:
 
   insertPlate(const std::string&);
+  insertPlate(const std::string&,const std::string&);
   insertPlate(const insertPlate&);
   insertPlate& operator=(const insertPlate&);
   virtual ~insertPlate();
@@ -67,7 +68,8 @@ class insertPlate : public insertSystem::insertObject
   void setValues(const double,const double,const double,
 		 const std::string&);
   void setGrid(const size_t);
-  
+
+  using FixedComp::createAll;
   void createAll(Simulation&,const Geometry::Vec3D&,
 		 const Geometry::Vec3D&,const Geometry::Vec3D&);
 

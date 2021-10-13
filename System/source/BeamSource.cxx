@@ -3,7 +3,7 @@
  
  * File:   source/BeamSource.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,32 +36,24 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "support.h"
 #include "writeSupport.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "doubleErr.h"
-#include "varList.h"
+#include "masterWrite.h"
 #include "inputSupport.h"
 #include "Source.h"
-#include "SrcItem.h"
 #include "SrcData.h"
 #include "surfRegister.h"
-#include "ModelSupport.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
-#include "WorkData.h"
-#include "World.h"
-#include "particleConv.h"
+#include "FixedRotate.h"
+#include "FixedRotateUnit.h"
+#include "phitsWriteSupport.h"
 #include "flukaGenParticle.h"
 
 #include "SourceBase.h"
@@ -71,7 +63,7 @@ namespace SDef
 {
 
 BeamSource::BeamSource(const std::string& keyName) : 
-  FixedOffset(keyName,0),SourceBase(),
+  FixedRotateUnit(keyName,0),SourceBase(),
   radius(1.0),angleSpread(0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -80,7 +72,7 @@ BeamSource::BeamSource(const std::string& keyName) :
 {}
 
 BeamSource::BeamSource(const BeamSource& A) : 
-  attachSystem::FixedOffset(A),SourceBase(A),
+  attachSystem::FixedRotateUnit(A),SourceBase(A),
   radius(A.radius),angleSpread(A.angleSpread)
   /*!
     Copy constructor
@@ -98,7 +90,7 @@ BeamSource::operator=(const BeamSource& A)
 {
   if (this!=&A)
     {
-      attachSystem::FixedOffset::operator=(A);
+      attachSystem::FixedRotate::operator=(A);
       SourceBase::operator=(A);
       radius=A.radius;
       angleSpread=A.angleSpread;
@@ -133,29 +125,13 @@ BeamSource::populate(const ITYPE& inputMap)
 {
   ELog::RegMethod RegA("BeamSource","populate");
 
-  attachSystem::FixedOffset::populate(inputMap);
+  attachSystem::FixedRotate::populate(inputMap);
   SourceBase::populate(inputMap);
   // default neutron
   
   angleSpread=mainSystem::getDefInput(inputMap,"aSpread",0,0.0);
   radius=mainSystem::getDefInput(inputMap,"radius",0,radius);
 
-  return;
-}
-
-void
-BeamSource::createUnitVector(const attachSystem::FixedComp& FC,
-			      const long int linkIndex)
-  /*!
-    Create the unit vector
-    \param FC :: Fixed Component
-    \param linkIndex :: Link index [signed for opposite side]
-   */
-{
-  ELog::RegMethod RegA("BeamSource","createUnitVector");
-
-  attachSystem::FixedComp::createUnitVector(FC,linkIndex);
-  applyOffset();
   return;
 }
 
@@ -167,8 +143,8 @@ BeamSource::rotate(const localRotate& LR)
   */
 {
   ELog::RegMethod Rega("BeamSource","rotate");
+
   FixedComp::applyRotation(LR);
-  ELog::EM<<"Applied Rotation == "<<Origin<<ELog::endDiag;
   return;
 }
   
@@ -233,10 +209,32 @@ BeamSource::createAll(const ITYPE& inputMap,
    */
 {
   ELog::RegMethod RegA("BeamSource","createAll<FC,linkIndex>");
+
   ELog::EM<<"linkunit: == "<<FC.getKeyName()<<" "<<linkIndex<<ELog::endDiag;
-    
+
   populate(inputMap);
   createUnitVector(FC,linkIndex);
+
+  return;
+}
+
+void
+BeamSource::createAll(const ITYPE& inputMap,
+		      const Geometry::Vec3D& Org,
+		      const Geometry::Vec3D& Axis,
+		      const Geometry::Vec3D& ZAxis)
+  /*!
+    Create all the source
+    \param Control :: DataBase for variables
+    \param Org :: Origin
+    \param Axis :: Axis
+    \param ZAxis :: ZAxis
+   */
+{
+  ELog::RegMethod RegA("BeamSource","createAll<Vec3D>");
+
+  populate(inputMap);
+  FixedComp::createUnitVector(Org,Axis,ZAxis);
 
   return;
 }
@@ -265,22 +263,21 @@ BeamSource::writePHITS(std::ostream& OX) const
 {
   ELog::RegMethod RegA("BeamSource","writePHITS");
 
-  boost::format fFMT("%1$11.6g%|14t|");
-
   const double phi=180.0*acos(Y[0])/M_PI;
-  
-  OX<<"  s-type =  1        # axial source \n";
-  OX<<"  r0  =   "<<(fFMT % radius)   <<"  # radius [cm]\n";
-  OX<<"  x0  =   "<<(fFMT % Origin[0])<<"  #  center position of x-axis [cm]\n";
-  OX<<"  y0  =   "<<(fFMT % Origin[1])<<"  #  center position of y-axis [cm]\n";
-  OX<<"  z0  =   "<<(fFMT % Origin[2])<<"  #  mininium of z-axis [cm]\n";
-  OX<<"  z1  =   "<<(fFMT % Origin[2])<<"  #  maximum of z-axis [cm]\n";
-  OX<<" dir  =   "<<(fFMT % Y[2])     <<"  # dir cosine direction of Z\n";
-  OX<<" phi  =   "<<(fFMT % phi)      <<"  # phi angle to X axis [deg]\n";
-  if (angleSpread>Geometry::zeroTol)
-    OX<<" dom =    "<<(fFMT % angleSpread)<<"  # solid angle to X axis [deg]\n";
 
-  writePHITS(OX);
+  StrFunc::writePHITS(OX,1,"s-type",1,"axial source");
+  StrFunc::writePHITS(OX,2,"r0",radius,"radius [cm]");
+  StrFunc::writePHITS(OX,2,"x0",Origin[0],"center position of x-axis [cm]");
+  StrFunc::writePHITS(OX,2,"y0",Origin[1],"center position of y-axis [cm]");
+  StrFunc::writePHITS(OX,2,"z0",Origin[2],"min position of z-axis [cm]");
+  StrFunc::writePHITS(OX,2,"z1",Origin[2],"max position of z-axis [cm]");
+  StrFunc::writePHITS(OX,2,"dir",Y[2],"Dir cosine direction of Z");
+  StrFunc::writePHITS(OX,2,"phi",phi,"Phi angle to X axis [deg]");
+
+  if (angleSpread>Geometry::zeroTol)
+    StrFunc::writePHITS(OX,2,"dom",angleSpread,"Solid angle fo X axis [deg]");
+
+  SourceBase::writePHITS(OX);
   OX<<std::endl;
   return;
 }
@@ -295,31 +292,40 @@ BeamSource::writeFLUKA(std::ostream& OX) const
   ELog::RegMethod RegA("BeamSource","writeFLUKA");
 
   const flukaGenParticle& PC=flukaGenParticle::Instance();
-
+  masterWrite& MW=masterWrite::Instance();
+  
   // can be two for an energy range
   if (Energy.size()!=1)
     throw ColErr::SizeError<size_t>
       (Energy.size(),1,"Energy only single point supported");
 
   std::ostringstream cx;
-  // energy : energy divirgence : angle spread [mrad]
+  // energy : energy divergence : angle spread [mrad]
   // radius : innerRadius : -1 t o means radius
-  cx<<"BEAM "<<-0.001*Energy.front()<<" 0.0 "<<M_PI*angleSpread/0.180
+  const double scaleValue=
+    (PC.mass(particleType)<Geometry::zeroTol) ? 0.001 : -0.001;
+  cx<<"BEAM "<<scaleValue*Energy.front()<<" 0.0 "<<M_PI*angleSpread/0.180
     <<" "<<radius<<" 0.0 -1.0 ";
   cx<<StrFunc::toUpperString(PC.nameToFLUKA(particleType));
   StrFunc::writeFLUKA(cx.str(),OX);
   cx.str("");
 
   //Y Axis is Z in fluka, X is X
-  cx<<"BEAMAXES "<<X<<" "<<Y;
+  // ELog::EM<<"Beam Direction[X] == "<<X<<ELog::endDiag;
+  // ELog::EM<<"Beam Direction[Y] == "<<Y<<ELog::endDiag;
+  // ELog::EM<<"Beam Direction[X*Y] == "<<X*Y<<ELog::endDiag;
+  cx<<"BEAMAXES "<<MW.Num(X)<<" "<<MW.Num(Y);
   StrFunc::writeFLUKA(cx.str(),OX);
   cx.str("");
 
   // Note the cos directs fro the beamPos are for particle
   // leaving the beam NOT the orientation of the disk
-  cx<<"BEAMPOS "<<Origin;
+  cx<<"BEAMPOS "<<MW.Num(Origin);
+
+    
   StrFunc::writeFLUKA(cx.str(),OX);
 
+  SourceBase::writeFLUKA(OX);
   return;
 }
   

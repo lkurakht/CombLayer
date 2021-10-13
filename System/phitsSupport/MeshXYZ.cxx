@@ -3,7 +3,7 @@
  
  * File:   phitsSupport/MeshXYZ.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,33 +37,28 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h" 
-#include "support.h"
-#include "writeSupport.h"
+#include "phitsWriteSupport.h"
 #include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Transform.h"
 #include "MeshXYZ.h"
 
 namespace phitsSystem
 {
 
 MeshXYZ::MeshXYZ() :
-  logSpace({0,0,0}),NX(0),NY(0),NZ(0),TransPtr(0)
+  nBins({0,0,0}),
+  logSpace({0,0,0}),
+  TransPtr(0)
   /*!
     Constructor [makes XYZ mesh]
   */
 {}
 
 MeshXYZ::MeshXYZ(const MeshXYZ& A) : 
-  logSpace(A.logSpace),NX(A.NX),NY(A.NY),NZ(A.NZ),
+  nBins(A.nBins),logSpace(A.logSpace),
   minPoint(A.minPoint),maxPoint(A.maxPoint),TransPtr(A.TransPtr)
   /*!
     Copy constructor
@@ -81,16 +76,28 @@ MeshXYZ::operator=(const MeshXYZ& A)
 {
   if (this!=&A)
     {
+      nBins=A.nBins;
       logSpace=A.logSpace;
-      NX=A.NX;
-      NY=A.NY;
-      NZ=A.NZ;
       minPoint=A.minPoint;
       maxPoint=A.maxPoint;
     }
   return *this;
 }
 
+size_t
+MeshXYZ::getZeroIndex() const
+   /*!
+     Determine if one bin in singular
+     \return Index  [0-2] 
+    */
+{
+  ELog::RegMethod RegA("MeshXYZ","getZeroIndex");
+    
+  for(size_t i=0;i<3;i++)
+    if (nBins[i]<2)
+      return i+1;
+  return 0;
+}  
   
 Geometry::Vec3D
 MeshXYZ::point(const size_t a,const size_t b,const size_t c) const
@@ -104,29 +111,45 @@ MeshXYZ::point(const size_t a,const size_t b,const size_t c) const
 {
   ELog::RegMethod RegA ("MeshXYZ","point");
 
-  if (a >= NX)
-    throw ColErr::IndexError<size_t>(a,NX,"X-coordinate");
-  if (b >= NY)
-    throw ColErr::IndexError<size_t>(b,NY,"Y-coordinate");
-  if (c >= NZ)
-    throw ColErr::IndexError<size_t>(c,NZ,"Z-coordinate");
-  if (NX*NY*NZ==0) return minPoint; 
+  if (a >= nBins[0])
+    throw ColErr::IndexError<size_t>(a,nBins[0],"X-coordinate");
+  if (b >= nBins[1])
+    throw ColErr::IndexError<size_t>(b,nBins[1],"Y-coordinate");
+  if (c >= nBins[2])
+    throw ColErr::IndexError<size_t>(c,nBins[2],"Z-coordinate");
+
 
   Geometry::Vec3D D=maxPoint-minPoint;
   // make for logspace
-  D[0]*= 0.5+static_cast<double>(a)/static_cast<double>(NX);
-  D[1]*= 0.5+static_cast<double>(b)/static_cast<double>(NY);
-  D[2]*= 0.5+static_cast<double>(c)/static_cast<double>(NZ);
+
+  D[0]*= 0.5+static_cast<double>(a)/static_cast<double>(nBins[0]);
+  D[1]*= 0.5+static_cast<double>(b)/static_cast<double>(nBins[1]);
+  D[2]*= 0.5+static_cast<double>(c)/static_cast<double>(nBins[2]);
   
   return minPoint+D;
 }
 
 void
 MeshXYZ::setSize(const size_t XP,const size_t YP,const size_t ZP)
+  /*!
+    Set the mesh size [number of points]
+    \param XP :: Number of X points
+    \param YP :: Number of Y points
+    \param ZP :: Number of Z points
+   */
 {
-  NX=XP;
-  NY=YP;
-  NZ=ZP;
+  nBins={XP,YP,ZP};
+  return;
+}
+
+void
+MeshXYZ::setIndex(const std::array<size_t,3>& newBins)
+  /*!
+    Set the mesh size [number of points]
+    \param newBins :: bins
+   */
+{
+  nBins=newBins;
   return;
 }
 
@@ -156,6 +179,59 @@ MeshXYZ::setCoordinates(const Geometry::Vec3D& A,
   return;
 }
 
+
+void
+MeshXYZ::write2D(std::ostream& OX) const
+/*!
+  Write out the mesh as if it is a 2d plane
+  \param OX :: Output stream
+*/
+{
+  ELog::RegMethod RegA("MeshXYZ","write2D");
+
+  const std::string txyz[]={"x","y","z"};
+
+  OX<<"  mesh = xyz \n";
+  const size_t nullIndex=getZeroIndex();
+    
+  for(size_t index=0;index<3;index++)
+    {
+      const std::string tx=txyz[index];
+      if (nullIndex!=index)
+	{
+	  OX<<"  "<<tx<<"-type = 2 \n";
+	  OX<<"    n"<<tx<<" = "<<nBins[index]<<"\n";
+	  OX<<"  "<<tx<<"min = "<<minPoint[index]<<"\n";
+	  OX<<"  "<<tx<<"max = "<<maxPoint[index]<<"\n";
+	}
+      else
+	{
+	  OX<<"  "<<tx<<"-type = 1 \n";
+	  OX<<"    n"<<tx<<" = "<<1<<"\n";
+	  OX<<"        "<<minPoint[index]<<" "<<maxPoint[index]<<"\n";
+	}
+    }
+
+  return;
+}
+
+void
+MeshXYZ::writeAxis(std::ostream& OX,const size_t depth) const
+  /*!
+    Write the axis parameter
+    \param OX :: Output
+    \param depth :: distance to offset
+  */
+{
+  const static std::string axyz[]={"xy","yz","xz","xy"};
+  const size_t nullIndex=getZeroIndex();
+
+  // note: nullIndex is 0 if no unaritary axis so write xy.
+  StrFunc::writePHITS(OX,depth,"axis",axyz[nullIndex]);
+  return;
+}
+
+
 void
 MeshXYZ::write(std::ostream& OX) const
   /*!
@@ -164,53 +240,20 @@ MeshXYZ::write(std::ostream& OX) const
   */
 {
   ELog::RegMethod RegA("MeshXYZ","write");
+  
+  if (nBins[0]*nBins[1]*nBins[2]==0) return;
+  std::string spc("  ");
+  const std::string txyz[]={"x","y","z"};
 
-  if (NX*NY*NZ==0) return;
-
-  OX<<"mesh = xyz\n";
-
-  if (NX>1)
+  StrFunc::writePHITS(OX,1,"mesh","xyz");
+  for(size_t i=0;i<3;i++)
     {
-      OX<<"x-type = "<<(2+logSpace[0])<<"\n";
-      OX<<"nx = "<<NX<<"\n";
-      OX<<"xmin = "<<minPoint[0]<<"\n";
-      OX<<"xmax = "<<maxPoint[0]<<"\n";
+      const std::string xyzT=txyz[i];
+      StrFunc::writePHITS(OX,2,xyzT+"-type",(2+logSpace[i]));
+      StrFunc::writePHITS(OX,2,"n"+xyzT,nBins[i]);
+      StrFunc::writePHITS(OX,2,xyzT+"min",minPoint[i]);
+      StrFunc::writePHITS(OX,2,xyzT+"max",maxPoint[i]);
     }
-  else
-    {
-      OX<<"x-type = 1\n";
-      OX<<"nx = 1 \n";
-      OX<<"     "<<minPoint[0]<<" "<<maxPoint[0]<<"\n";
-    }
-
-  if (NY>1)
-    {
-      OX<<"y-type = "<<(2+logSpace[1])<<"\n";
-      OX<<"ny = "<<NY<<"\n";
-      OX<<"ymin = "<<minPoint[1]<<"\n";
-      OX<<"ymax = "<<maxPoint[1]<<"\n";
-    }
-  else
-    {
-      OX<<"y-type = 1\n";
-      OX<<"ny = 1 \n";
-      OX<<"    "<<minPoint[1]<<" "<<maxPoint[1]<<"\n";
-    }
-
-  if (NZ>1)
-    {
-      OX<<"x-type = "<<(2+logSpace[2])<<"\n";
-      OX<<"nz = "<<NZ<<"\n";
-      OX<<"zmin = "<<minPoint[2]<<"\n";
-      OX<<"zmax = "<<maxPoint[2]<<"\n";
-    }
-  else
-    {
-      OX<<"z-type = 1\n";
-      OX<<"nz = 1 \n";
-      OX<<"     "<<minPoint[2]<<" "<<maxPoint[2]<<"\n";
-    }
-    
   return;
 }
 

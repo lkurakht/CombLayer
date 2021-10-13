@@ -3,7 +3,7 @@
  
  * File:   commonBeam/UTubePipe.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,32 +34,18 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -68,13 +54,12 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"  
 #include "FixedComp.h"
-#include "FixedOffset.h"
+#include "FixedRotate.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "SurfMap.h"
 
@@ -84,11 +69,10 @@ namespace xraySystem
 {
 
 UTubePipe::UTubePipe(const std::string& Key) : 
-  attachSystem::FixedOffset(Key,6),
+  attachSystem::FixedRotate(Key,6),
   attachSystem::ContainedGroup("Pipe","FFlange","BFlange"),
   attachSystem::CellMap(),
-  attachSystem::SurfMap(),attachSystem::FrontBackCut(),
-  frontJoin(0),backJoin(0)
+  attachSystem::SurfMap(),attachSystem::FrontBackCut()
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: KeyName
@@ -111,7 +95,7 @@ UTubePipe::populate(const FuncDataBase& Control)
 {
   ELog::RegMethod RegA("UTubePipe","populate");
   
-  FixedOffset::populate(Control);
+  FixedRotate::populate(Control);
 
   // Void + Fe special:
   width=Control.EvalVar<double>(keyName+"Width");  
@@ -131,59 +115,9 @@ UTubePipe::populate(const FuncDataBase& Control)
 					 keyName+"FlangeLength");
 
 
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   feMat=ModelSupport::EvalMat<int>(Control,keyName+"FeMat");
 
-  return;
-}
-
-void
-UTubePipe::createUnitVector(const attachSystem::FixedComp& FC,
-			    const long int sideIndex)
-  /*!
-    Create the unit vectors
-    \param FC :: Fixed component to link to
-    \param sideIndex :: Link point and direction [0 for origin]
-  */
-{
-  ELog::RegMethod RegA("UTubePipe","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
-  applyActiveFrontBack();
-  return;
-}
-
-void
-UTubePipe::applyActiveFrontBack()
-  /*!
-    Apply the active front/back point to re-calcuate Origin
-    It applies the rotation of Y to Y' to both X/Z to preserve
-    orthogonality.
-   */
-{
-  ELog::RegMethod RegA("UTubePipe","applyActiveFrontBack");
-
-  const Geometry::Vec3D curFP=(frontJoin) ? FPt : Origin;
-  const Geometry::Vec3D curBP=(backJoin) ? BPt : Origin+Y*length;
-
-  Origin=(curFP+curBP)/2.0;
-  const Geometry::Vec3D YAxis=(curBP-curFP).unit();
-  Geometry::Vec3D RotAxis=(YAxis*Y).unit();   // need unit for numerical acc.
-  if (!RotAxis.nullVector())
-    {
-      const Geometry::Quaternion QR=
-	Geometry::Quaternion::calcQVRot(Y,YAxis,RotAxis);
-      Y=YAxis;
-      QR.rotate(X);
-      QR.rotate(Z);
-    }
-  else if (Y.dotProd(YAxis) < -0.5) // (reversed
-    {
-      Y=YAxis;
-      X*=-1.0;
-      Z*=-1.0;
-    }
   return;
 }
   
@@ -202,17 +136,16 @@ UTubePipe::createSurfaces()
 			       Origin-Y*(length/2.0),Y); 
       FrontBackCut::setFront(SMap.realSurf(buildIndex+1));
     }
-  getShiftedFront(SMap,buildIndex+11,1,Y,flangeALength);
-
-  
+  getShiftedFront(SMap,buildIndex+11,Y,flangeALength);
+    
   if (!backActive())
     {
       ModelSupport::buildPlane(SMap,buildIndex+2,
 			       Origin+Y*(length/2.0),Y);
       FrontBackCut::setBack(-SMap.realSurf(buildIndex+2));
     }
-  getShiftedBack(SMap,buildIndex+12,-1,Y,flangeBLength);
-
+  getShiftedBack(SMap,buildIndex+12,Y,-flangeBLength);
+  
   // main pipe
   ModelSupport::buildPlane(SMap,buildIndex+3,Origin-X*(width/2.0),X);
   ModelSupport::buildPlane(SMap,buildIndex+4,Origin+X*(width/2.0),X);
@@ -239,7 +172,7 @@ UTubePipe::createSurfaces()
   
   // FLANGE SURFACES FRONT/BACK:
   ModelSupport::buildCylinder(SMap,buildIndex+107,Origin,Y,flangeARadius);
-  ModelSupport::buildCylinder(SMap,buildIndex+207,Origin,Y,flangeARadius);
+  ModelSupport::buildCylinder(SMap,buildIndex+207,Origin,Y,flangeBRadius);
 
   return;
 }
@@ -253,47 +186,53 @@ UTubePipe::createObjects(Simulation& System)
 {
   ELog::RegMethod RegA("UTubePipe","createObjects");
 
-  std::string Out;
+  HeadRule HR;
 
-  const std::string frontStr=frontRule();
-  const std::string backStr=backRule();
+  const HeadRule& frontHR=getFrontRule();
+  const HeadRule& backHR=getBackRule();
   
   // Void
-  Out=ModelSupport::getComposite(SMap,buildIndex,"(3:-7) (-4:-8) 5 -6 ");
-  makeCell("Void",System,cellIndex++,voidMat,0.0,Out+frontStr+backStr);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"3 -4 5 -6 ");
+  makeCell("Void",System,cellIndex++,voidMat,0.0,HR*frontHR*backHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,"11 -12 3 -4 6 -16");
-  makeCell("TopPipe",System,cellIndex++,feMat,0.0,Out);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"-3 -7 ");
+  makeCell("Void",System,cellIndex++,voidMat,0.0,HR*frontHR*backHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,"11 -12 3 -4 -5 15");
-  makeCell("BasePipe",System,cellIndex++,feMat,0.0,Out);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"4 -8 ");
+  makeCell("Void",System,cellIndex++,voidMat,0.0,HR*frontHR*backHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,"11 -12 -3 7 -17 ");
-  makeCell("LeftPipe",System,cellIndex++,feMat,0.0,Out);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"11 -12 3 -4 6 -16");
+  makeCell("TopPipe",System,cellIndex++,feMat,0.0,HR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex,"11 -12 4 8 -18 ");
-  makeCell("RightPipe",System,cellIndex++,feMat,0.0,Out);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"11 -12 3 -4 -5 15");
+  makeCell("BasePipe",System,cellIndex++,feMat,0.0,HR);
+
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"11 -12 -3 7 -17 ");
+  makeCell("LeftPipe",System,cellIndex++,feMat,0.0,HR);
+
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"11 -12 4 8 -18 ");
+  makeCell("RightPipe",System,cellIndex++,feMat,0.0,HR);
 
   // FLANGE Front: 
-  Out=ModelSupport::getComposite(SMap,buildIndex,
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,
 				 " -11 -107 ((7 -3) : (8 4) : -5 : 6) ");
-  makeCell("FrontFlange",System,cellIndex++,feMat,0.0,Out+frontStr);
+  makeCell("FrontFlange",System,cellIndex++,feMat,0.0,HR*frontHR);
 
   // FLANGE Back:
-  Out=ModelSupport::getComposite(SMap,buildIndex,
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,
 				 " 12 -207 ((7 -3) : (8 4) : -5 : 6) ");
-  makeCell("BackFlange",System,cellIndex++,feMat,0.0,Out+backStr);
+  makeCell("BackFlange",System,cellIndex++,feMat,0.0,HR*backHR);
 
   // outer boundary [flange front/back]
-  Out=ModelSupport::getSetComposite(SMap,buildIndex," -11 -107 ");
-  addOuterSurf("FFlange",Out+frontStr);
-  Out=ModelSupport::getSetComposite(SMap,buildIndex," 12 -207 ");
-  addOuterUnionSurf("BFlange",Out+backStr);
+  HR=ModelSupport::getSetHeadRule(SMap,buildIndex," -11 -107 ");
+  addOuterSurf("FFlange",HR*frontHR);
+  HR=ModelSupport::getSetHeadRule(SMap,buildIndex," 12 -207 ");
+  addOuterUnionSurf("BFlange",HR*backHR);
   // outer boundary mid tube
   //  (3:-7) (-4:8) 5 -6 ");
-  Out=ModelSupport::getSetComposite(SMap,buildIndex,
+  HR=ModelSupport::getSetHeadRule(SMap,buildIndex,
 				    " 11 -12 15 -16 (3:-17) (-4:-18)");
-  addOuterUnionSurf("Pipe",Out);
+  addOuterUnionSurf("Pipe",HR);
   return;
 }
   
@@ -322,52 +261,6 @@ UTubePipe::createLinks()
   return;
 }
   
-void
-UTubePipe::setFront(const attachSystem::FixedComp& FC,
-			   const long int sideIndex,
-			   const bool joinFlag)
-  /*!
-    Set front surface
-    \param FC :: FixedComponent 
-    \param sideIndex ::  Direction to link
-    \param joinFlag :: joint front to link object 
-   */
-{
-  ELog::RegMethod RegA("UTubePipe","setFront");
-  
-  FrontBackCut::setFront(FC,sideIndex);
-  if (joinFlag)
-    {
-      frontJoin=1;
-      FPt=FC.getLinkPt(sideIndex);
-      FAxis=FC.getLinkAxis(sideIndex);
-    }
-    
-  return;
-}
-  
-void
-UTubePipe::setBack(const attachSystem::FixedComp& FC,
-		   const long int sideIndex,
-		   const bool joinFlag)
-  /*!
-    Set Back surface
-    \param FC :: FixedComponent 
-    \param sideIndex ::  Direction to link
-    \param joinFlag :: joint front to link object 
-   */
-{
-  ELog::RegMethod RegA("UTubePipe","setBack");
-  
-  FrontBackCut::setBack(FC,sideIndex);
-  if (joinFlag)
-    {
-      backJoin=1;
-      BPt=FC.getLinkPt(sideIndex);
-      BAxis=FC.getLinkAxis(sideIndex);
-    }
-  return;
-}
   
 void
 UTubePipe::createAll(Simulation& System,

@@ -1,9 +1,9 @@
-/********************************************************************* 
+/*********************************************************************
   CombLayer : MCNP(X) Input builder
- 
+
  * File:   commonBeam/GratingUnit.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  ****************************************************************************/
 #include <fstream>
@@ -33,38 +33,24 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "polySupport.h"
-#include "inputParam.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
@@ -118,14 +104,14 @@ GratingUnit::populate(const FuncDataBase& Control)
 
   HArm=Control.EvalDefVar<double>(keyName+"HArm",40.0);
   PArm=Control.EvalDefVar<double>(keyName+"PArm",22.25);
-  
+
   zLift=Control.EvalVar<double>(keyName+"ZLift");
 
   mirrorTheta=Control.EvalVar<double>(keyName+"MirrorTheta");
   mWidth=Control.EvalVar<double>(keyName+"MirrorWidth");
   mThick=Control.EvalVar<double>(keyName+"MirrorThick");
   mLength=Control.EvalVar<double>(keyName+"MirrorLength");
-  
+
   grateIndex=Control.EvalDefVar<int>(keyName+"GrateIndex",0);
   grateTheta=Control.EvalVar<double>(keyName+"GrateTheta");
   mainGap=Control.EvalVar<double>(keyName+"MainGap");
@@ -182,40 +168,40 @@ GratingUnit::createSurfaces()
   // Rotate grating structure based on angle
   const Geometry::Quaternion QGX
     (Geometry::Quaternion::calcQRotDeg(grateTheta,X));
-  
+
   Geometry::Vec3D GX(X);
   Geometry::Vec3D GY(Y);
   Geometry::Vec3D GZ(Z);
   QGX.rotate(GY);
   QGX.rotate(GZ);
 
-  
-  ExternalCut::makeShiftedSurf
-    (SMap,"innerFront",buildIndex+101,1,GY,-slidePlateLength);
-  ExternalCut::makeShiftedSurf
-    (SMap,"innerBack",buildIndex+201,-1,GY,-slidePlateLength);
 
   ExternalCut::makeShiftedSurf
-    (SMap,"innerLeft",buildIndex+3,1,GX,-slidePlateWidth);
+    (SMap,"innerFront",buildIndex+101,GY,-slidePlateLength);
   ExternalCut::makeShiftedSurf
-    (SMap,"innerRight",buildIndex+4,-1,GX,-slidePlateWidth);
- 
+    (SMap,"innerBack",buildIndex+201,GY,slidePlateLength);
+
+  ExternalCut::makeShiftedSurf
+    (SMap,"innerLeft",buildIndex+3,GX,-slidePlateWidth);
+  ExternalCut::makeShiftedSurf
+    (SMap,"innerRight",buildIndex+4,GX,slidePlateWidth);
+
   ModelSupport::buildPlane(SMap,buildIndex+5,Origin+GZ*slidePlateZGap,GZ);
   ModelSupport::buildPlane(SMap,buildIndex+6,
 			   Origin+GZ*(slidePlateZGap+slidePlateThick),GZ);
 
   // Main support bars
   ExternalCut::makeShiftedSurf
-    (SMap,"innerFront",buildIndex+1001,1,GY,-mainBarYWidth);
+    (SMap,"innerFront",buildIndex+1001,GY,-mainBarYWidth);
   ExternalCut::makeShiftedSurf
-    (SMap,"innerBack",buildIndex+1002,-1,GY,-mainBarYWidth);
-  
+    (SMap,"innerBack",buildIndex+1002,GY,mainBarYWidth);
+
   ModelSupport::buildPlane(SMap,buildIndex+1003,Origin-GX*(mainBarXLen/2.0),GX);
   ModelSupport::buildPlane(SMap,buildIndex+1004,Origin+GX*(mainBarXLen/2.0),GX);
 
   ModelSupport::buildPlane(SMap,buildIndex+1013,Origin-GX*(mainBarCut/2.0),GX);
   ModelSupport::buildPlane(SMap,buildIndex+1014,Origin+GX*(mainBarCut/2.0),GX);
-    
+
   ModelSupport::buildPlane(SMap,buildIndex+1005,
 			   Origin+GZ*(slidePlateZGap-mainBarDepth),GZ);
 
@@ -225,7 +211,7 @@ GratingUnit::createSurfaces()
   const double yZero(8.0);
   const double G=sqrt(PArm*PArm+HArm*HArm);
   const double alpha=std::atan(PArm/HArm);
-  
+
   const double mAngle=std::max(std::abs(mirrorTheta),2.0)*M_PI/180.0;
   const double deltaX=G*sin(alpha-mAngle);
 
@@ -237,8 +223,8 @@ GratingUnit::createSurfaces()
   Geometry::Vec3D MZ(Z);
   QMX.rotate(MY);
   QMX.rotate(MZ);
-  
-  
+
+
   ModelSupport::buildPlane(SMap,buildIndex+301,MCentre-MY*(mLength/2.0),MY);
   ModelSupport::buildPlane(SMap,buildIndex+302,MCentre+MY*(mLength/2.0),MY);
   ModelSupport::buildPlane(SMap,buildIndex+303,MCentre-MX*(mWidth/2.0),MX);
@@ -246,7 +232,7 @@ GratingUnit::createSurfaces()
   ModelSupport::buildPlane(SMap,buildIndex+305,MCentre-MZ*mThick,MZ);
   ModelSupport::buildPlane(SMap,buildIndex+306,MCentre,MZ);
 
-  return; 
+  return;
 }
 
 void
@@ -263,10 +249,11 @@ GratingUnit::createObjects(Simulation& System)
   const HeadRule backHR=getRule("innerBack");
   const HeadRule backOutHR=backHR.complement();
   const HeadRule baseHR=getRule("innerBase");
+  const HeadRule baseOutHR=baseHR.complement();
   const HeadRule topHR=getRule("innerTop");
 
   const HeadRule cylinderHR=getRule("innerCylinder");
-  
+
   HeadRule innerHR(frontHR);
   innerHR.addIntersection(backHR);
 
@@ -275,7 +262,7 @@ GratingUnit::createObjects(Simulation& System)
 
   std::string Out;
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," 1003 -1004 ");  
+  Out=ModelSupport::getComposite(SMap,buildIndex," 1003 -1004 ");
   makeCell("InnerVoid",System,cellIndex++,0,0.0,Out+
 	   baseHR.display() + innerHR.display()+ topHR.display());
   innerHR.makeComplement();
@@ -291,7 +278,7 @@ GratingUnit::createObjects(Simulation& System)
   HeadRule cutHR(getRule("innerLeft"));
   cutHR.addIntersection(getRule("innerRight"));
   cutHR.makeComplement();
-  
+
   Out=ModelSupport::getComposite(SMap,buildIndex," 3 -4 -5 ");
   Out+=cutHR.display()+frontHR.display()+backHR.display()+baseHR.display();
 
@@ -305,9 +292,22 @@ GratingUnit::createObjects(Simulation& System)
   makeCell("OuterFBarVoid",System,cellIndex++,0,0.0,Out+frontOutHR.display());
   Out=ModelSupport::getComposite(SMap,buildIndex," 1001  1014 -1004 1005 -5");
   makeCell("OuterFBar",System,cellIndex++,mainMat,0.0,Out+frontOutHR.display());
-  Out=ModelSupport::getComposite(SMap,buildIndex," 1001  1003 -1004 1005 -5");
-  addOuterSurf(Out+frontOutHR.display());
-  
+
+  Out=frontHR.display()+backHR.display()+baseOutHR.display()+
+    ModelSupport::getComposite(SMap,buildIndex," 1003 -1004 1005 ");
+  makeCell("OuterBarVoid1",System,cellIndex++,0,0.0,Out);
+
+  Out=ModelSupport::getComposite(SMap,buildIndex," 1003 -3 -5 ");
+  Out += frontHR.display() + backHR.display() + baseHR.display();
+  makeCell("OuterBarVoid2",System,cellIndex++,0,0.0,Out);
+
+  Out=ModelSupport::getComposite(SMap,buildIndex," -1004 4 -5 ");
+  Out += frontHR.display() + backHR.display() + baseHR.display();
+  makeCell("OuterBarVoid3",System,cellIndex++,0,0.0,Out);
+
+  Out=ModelSupport::getComposite(SMap,buildIndex," 1001 -1002 1003 -1004 1005 -5");
+  addOuterSurf(Out);
+
   Out=ModelSupport::getComposite(SMap,buildIndex," -1002 1003 -1013 1005 -5");
   makeCell("OuterBBar",System,cellIndex++,mainMat,0.0,Out+
 	   cylinderHR.display()+backOutHR.display());
@@ -316,8 +316,6 @@ GratingUnit::createObjects(Simulation& System)
   Out=ModelSupport::getComposite(SMap,buildIndex," -1002 1014 -1004 1005 -5");
   makeCell("OuterBBar",System,cellIndex++,mainMat,0.0,Out+
   	   cylinderHR.display()+backOutHR.display());
-  Out=ModelSupport::getComposite(SMap,buildIndex," -1002 1003 -1004 1005 -5");
-  addOuterUnionSurf(Out+backOutHR.display());
 
   // inner
   Out=ModelSupport::getComposite(SMap,buildIndex,"  101 -201 3 -4 ");
@@ -328,18 +326,16 @@ GratingUnit::createObjects(Simulation& System)
   Out=ModelSupport::getComposite(SMap,buildIndex,
 				 " 301 -302 303 -304 305 -306 ");
   makeCell("Mirror",System,cellIndex++,mirrorMat,0.0,Out);
-  addOuterUnionSurf(Out);  
+  addOuterUnionSurf(Out);
   //  Out=ModelSupport::getComposite(SMap,buildIndex," 102 -201 3 -4 5 -6 ");
   //  makeCell("MidVoid",System,cellIndex++,0,0.0,Out);
 
   // support:
- 
+
   // Out=ModelSupport::getComposite(SMap,buildIndex,"101 -202 3 -4 5 -6");
   // addOuterSurf(Out);
 
-
-  
-  return; 
+  return;
 }
 
 void
@@ -377,7 +373,7 @@ GratingUnit::createAll(Simulation& System,
 
   populate(System.getDataBase());
   createUnitVector(FC,sideIndex);
-  
+
   /// insert later
   for(size_t i=0;i<3;i++)
     {
@@ -385,18 +381,18 @@ GratingUnit::createAll(Simulation& System,
       grateArray[i]->setRotation(0.0,grateTheta);
       grateArray[i]->createAll(System,*this,0);
     }
-  
+
 
   createSurfaces();
   createObjects(System);
   createLinks();
-  insertObjects(System);       
+  insertObjects(System);
 
   /// insert later
   for(size_t i=0;i<3;i++)
     grateArray[i]->insertInCell(System,getCell("InnerVoid"));
-  
-  
+
+
   return;
 }
 

@@ -3,7 +3,7 @@
  
  * File:   essBuild/BunkerGaps.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,56 +33,28 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ReadFunctions.h"
-#include "ModelSupport.h"
-#include "MaterialSupport.h"
-#include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
-#include "FrontBackCut.h"
-#include "MXcards.h"
-#include "Zaid.h"
-#include "Material.h"
-#include "DBMaterial.h"
-#include "surfDIter.h"
 #include "BunkerQUnit.h"
 #include "BunkerGaps.h"
 
@@ -91,7 +63,7 @@ namespace essSystem
 {
 
 BunkerGaps::BunkerGaps(const std::string& bunkerName) :
-  attachSystem::FixedComp(bunkerName+"Gaps",0)
+  attachSystem::FixedUnit(bunkerName+"Gaps",0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param bunkerName :: Name of the bunker object that is building this roof
@@ -106,7 +78,7 @@ BunkerGaps::~BunkerGaps()
 {}
  
 void
-BunkerGaps::createAll(Simulation& System,
+BunkerGaps::buildAll(Simulation& System,
 		       const attachSystem::FixedComp& FC,
 		       const long int orgIndex,
                        const long int axisIndex)
@@ -129,7 +101,7 @@ BunkerGaps::createAll(Simulation& System,
   for(size_t i=0;i<NPath;i++)
     {
       QUnit.push_back(std::shared_ptr<BunkerQUnit>
-		      (new BunkerQUnit(keyName+StrFunc::makeString(i))));
+		      (new BunkerQUnit(keyName+std::to_string(i))));
       OR.addObject(QUnit.back());
       QUnit.back()->createAll(System,FC,orgIndex,axisIndex);
     }

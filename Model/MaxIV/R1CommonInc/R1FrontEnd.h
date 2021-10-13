@@ -3,7 +3,7 @@
  
  * File:   R1Inc/R1FrontEnd.h
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,17 +22,11 @@
 #ifndef xraySystem_R1FrontEnd_h
 #define xraySystem_R1FrontEnd_h
 
-namespace insertSystem
-{
-  class insertCylinder;
-  class insertPlate;
-}
-
 namespace constructSystem
 {
   class Bellows;
   class CrossPipe;
-  class GateValve;
+  class GateValveCube;
   class OffsetFlangePipe;
   class portItem;
   class PipeTube;
@@ -56,11 +50,13 @@ namespace xraySystem
 {
   class BremBlock;
   class BeamMount;
+  class CylGateValve;
   class DipoleChamber;
   class FlangeMount;
   class HeatDump;
   class LCollimator;
-  class PreDipole;
+  class MagnetBlock;
+  class QuadUnit;
   class Quadrupole;
   class SquareFMask;
   class UTubePipe;
@@ -78,34 +74,32 @@ namespace xraySystem
 class R1FrontEnd :
   public attachSystem::CopiedComp,
   public attachSystem::ContainedComp,
-  public attachSystem::FixedOffset,
-  public attachSystem::FrontBackCut,
-  public attachSystem::CellMap  
+  public attachSystem::FixedRotate,
+  public attachSystem::ExternalCut,
+  public attachSystem::CellMap,
+  public attachSystem::SurfMap  
 {
  protected:   
 
-  /// construction of fluka cutting space
-  attachSystem::InnerZone buildZone;
+  /// insert cells for magnet block
+  std::set<int> magnetCells;
+  
+  /// point to stop [normal none]
+  std::string stopPoint;          
+  /// Inner buildzone
+  attachSystem::BlockZone buildZone;
   
   /// Shared point to use for last component:
   std::shared_ptr<attachSystem::FixedComp> lastComp;
   
-  /// dipole connection pipe
-  std::shared_ptr<xraySystem::PreDipole> preDipole;
-  /// Quad for X shaping of beam
-  std::shared_ptr<xraySystem::Quadrupole> quadX;
-  /// Quad for Z shaping of beam
-  std::shared_ptr<xraySystem::Quadrupole> quadZ;
-  /// dipole connection pipe
-  std::shared_ptr<xraySystem::DipoleChamber> dipoleChamber;
+  /// Gate unit
+  std::shared_ptr<constructSystem::GateValveCube> elecGateA;
+
+  /// Quad unit
+  std::shared_ptr<xraySystem::MagnetBlock> magnetBlock;
+
   /// dipole connection pipe
   std::shared_ptr<constructSystem::VacuumPipe> dipolePipe;
-  /// electron cut cell [straight line]
-  std::shared_ptr<insertSystem::insertCylinder> eCutDisk;
-  /// electron cut cell [with magnetic field]
-  std::shared_ptr<insertSystem::insertPlate> eCutMagDisk;
-  /// electron cut cell [with magnetic field]
-  std::shared_ptr<insertSystem::insertPlate> eCutWallDisk;
   /// bellow infront of collimator
   std::shared_ptr<constructSystem::Bellows> bellowA;
   /// FixedMask 1
@@ -125,7 +119,7 @@ class R1FrontEnd :
   /// bellow after HeatShield
   std::shared_ptr<constructSystem::Bellows> bellowD;
   /// Gate box
-  std::shared_ptr<constructSystem::PipeTube> gateTubeA;
+  std::shared_ptr<xraySystem::CylGateValve> gateTubeA;
   /// Real Ion pump (KF40) 26cm vertioal
   std::shared_ptr<constructSystem::CrossPipe> ionPB;
   /// Pipe to third optic table
@@ -154,7 +148,7 @@ class R1FrontEnd :
   std::shared_ptr<constructSystem::VacuumPipe> pipeC;
 
   /// Exit of movables
-  std::shared_ptr<constructSystem::GateValve> gateA;
+  std::shared_ptr<constructSystem::GateValveCube> gateA;
   /// bellows for florescence system
   std::shared_ptr<constructSystem::Bellows> bellowI;
   /// florescence screen tube
@@ -162,7 +156,7 @@ class R1FrontEnd :
   /// bellows for florescence system
   std::shared_ptr<constructSystem::Bellows> bellowJ;
   /// Gate box B
-  std::shared_ptr<constructSystem::PipeTube> gateTubeB;
+  std::shared_ptr<xraySystem::CylGateValve> gateTubeB;
   /// Front port connection for shutterbox
   std::shared_ptr<constructSystem::OffsetFlangePipe> offPipeA;
   /// Main shutters
@@ -176,24 +170,29 @@ class R1FrontEnd :
   /// Front port connection for shutterbox
   std::shared_ptr<constructSystem::Bellows> bellowK;
 
-  double outerRadius;   ///< radius of tube for divisions
-    
-  void insertFlanges(Simulation&,const constructSystem::PipeTube&);
-
-  virtual const attachSystem::FixedComp&
-    buildUndulator(Simulation&,MonteCarlo::Object*,
-		   const attachSystem::FixedComp&,const long int) =0;
+  double outerLeft;     ///< left size of tube for divisions
+  double outerRight;    ///< right of tube for divisions
+  double outerFront;    ///< front side offset if needed
   
-  void buildHeatTable(Simulation&,MonteCarlo::Object*,
-		      const attachSystem::FixedComp&,const long int);
-  void buildApertureTable(Simulation&,MonteCarlo::Object*,
-			  const attachSystem::FixedComp&,const long int);
-  void buildShutterTable(Simulation&,MonteCarlo::Object*,
-			 const attachSystem::FixedComp&,const long int);
+  virtual const attachSystem::FixedComp&
+  buildUndulator(Simulation&,
+		   const attachSystem::FixedComp&,
+		   const std::string&) =0;
+  
+  void buildHeatTable(Simulation&,
+		      const attachSystem::FixedComp&,
+		      const std::string&);
+  void buildApertureTable(Simulation&,
+			  const attachSystem::FixedComp&,
+			  const std::string&);
+  void buildShutterTable(Simulation&,
+			 const attachSystem::FixedComp&,
+			 const std::string&);
 
+  void processEnd(Simulation&,
+		  std::shared_ptr<attachSystem::FixedComp>);
+  
   virtual void populate(const FuncDataBase&);
-  virtual void createUnitVector(const attachSystem::FixedComp&,
-			const long int);
   virtual void createSurfaces();
   virtual void buildObjects(Simulation&);
   virtual void createLinks() =0;
@@ -205,6 +204,9 @@ class R1FrontEnd :
   R1FrontEnd& operator=(const R1FrontEnd&);
   virtual ~R1FrontEnd();
 
+  /// insert a magnet cells
+  void addInsertMagnetCell(const int CN) { magnetCells.emplace(CN); }
+  void setStopPoint(const std::string& S) { stopPoint=S; }
   void createAll(Simulation&,const attachSystem::FixedComp&,
 		 const long int);
 

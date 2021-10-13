@@ -3,7 +3,7 @@
  
  * File:   commonBeam/ShutterUnit.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,46 +33,32 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
 #include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "inputParam.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
+#include "FixedRotateGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "ContainedComp.h"
 #include "ContainedGroup.h"
 #include "ExternalCut.h"
 #include "ShutterUnit.h"
@@ -83,7 +69,7 @@ namespace xraySystem
 
 ShutterUnit::ShutterUnit(const std::string& Key) :
   attachSystem::ContainedGroup("Inner","Outer"),
-  attachSystem::FixedOffsetGroup(Key,"Main",6,"Beam",2),
+  attachSystem::FixedRotateGroup(Key,"Main",6,"Beam",2),
   attachSystem::ExternalCut(),
   attachSystem::CellMap()
   /*!
@@ -108,11 +94,12 @@ ShutterUnit::populate(const FuncDataBase& Control)
 {
   ELog::RegMethod RegA("ShutterUnit","populate");
 
-  FixedOffsetGroup::populate(Control);
-  
+  FixedRotateGroup::populate(Control);
+
   width=Control.EvalVar<double>(keyName+"Width");
   height=Control.EvalVar<double>(keyName+"Height");
   thick=Control.EvalVar<double>(keyName+"Thick");
+  baseLift=Control.EvalVar<double>(keyName+"BaseLift");
   lift=Control.EvalVar<double>(keyName+"Lift");
   liftScrewRadius=Control.EvalVar<double>(keyName+"LiftScrewRadius");
   threadLength=Control.EvalVar<double>(keyName+"ThreadLength");
@@ -162,24 +149,24 @@ ShutterUnit::createUnitVector(const attachSystem::FixedComp& centreFC,
 
   beamFC.createUnitVector(centreFC,cIndex);
   mainFC.createUnitVector(flangeFC,fIndex);
-
   applyOffset();
-  setDefault("Main");
-  setSecondary("Beam");
-  
-  // Now construct new centre point:
-  const Geometry::Line beamL(bOrigin,bY);
-  const Geometry::Line mainL(Origin,Y);
-  const std::pair<Geometry::Vec3D,Geometry::Vec3D> CP=
-    beamL.closestPoints(mainL);
+  setDefault("Main","Beam");
 
-  beamFC.setCentre(CP.second);
-  
+  // Now construct new centre point:
+  // Beam controls all axis points EXCEPT Flange:Y
+  //
+
+  Geometry::Vec3D bOrg(bOrigin);
+  bOrg+=bY*(Origin.dotProd(bY)-bOrigin.dotProd(bY));
+
   if (upFlag)
-    beamFC.applyShift(0,0,lift);  // only beam offset
-  
-  setDefault("Main");
-  setSecondary("Beam");
+    bOrg+=Y*lift;
+  else
+    bOrg+=Y*baseLift;
+  beamFC.setCentre(bOrg);
+
+
+  setDefault("Main","Beam"); 
   return;
 }
 
@@ -191,8 +178,6 @@ ShutterUnit::createSurfaces()
 {
   ELog::RegMethod RegA("ShutterUnit","createSurfaces");
 
-
-
   ModelSupport::buildPlane(SMap,buildIndex+1,bOrigin-bY*(thick/2.0),bY);
   ModelSupport::buildPlane(SMap,buildIndex+2,bOrigin+bY*(thick/2.0),bY);
   ModelSupport::buildPlane(SMap,buildIndex+3,bOrigin-bX*(width/2.0),bX);
@@ -203,7 +188,6 @@ ShutterUnit::createSurfaces()
   // bellow outer 
   ModelSupport::buildCylinder(SMap,buildIndex+7,bOrigin,Y,liftScrewRadius);
   ModelSupport::buildPlane(SMap,buildIndex+16,bOrigin+Y*threadLength,Y);
-
   // construct surround [Y is upwards]
   if (!isActive("mountSurf"))
     {
@@ -245,10 +229,10 @@ ShutterUnit::createObjects(Simulation& System)
     (ExternalCut::getRuleStr("mountSurf"));
 
   std::string Out;
-  Out=ModelSupport::getComposite(SMap,buildIndex," 1 -2 3 -4  5 -6  " );
+  Out=ModelSupport::getComposite(SMap,buildIndex," 1 -2 3 -4 5 -6  " );
   makeCell("Dump",System,cellIndex++,blockMat,0.0,Out);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," 1 -2 3 -4  5 -6 " );
+  Out=ModelSupport::getComposite(SMap,buildIndex," 1 -2 3 -4 5 -6 " );
   addOuterSurf("Inner",Out);
   
   // create Flange:
@@ -268,7 +252,7 @@ ShutterUnit::createObjects(Simulation& System)
   Out=ModelSupport::getComposite(SMap,buildIndex,"127 102 -201 -117");
   makeCell("BellowVoid",System,cellIndex++,0,0.0,Out);
 
-  if (topFlangeRadius+Geometry::zeroTol>outRadius)
+  if (topFlangeRadius+Geometry::zeroTol<outRadius)
     {
       Out=ModelSupport::getComposite(SMap,buildIndex,"201 -202 -117 207");
       makeCell("TopVoid",System,cellIndex++,0,0.0,Out);

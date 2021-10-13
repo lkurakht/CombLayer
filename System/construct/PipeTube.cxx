@@ -3,7 +3,7 @@
  
  * File:   construct/PipeTube.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,66 +34,42 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Line.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "SurInter.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
-#include "MaterialSupport.h"
 #include "generateSurf.h"
 #include "LinkUnit.h"  
 #include "FixedComp.h"
-#include "FixedOffset.h"
+#include "FixedRotate.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
-
 #include "portItem.h"
+
+#include "VirtualTube.h"
 #include "PipeTube.h"
 
 namespace constructSystem
 {
 
 PipeTube::PipeTube(const std::string& Key) :
-  attachSystem::FixedOffset(Key,12),
-  attachSystem::ContainedGroup("Main","FlangeA","FlangeB"),
-  attachSystem::CellMap(),
-  attachSystem::SurfMap(),
-  attachSystem::FrontBackCut(),
-  
-  delayPortBuild(0),portConnectIndex(1),
-  rotAxis(0,1,0)
+  constructSystem::VirtualTube(Key)  
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: KeyName
@@ -101,6 +77,8 @@ PipeTube::PipeTube(const std::string& Key) :
 {
   nameSideIndex(2,"FlangeA");
   nameSideIndex(3,"FlangeB");
+  ContainedGroup::addCC("FlangeA");
+  ContainedGroup::addCC("FlangeB");
 }
 
   
@@ -119,12 +97,7 @@ PipeTube::populate(const FuncDataBase& Control)
 {
   ELog::RegMethod RegA("PipeTube","populate");
   
-  FixedOffset::populate(Control);
-
-  // Void + Fe special:
-  radius=Control.EvalVar<double>(keyName+"Radius");
-  length=Control.EvalVar<double>(keyName+"Length");
-  wallThick=Control.EvalVar<double>(keyName+"WallThick");
+  VirtualTube::populate(Control);
 
   flangeARadius=Control.EvalPair<double>(keyName+"FlangeARadius",
 					 keyName+"FlangeRadius");
@@ -137,71 +110,14 @@ PipeTube::populate(const FuncDataBase& Control)
   flangeBLength=Control.EvalPair<double>(keyName+"FlangeBLength",
 					 keyName+"FlangeLength");
 
-  flangeACap=Control.EvalDefPair<double>(keyName+"FlangeACap",
-					 keyName+"FlangeCap",0.0);
-  flangeBCap=Control.EvalDefPair<double>(keyName+"FlangeBCap",
-					 keyName+"FlangeCap",0.0);
+  flangeACapThick=Control.EvalDefPair<double>(keyName+"FlangeACapThick",
+					 keyName+"FlangeCapThick",0.0);
+  flangeBCapThick=Control.EvalDefPair<double>(keyName+"FlangeBCapThick",
+					 keyName+"FlangeCapThick",0.0);
   
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
-  wallMat=ModelSupport::EvalMat<int>(Control,keyName+"WallMat");
-  capMat=ModelSupport::EvalDefMat<int>(Control,keyName+"FlangeCapMat",wallMat);
-    
-  const size_t NPorts=Control.EvalVar<size_t>(keyName+"NPorts");
-  const std::string portBase=keyName+"Port";
-  double L,R,W,FR,FT,PT;
-  int PMat;
-  int OFlag;
-  for(size_t i=0;i<NPorts;i++)
-    {
-      const std::string portName=portBase+std::to_string(i);
-      portItem windowPort(portName);
-      const Geometry::Vec3D Centre=
-	Control.EvalVar<Geometry::Vec3D>(portName+"Centre");
-      const Geometry::Vec3D Axis=
-	Control.EvalPair<Geometry::Vec3D>(portName,portBase,"Axis");
-      
-      L=Control.EvalPair<double>(portName,portBase,"Length");
-      R=Control.EvalPair<double>(portName,portBase,"Radius");
-      W=Control.EvalPair<double>(portName,portBase,"Wall");
-      FR=Control.EvalPair<double>(portName,portBase,"FlangeRadius");
-      FT=Control.EvalPair<double>(portName,portBase,"FlangeLength");
-      PT=Control.EvalDefPair<double>(portName,portBase,"PlateThick",0.0);
-      PMat=ModelSupport::EvalDefMat<int>
-	(Control,portName+"PlateMat",portBase+"PlateMat",wallMat);
-
-      OFlag=Control.EvalDefVar<int>(portName+"OuterVoid",0);
-
-      if (OFlag) windowPort.setWrapVolume();
-      windowPort.setMain(L,R,W);
-      windowPort.setFlange(FR,FT);
-      windowPort.setCoverPlate(PT,PMat);
-      windowPort.setMaterial(voidMat,wallMat);
-
-      PCentre.push_back(Centre);
-      PAxis.push_back(Axis);
-      Ports.push_back(windowPort);
-    }					    
-  return;
-}
-
-void
-PipeTube::createUnitVector(const attachSystem::FixedComp& FC,
-			   const long int sideIndex)
-  /*!
-    Create the unit vectors
-    \param FC :: Fixed component to link to
-    \param sideIndex :: Link point and direction [0 for origin]
-  */
-{
-  ELog::RegMethod RegA("PipeTube","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
-  applyPortRotation();
 
   return;
 }
-
 
 void
 PipeTube::createSurfaces()
@@ -212,101 +128,147 @@ PipeTube::createSurfaces()
   ELog::RegMethod RegA("PipeTube","createSurfaces");
 
   // Do outer surfaces (vacuum ports)
+  const double frontLength(length/2.0+flangeACapThick);
+  const double backLength(length/2.0+flangeACapThick);
   if (!frontActive())
     {
       ModelSupport::buildPlane(SMap,buildIndex+1,
-			       Origin-Y*(length/2.0),Y);
+			       Origin-Y*frontLength,Y);
       setFront(SMap.realSurf(buildIndex+1));
     }
   if (!backActive())
     {
       ModelSupport::buildPlane(SMap,buildIndex+2,
-			       Origin+Y*(length/2.0),Y);
+			       Origin+Y*backLength,Y);
       setBack(-SMap.realSurf(buildIndex+2));
     }
-  
+  ExternalCut::makeShiftedSurf(SMap,"front",buildIndex+101,Y,
+			       flangeALength+flangeACapThick);
+  ExternalCut::makeShiftedSurf(SMap,"back",buildIndex+102,Y,
+			       -(flangeBLength+flangeBCapThick));
+
+  ExternalCut::makeShiftedSurf(SMap,"front",buildIndex+201,Y,
+			       flangeACapThick);
+  ExternalCut::makeShiftedSurf(SMap,"back",buildIndex+202,Y,
+			       -(flangeBCapThick));
   
   // void space:
   ModelSupport::buildCylinder(SMap,buildIndex+7,Origin,Y,radius);
   SurfMap::addSurf("VoidCyl",-SMap.realSurf(buildIndex+7));
     
   ModelSupport::buildCylinder(SMap,buildIndex+17,Origin,Y,radius+wallThick);
+  SurfMap::addSurf("OuterCyl",SMap.realSurf(buildIndex+17));
 
-  ModelSupport::buildPlane(SMap,buildIndex+101,
-			   Origin-Y*(length/2.0-(flangeALength+flangeACap)),Y);
-  ModelSupport::buildPlane(SMap,buildIndex+102,
-			   Origin+Y*(length/2.0-(flangeBLength+flangeBCap)),Y);
-
-  ModelSupport::buildPlane(SMap,buildIndex+201,
-			   Origin-Y*(length/2.0-flangeACap),Y);
-  ModelSupport::buildPlane(SMap,buildIndex+202,
-			   Origin+Y*(length/2.0-flangeBCap),Y);
 
   // flange:
   ModelSupport::buildCylinder(SMap,buildIndex+107,Origin,Y,flangeARadius);
+  SurfMap::addSurf("FlangeACyl",SMap.realSurf(buildIndex+107));
+
   ModelSupport::buildCylinder(SMap,buildIndex+207,Origin,Y,flangeBRadius);
+  SurfMap::addSurf("FlangeBCyl",SMap.realSurf(buildIndex+207));
   
   return;
+}
+
+HeadRule
+PipeTube::makeOuterVoid(Simulation& System)
+  /*!
+    Build outer void and return the outer volume
+    \param System :: Simulation to build in
+    \return Outer exclude volume
+  */
+{
+  ELog::RegMethod RegA("PipeTube","makeOuterVoid");
+  
+  HeadRule HR;
+  const HeadRule frontHR(frontRule());
+  const HeadRule backHR(backRule());
+
+  if (flangeARadius>flangeBRadius+Geometry::zeroTol)
+    {
+      ELog::EM<<"Code unwritten"<<ELog::endErr;
+    }
+  else if (flangeBRadius>flangeARadius+Geometry::zeroTol)
+    {
+      ELog::EM<<"Code unwritten"<<ELog::endErr;
+    }
+  else
+    {
+      HR=ModelSupport::getHeadRule(SMap,buildIndex,"17 -107 101 -102");
+      makeCell("OuterVoid",System,cellIndex++,0,0.0,HR);
+
+      SurfMap::addSurf("OuterRadius",SMap.realSurf(buildIndex+107));
+      
+      HR=ModelSupport::getHeadRule(SMap,buildIndex,"-107")*frontHR*backHR;
+
+    }
+  return HR;
 }
 
 void
 PipeTube::createObjects(Simulation& System)
   /*!
-    Adds the vacuum box
+    Builds the pipe
     \param System :: Simulation to create objects in
    */
 {
   ELog::RegMethod RegA("PipeTube","createObjects");
 
-  const std::string frontSurf(frontRule());
-  const std::string backSurf(backRule());
+  const HeadRule frontHR=getFrontRule();
+  const HeadRule backHR=getBackRule();
 
-  const std::string frontVoidSurf=
-    (flangeACap<Geometry::zeroTol) ? frontSurf :
-    ModelSupport::getComposite(SMap,buildIndex," 201 ");
-  const std::string backVoidSurf=
-    (flangeBCap<Geometry::zeroTol) ? backSurf :
-    ModelSupport::getComposite(SMap,buildIndex," -202 ");
+  const HeadRule frontVoidHR=
+    (flangeACapThick<Geometry::zeroTol) ? frontHR :
+    ModelSupport::getHeadRule(SMap,buildIndex,"201");
+  const HeadRule backVoidHR=
+    (flangeBCapThick<Geometry::zeroTol) ? backHR :
+    ModelSupport::getHeadRule(SMap,buildIndex,"-202");
   
   
-  std::string Out;
-  
-  Out=ModelSupport::getComposite(SMap,buildIndex," -7 ");
-  makeCell("Void",System,cellIndex++,voidMat,0.0,Out+
-	   frontVoidSurf+backVoidSurf);
+  HeadRule HR;
+
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," -7 ");
+  makeCell("Void",System,cellIndex++,voidMat,0.0,
+	   HR*frontVoidHR*backVoidHR);
   // main walls
-  Out=ModelSupport::getComposite(SMap,buildIndex," -17 7 ");
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," -17 7 ");
   makeCell("MainTube",System,cellIndex++,wallMat,0.0,
-	   Out+frontVoidSurf+backVoidSurf);
+	   HR*frontVoidHR*backVoidHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," 17 -107 -101 ");
-  makeCell("FrontFlange",System,cellIndex++,wallMat,0.0,Out+frontVoidSurf);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," 17 -107 -101 ");
+  makeCell("FrontFlange",System,cellIndex++,wallMat,0.0,HR*frontVoidHR);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," 17 -207 102 ");
-  makeCell("BackFlange",System,cellIndex++,wallMat,0.0,Out+backVoidSurf);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex," 17 -207 102 ");
+  makeCell("BackFlange",System,cellIndex++,wallMat,0.0,HR*backVoidHR);
 
-
-  if (flangeACap>Geometry::zeroTol)
+  if (flangeACapThick>Geometry::zeroTol)
     {
-      Out=ModelSupport::getComposite(SMap,buildIndex," -201 -107 ");
-      makeCell("FrontCap",System,cellIndex++,capMat,0.0,Out+frontSurf);	    
+      HR=ModelSupport::getHeadRule(SMap,buildIndex," -201 -107 ");
+      makeCell("FrontCap",System,cellIndex++,capMat,0.0,HR*frontHR);	    
     }
   
-  if (flangeBCap>Geometry::zeroTol)
+  if (flangeBCapThick>Geometry::zeroTol)
     {
-      Out=ModelSupport::getComposite(SMap,buildIndex," 202 -207 ");
-      makeCell("BackCap",System,cellIndex++,capMat,0.0,Out+backSurf);
+      HR=ModelSupport::getHeadRule(SMap,buildIndex,"202 -207");
+      makeCell("BackCap",System,cellIndex++,capMat,0.0,HR*backHR);
     }
-  
-  Out=ModelSupport::getComposite(SMap,buildIndex," 101 -102 -17 ");
-  addOuterSurf("Main",Out);
-  
-  Out=ModelSupport::getComposite(SMap,buildIndex," -107 -101 ");
-  addOuterSurf("FlangeA",Out+frontSurf);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," -207 102 ");
-  addOuterSurf("FlangeB",Out+backSurf);
-
+  if (outerVoid)
+    {
+      HR=makeOuterVoid(System);
+      addOuterSurf("Main",HR);
+    }
+  else
+    {
+      HR=ModelSupport::getHeadRule(SMap,buildIndex,"101 -102 -17");
+      addOuterSurf("Main",HR);
+      
+      HR=ModelSupport::getHeadRule(SMap,buildIndex,"-107 -101");
+      addOuterSurf("FlangeA",HR*frontHR);
+      
+      HR=ModelSupport::getHeadRule(SMap,buildIndex,"-207 102");
+      addOuterSurf("FlangeB",HR*backHR);
+    }
   return;
 }
 
@@ -329,415 +291,100 @@ PipeTube::createLinks()
   FixedComp::setConnect(3,FixedComp::getLinkPt(2),Y);
 
   // make a composite flange
-  std::string Out;
-  const std::string frontSurf(frontRule());
-  const std::string backSurf(backRule());
-  Out=ModelSupport::getComposite(SMap,buildIndex," -101 -107 ");
-  FixedComp::setLinkComp(2,Out+frontSurf);
-  Out=ModelSupport::getComposite(SMap,buildIndex," 102 -207 ");
-  FixedComp::setLinkComp(3,Out+backSurf);
+  HeadRule HR;
 
-  
-  return;
-}
 
-  
-void
-PipeTube::createPorts(Simulation& System)
-  /*!
-    Simple function to create ports
-    \param System :: Simulation to use
-   */
-{
-  ELog::RegMethod RegA("PipeTube","createPorts");
-  
-  for(size_t i=0;i<Ports.size();i++)
+  const HeadRule frontSurf(getFrontRule());
+  const HeadRule backSurf(getBackRule());
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"-101 -107");
+  FixedComp::setLinkComp(2,HR*frontSurf);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"102 -207");
+  FixedComp::setLinkComp(3,HR*backSurf);
+
+  // inner links
+  int innerFrontSurf, innerBackSurf;
+  Geometry::Vec3D innerFrontVec, innerBackVec;
+  if (flangeACapThick<Geometry::zeroTol)
     {
-      const attachSystem::ContainedComp& CC=getCC("Main");
-      for(const int CN : CC.getInsertCells())
-	  Ports[i].addOuterCell(CN);
-
-      for(const int CN : portCells)
-	Ports[i].addOuterCell(CN);
-
-      Ports[i].setCentLine(*this,PCentre[i],PAxis[i]);
-      Ports[i].constructTrack(System);
-    }
-  return;
-}
-
-const portItem&
-PipeTube::getPort(const size_t index) const
-  /*!
-    Accessor to ports
-    \param index :: index point
-    \return port
-  */
-{
-  ELog::RegMethod RegA("PipeTube","getPort");
-
-  if (index>=Ports.size())
-    throw ColErr::IndexError<size_t>(index,Ports.size(),"index/Ports size");
-     
-  return Ports[index];
-}
-
-
-void
-PipeTube::addInsertPortCells(const int CN) 
-  /*!
-    Add a cell to the ports insert list
-    \param CN :: Cell number
-  */
-{
-  portCells.insert(CN);
-  return;
-}
-  
-
-void
-PipeTube::intersectPorts(Simulation& System,
-			 const size_t aIndex,
-			 const size_t bIndex) const
-  /*!
-    Overlaps two ports if the intersect because of size
-    Currently does not check that they don't intersect.
-    \param System :: Simulation
-    \param aIndex :: Inner port
-    \param bIndex :: Outer port
-   */
-{
-  ELog::RegMethod RegA("PipeTube","intersectPorts");
-
-  if (aIndex==bIndex || aIndex>=Ports.size())
-    throw ColErr::IndexError<size_t>(aIndex,Ports.size(),
-				     "Port does not exist");
-  if (bIndex>=Ports.size())
-    throw ColErr::IndexError<size_t>(bIndex,Ports.size(),
-				     "Port does not exist");
-
-  Ports[aIndex].intersectPair(System,Ports[bIndex]);
-  
-  return;
-}
-
-void
-PipeTube::intersectVoidPorts(Simulation& System,
-			     const size_t aIndex,
-			     const size_t bIndex) const
-/*!
-    Overlaps two ports if the intersect because of size
-    Currently does not check that they don't intersect.
-    \param System :: Simulation
-    \param aIndex :: Inner port
-    \param bIndex :: Outer port
-   */
-{
-  ELog::RegMethod RegA("PipeTube","intersectPorts");
-
-  if (aIndex==bIndex || aIndex>=Ports.size())
-    throw ColErr::IndexError<size_t>(aIndex,Ports.size(),
-				     "Port does not exist");
-  if (bIndex>=Ports.size())
-    throw ColErr::IndexError<size_t>(bIndex,Ports.size(),
-				     "Port does not exist");
-
-  Ports[aIndex].intersectVoidPair(System,Ports[bIndex]);
-  
-  return;
-}
-
-
-void
-PipeTube::setPortRotation(const size_t index,
-			  const Geometry::Vec3D& RAxis)
-  /*!
-    Set Port rotation 
-    \param index 
-        -0 : No rotation / no shift
-        - 1,2 : main ports 
-        - 3-N+2 : Extra Ports
-    \param RAxis :: Rotation axis expresses in local X,Y,Z
-  */
-{
-  ELog::RegMethod RegA("PipeTube","setPortRotation");
-  
-  portConnectIndex=index;
-  if (portConnectIndex>1)
-    rotAxis=RAxis.unit();
-  return;
-}
-
-void
-PipeTube::applyPortRotation()
-  /*!
-    Apply a rotation to all the PCentre and the 
-    PAxis of the ports
-  */
-{
-  ELog::RegMethod RegA("PipeTube","applyPortRotation");
-
-  if (!portConnectIndex) return;
-  if (portConnectIndex>Ports.size()+3)
-    throw ColErr::IndexError<size_t>
-      (portConnectIndex,Ports.size()+3,"PI exceeds number of Ports+3");
-
-  Geometry::Vec3D YPrime(0,-1,0);
-  if (portConnectIndex<3)
-    {
-      Origin+=Y*(length/2.0);
-      if (portConnectIndex==2)
-	{
-	  Y*=1;
-	  X*=-1;
-	}
-      return;
+      innerFrontSurf = getFrontRule().getPrimarySurface();
+      innerFrontVec = Origin-Y*(length/2.0);
     }
   else
     {
-      const size_t pIndex=portConnectIndex-3;
-      YPrime=PAxis[pIndex].unit();
-      const Geometry::Quaternion QV=
-	Geometry::Quaternion::calcQVRot(Geometry::Vec3D(0,1,0),YPrime,rotAxis);
-      // Now move QV into the main basis set origin:
-      const Geometry::Vec3D& QVvec=QV.getVec();
-      const Geometry::Vec3D QAxis=X*QVvec.X()+
-	Y*QVvec.Y()+Z*QVvec.Z();
-      
-      const Geometry::Quaternion QVmain(QV[0],QAxis);  
-      QVmain.rotate(X);
-      QVmain.rotate(Y);
-      QVmain.rotate(Z);
-      const Geometry::Vec3D offset=calcCylinderDistance(pIndex);
-      Origin+=offset;
+      innerFrontSurf = buildIndex+201;
+      innerFrontVec = Origin-Y*(length/2.0-flangeACapThick);
     }
 
+  if (flangeBCapThick<Geometry::zeroTol)
+    {
+      innerBackSurf  = getBackRule().getPrimarySurface();
+      innerBackVec  = Origin+Y*(length/2.0);
+    } else
+    {
+      innerBackSurf  = buildIndex+202;
+      innerBackVec  = Origin+Y*(length/2.0-flangeBCapThick);
+    }
+  
+  FixedComp::setConnect(4,innerFrontVec,Y);
+  FixedComp::setLinkSurf(4,innerFrontSurf);
+  nameSideIndex(4,"InnerFront");
+
+  FixedComp::setConnect(5,innerBackVec,Y);
+  FixedComp::setLinkSurf(5,-innerBackSurf);
+  nameSideIndex(5,"InnerBack");
+
+  FixedComp::setLinkSurf(6,-SMap.realSurf(buildIndex+7));
+  nameSideIndex(6,"InnerSide");
+
+  if (!outerVoid)
+    {
+      FixedComp::setConnect(8,Origin+Z*(radius+wallThick),Z);
+      FixedComp::setLinkSurf(8,SMap.realSurf(buildIndex+17));
+    }
+  else
+    {
+      FixedComp::setConnect(8,Origin+Z*flangeBRadius,Z);
+      FixedComp::setLinkSurf(8,SMap.realSurf(buildIndex+107));
+    }
+  nameSideIndex(8,"OuterRadius");
+
+  
   return;
-}
-
-Geometry::Vec3D
-PipeTube::calcCylinderDistance(const size_t pIndex) const
-  /*!
-    Calculate the shift vector
-    \param pIndex :: Port index [0-NPorts]
-    \return the directional vector from the port origin
-    to the pipetube surface
-   */
-{
-  ELog::RegMethod RegA("PipeTube","calcCylinderDistance");
-  
-  if (pIndex>Ports.size())
-    throw ColErr::IndexError<size_t>
-      (pIndex,Ports.size(),"PI exceeds number of Ports");
-
-  const Geometry::Vec3D PC=
-    X*PCentre[pIndex].X()+Y*PCentre[pIndex].Y()+Z*PCentre[pIndex].Z();
-  const Geometry::Vec3D PA=
-    X*PAxis[pIndex].X()+Y*PAxis[pIndex].Y()+Z*PAxis[pIndex].Z();
-
-  const Geometry::Line CylLine(Geometry::Vec3D(0,0,0),Y);
-  const Geometry::Line PortLine(PC,PA);
-
-  Geometry::Vec3D CPoint;
-  std::tie(CPoint,std::ignore)=CylLine.closestPoints(PortLine);
-  // calc external impact point:
-
-  const double R=radius+wallThick;
-  const double ELen=Ports[pIndex].getExternalLength();
-  const Geometry::Cylinder mainC(0,Geometry::Vec3D(0,0,0),Y,R);
-  
-  const Geometry::Vec3D RPoint=
-    SurInter::getLinePoint(PC,PA,&mainC,CPoint-PA*ELen);
-  
-  return RPoint-PA*ELen;
-}
-
-
-int
-PipeTube::splitVoidPorts(Simulation& System,
-			 const std::string& splitName,
-			 const int offsetCN,const int CN,
-			 const std::vector<size_t>& portVec)
-  /*!
-    Split the void cell and store divition planes
-    Only use those port that a close to orthogonal with Y axis
-    \param System :: Simulation to use
-    \param splitName :: Name for cell output  [new]
-    \param offsetCN :: output offset number  [new]
-    \param CN :: Cell number to split
-    \param portVec :: all ports to work with
-   */
-{
-  ELog::RegMethod RegA("PipeTube","splitVoidPorts<vec>");
-
-  std::vector<Geometry::Vec3D> SplitOrg;
-  std::vector<Geometry::Vec3D> SplitAxis;
-
-  for(size_t i=1;i<portVec.size();i+=2)
-    {
-      const size_t AIndex=portVec[i-1];
-      const size_t BIndex=portVec[i];
-      
-      if (AIndex==BIndex || AIndex>=PCentre.size() ||
-	  BIndex>=PCentre.size())
-	throw ColErr::IndexError<size_t>
-	  (AIndex,BIndex,"Port number too large for"+keyName);
-      
-      const Geometry::Vec3D CPt=
-	(PCentre[AIndex]+PCentre[BIndex])/2.0;
-      SplitOrg.push_back(CPt);
-      SplitAxis.push_back(Geometry::Vec3D(0,1,0));
-    }
-
-  const std::vector<int> cells=
-    FixedComp::splitObject(System,offsetCN,CN,SplitOrg,SplitAxis);
-  
-  if (!splitName.empty())
-    for(const int CN : cells)
-      CellMap::addCell(splitName,CN);
-
-  return (cells.empty()) ? CN : cells.back()+1;
-}
-
-int
-PipeTube::splitVoidPorts(Simulation& System,
-			 const std::string& splitName,
-			 const int offsetCN,
-			 const int CN,
-			 const Geometry::Vec3D& inobjAxis)
-  /*!
-    Split the void cell and store divition planes
-    Only use those port that a close to orthogonal with Y axis
-    \param System :: Simulation to use
-    \param splitName :: Name for cell output
-    \param offsetCN :: output offset number
-    \param CN :: Cell number to split
-    \param inobjAxis :: axis to split pot on
-   */
-{
-  ELog::RegMethod RegA("PipeTube","splitVoidPorts");
-
-  const Geometry::Vec3D Axis=(X*inobjAxis[0]+
-			      Y*inobjAxis[1]+
-			      Z*inobjAxis[2]).unit();
-  
-  std::vector<Geometry::Vec3D> SplitOrg;
-  std::vector<Geometry::Vec3D> SplitAxis;
-
-  size_t preFlag(0);
-  for(size_t i=0;i<PCentre.size();i++)
-    {
-      // within basis set
-      if (Ports[i].getY().dotProd(Axis)<Geometry::zeroTol)
-	{
-	  if (preFlag)   // test to have two ports
-	    {
-	      const Geometry::Vec3D CPt=
-		(PCentre[preFlag-1]+PCentre[i])/2.0;
-	      SplitOrg.push_back(CPt);
-	      SplitAxis.push_back(inobjAxis.unit());
-	    }
-		      
-	  preFlag=i+1;
-	}
-    }
-  const std::vector<int> cells=
-    FixedComp::splitObject(System,offsetCN,CN,SplitOrg,SplitAxis);
-
-  if (!splitName.empty())
-    for(const int CN : cells)
-      CellMap::addCell(splitName,CN);
-    
-  return (cells.empty()) ? CN : cells.back()+1;
-}
-
-int
-PipeTube::splitVoidPorts(Simulation& System,
-			 const std::string& splitName,
-			 const int offsetCN,
-			 const int CN)
-  /*!
-    Split the void cell and store divition planes
-    Only use those port that a close to orthogonal with Y axis
-    \param System :: Simulation to use
-    \param splitName :: Name for cell output
-    \param offsetCN :: output offset number
-    \param CN :: Cell number to split
-   */
-{
-  ELog::RegMethod RegA("PipeTube","splitVoidPorts");
-
-  std::vector<Geometry::Vec3D> SplitOrg;
-  std::vector<Geometry::Vec3D> SplitAxis;
-
-  size_t preFlag(0);
-  for(size_t i=0;i<PCentre.size();i++)
-    {
-      if (Ports[i].getY().dotProd(Y)<Geometry::zeroTol)
-	{
-	  if (preFlag)
-	    {
-	      const Geometry::Vec3D CPt=
-		(PCentre[preFlag-1]+PCentre[i])/2.0;
-	      SplitOrg.push_back(CPt);
-	      SplitAxis.push_back(Geometry::Vec3D(0,1,0));
-	    }
-	  preFlag=i+1;
-	}
-    }
-  
-  const std::vector<int> cells=
-    FixedComp::splitObject(System,offsetCN,CN,SplitOrg,SplitAxis);
-
-  if (!splitName.empty())
-    for(const int CN : cells)
-      CellMap::addCell(splitName,CN);
-  
-  return (cells.empty()) ? CN : cells.back()+1;
 }
 
 void
-PipeTube::insertAllInCell(Simulation& System,const int cellN)
+PipeTube::createPorts(Simulation& System)
   /*!
-    Overload of containdGroup so that the ports can also 
-    be inserted if needed
-  */
+    Create the ports [for outside ports]
+    \param System :: Simulation for model
+   */
 {
-  ContainedGroup::insertAllInCell(System,cellN);
-  if (!delayPortBuild)
+  ELog::RegMethod RegA("PipeTube","createPorts");
+  // both OUTWARD
+  MonteCarlo::Object* OPtr=
+    CellMap::getCellObject(System,"MainTube");
+
+  const HeadRule innerSurf(SurfMap::getSurfRules("#VoidCyl"));
+  const HeadRule outerSurf(SurfMap::getSurfRules("OuterCyl"));
+
+  if (outerVoid)
     {
-      for(const portItem& PC : Ports)
-	PC.insertInCell(System,cellN);
+      const HeadRule flangeSurf(SurfMap::getSurfRules("FlangeACyl"));
+      createPorts(System,OPtr,innerSurf,flangeSurf);
+      HeadRule OVoidHR=SurfMap::getSurfRule("#OuterRadius");
+      OVoidHR.populateSurf();
+      for(size_t i=0;i<Ports.size();i++)
+	{
+	  const Geometry::Vec3D Pt = Ports[i]->getLinkPt("FlangePlate");
+	  if (OVoidHR.isValid(Pt))
+	    Ports[i]->addFlangeCut(CellMap::getCellObject(System,"OuterVoid"));
+
+	}
     }
-  return;
+  else
+    createPorts(System,OPtr,innerSurf,outerSurf);
 }
-  
-  
-void
-PipeTube::createAll(Simulation& System,
-		     const attachSystem::FixedComp& FC,
-		     const long int FIndex)
-  /*!
-    Generic function to create everything
-    \param System :: Simulation item
-    \param FC :: FixedComp
-    \param FIndex :: Fixed Index
-  */
-{
-  ELog::RegMethod RegA("PipeTube","createAll(FC)");
 
-  populate(System.getDataBase());
-  createUnitVector(FC,FIndex);
-  createSurfaces();    
-  createObjects(System);
   
-  createLinks();
-
-  insertObjects(System);
-  if (!delayPortBuild)
-    createPorts(System);
-
-  return;
-}
   
 }  // NAMESPACE constructSystem

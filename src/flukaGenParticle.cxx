@@ -3,7 +3,7 @@
  
  * File:   src/flukaGenParticle.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,9 +33,7 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
@@ -43,11 +41,11 @@
 #include "particleConv.h"
 #include "flukaGenParticle.h"
 
-// mcnpChar : mcnpI : fluka : flukaI : phits : phitsI : mcplNumber : nucleons
+
 flukaGenParticle::flukaGenParticle() : 
   flukaGen({
       {"all-part",201}, {"all-char",202}, {"all-neut",203}, {"all-nega",204},
-      {"all-posi",205}, {"nucleons",206}, {"nuc&pi+-",207}, {"energy ",208},
+      {"all-posi",205}, {"nucleons",206}, {"nuc&pi+-",207}, {"energy",208},
       {"pions+-",209}, {"beampart",210}, {"em-enrgy",211}, {"muons",212},
       {"e+&e-",213}, {"ap&an",214}, {"kaons",215}, {"strange",216},
       {"kaons+-",217}, {"had-char",218}, {"fissions",219}, {"he-fiss",220},
@@ -79,7 +77,7 @@ int
 flukaGenParticle::flukaITYP(const std::string& particleName) const
   /*
     Accessor to mcnpITYP number by fluka/phits/mcnp name
-    \param particleName :: full name
+    \param particleName :: generic particle/type
     \return flukaITYP
   */
 {
@@ -95,7 +93,7 @@ bool
 flukaGenParticle::hasName(const std::string& particleName) const
   /*!
     See if we have the name in the data base
-    \param particleName to search
+    \param particleName :: generic particle/type
   */
 {
   if (flukaGen.find(particleName)!=flukaGen.end())
@@ -128,9 +126,22 @@ flukaGenParticle::momentumFromKE(const std::string& particleName,
 				 const double KE) const
   /*!
     Convert the kenetic energy to momenum
+    \param particleName :: Particle name
     \param KE :: Kenetic energy [MeV/c2]
     \return momentum [MeV/c]
   */
 {
   return particleConv::Instance().momentumFromKE(particleName,KE); 
 }
+
+double
+flukaGenParticle::mass(const std::string& particleName) const
+  /*!
+    Convert the kenetic energy to momenum
+    \param particleName :: Particle name
+    \return mass [MeV/c^2]
+  */
+{
+  return particleConv::Instance().mass(particleName); 
+}
+

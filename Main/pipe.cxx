@@ -3,7 +3,7 @@
  
  * File:   Main/pipe.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,38 +38,22 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "surfRegister.h"
-#include "objectRegister.h"
 #include "InputControl.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "inputParam.h"
-#include "Rules.h"
 #include "surfIndex.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "HeadRule.h"
-#include "Object.h"
 #include "MainProcess.h"
 #include "MainInputs.h"
-#include "SimProcess.h"
 #include "SimInput.h"
-#include "SurInter.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "DefPhysics.h"
 #include "Volumes.h"
-#include "defaultConfig.h"
-#include "DefUnitsPipe.h"
 #include "variableSetup.h"
-#include "World.h"
 #include "makePipe.h"
 
 MTRand RNG(12345UL);
@@ -105,15 +89,16 @@ main(int argc,char* argv[])
       if (!SimPtr) return -1;
       
       setVariable::PipeVariables(SimPtr->getDataBase());
+
       InputModifications(SimPtr,IParam,Names);
-        
+      mainSystem::setMaterialsDataBase(IParam);
+      
       pipeSystem::makePipe pipeObj;
-      World::createOuterObjects(*SimPtr);
       pipeObj.build(SimPtr,IParam);
       
-      mainSystem::buildFullSimulation(SimPtr,IParam,Oname);
-      
+      mainSystem::buildFullSimulation(SimPtr,IParam,Oname);      
       exitFlag=SimProcess::processExitChecks(*SimPtr,IParam);
+      
       ModelSupport::calcVolumes(SimPtr,IParam);
       SimPtr->objectGroups::write("ObjectRegister.txt");
     }

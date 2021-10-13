@@ -3,7 +3,7 @@
  
  * File:   geometry/Vec3D.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -263,9 +263,9 @@ Vec3D::operator*(const Vec3D& A) const
   */  
 {
   Vec3D X;
-  X.x=y*A.z-z*A.y;
-  X.y=z*A.x-x*A.z;
-  X.z=x*A.y-y*A.x;
+  X.x= y*A.z - z*A.y;
+  X.y= z*A.x - x*A.z;
+  X.z= x*A.y - y*A.x;
   return X;
 }
 
@@ -684,6 +684,20 @@ Vec3D::boundaryCube(const Vec3D& LP,const Vec3D& HP)
 }
 
 
+Vec3D
+Vec3D::getInBasis(const Vec3D& A,const Vec3D& B,const Vec3D& C) const
+  /*! 
+     Calculate this Vec3D assuming it expresses a vector
+     in the basis set A,B,C
+     \param A :: Unit vector in basis
+     \param B :: Unit vector in basis
+     \param C :: Unit vector in basis
+     \return Vector in current base
+  */
+{
+  return A*x+B*y+C*z;
+}
+
 int
 Vec3D::reBase(const Vec3D& A,const Vec3D& B,const Vec3D& C) 
   /*! 
@@ -783,7 +797,8 @@ Vec3D::read(std::istream& IX)
       std::getline(IX,Name,')');
       std::ios::off_type LNum=
 	static_cast<std::ios::off_type>(Name.size());
-      if (Name.substr(0,5)=="Vec3D" )
+      if (Name.substr(0,5)=="Vec3D"  ||
+	  Name.substr(0,5)=="vec3d")
 	{
 	  Name+=")";
 	  std::string::size_type pos(5);

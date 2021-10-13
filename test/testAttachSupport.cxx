@@ -3,7 +3,7 @@
  
  * File:   test/testAttachSupport.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,28 +35,20 @@
 #include <memory>
 #include <tuple>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Transform.h"
-#include "Surface.h"
-#include "Rules.h"
 #include "surfRegister.h"
 #include "surfIndex.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "varList.h"
 #include "Code.h"
-#include "FItem.h"
 #include "FuncDataBase.h"
 #include "ContainedComp.h"
 #include "LinkUnit.h"
@@ -68,7 +60,6 @@
 #include "SimMCNP.h"
 #include "World.h"
 
-#include "Debug.h"
 
 #include "testFunc.h"
 #include "testAttachSupport.h"
@@ -97,12 +88,15 @@ testAttachSupport::initSim()
 {
   ELog::RegMethod RegA("testAttachSupport","initSim");
 
+  // initialize world
+  // this code is also in MainProcess::buildWorld
   ASim.resetAll();
+  
   ModelSupport::surfIndex& SurI=ModelSupport::surfIndex::Instance();
   // Work Sphere :
   SurI.createSurface(100,"so 500");
-  ASim.addCell(MonteCarlo::Object(1,0,0.0,"100"));  // Outside void 
-  ASim.addCell(MonteCarlo::Object(5001,0,0.0,"-100"));  // Inside void 
+  ASim.addCell(MonteCarlo::Object(5001,0,0.0,"-100"));  // Inside void
+
   return;
 }
 
@@ -181,9 +175,10 @@ testAttachSupport::testBoundaryValid()
       &ContainedComp::isOuterValid
     };
 
+  initSim();
   std::shared_ptr<testSystem::simpleObj> 
     CC(new testSystem::simpleObj("A"));
-  CC->createAll(ASim,World::masterOrigin());
+  CC->createAll(ASim,World::masterOrigin(),0);
 
 
   int cnt(1);
@@ -214,7 +209,7 @@ testAttachSupport::testInsertComponent()
   initSim();
   SObj.push_back(SOTYPE(new testSystem::simpleObj("A")));
   SObj.back()->addInsertCell(5001);
-  SObj.back()->createAll(ASim,World::masterOrigin());
+  SObj.back()->createAll(ASim,World::masterOrigin(),0);
 
   return 0;
 }

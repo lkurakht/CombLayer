@@ -3,7 +3,7 @@
  
  * File:   commonBeam/MonoShutter.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,43 +33,30 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "inputParam.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
 #include "FixedGroup.h"
-#include "FixedOffsetGroup.h"
+#include "FixedRotateGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
@@ -78,6 +65,7 @@
 #include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "portItem.h"
+#include "VirtualTube.h"
 #include "PipeTube.h"
 #include "PortTube.h"
 #include "ShutterUnit.h"
@@ -101,7 +89,14 @@ MonoShutter::MonoShutter(const std::string& Key) :
     Constructor
     \param Key :: Name of construction key
   */
-{}
+{
+  ModelSupport::objectRegister& OR=
+    ModelSupport::objectRegister::Instance();
+  
+  OR.addObject(shutterPipe);
+  OR.addObject(monoShutterA);
+  OR.addObject(monoShutterB);
+}
 
 MonoShutter::~MonoShutter()
   /*!
@@ -130,29 +125,6 @@ MonoShutter::populate(const FuncDataBase& Control)
   return;
 }
 
-void
-MonoShutter::createUnitVector(const attachSystem::FixedComp& FC,
-			      const long int sideIndex)
-
-  /*!
-    Create the unit vectors.
-    The first beamFC is to set the X,Y,Z relative to the beam
-    and the origin at the beam centre position.
-    The origin is corrected so that the flange centre + alpha*Y'
-    where Y' is its primary direction is closeest to 
-    beamCenter + Y'*beta. The flange centre point is taken.
-
-    \param FC :: FixedComp for origin at beam height
-    \param sideIndex :: link point of centre [and axis]
-  */
-{
-  ELog::RegMethod RegA("MonoShutter","createUnitVector");
-
-  FixedOffset::createUnitVector(FC,sideIndex);
-
-  applyOffset();
-  return;
-}
 
 void
 MonoShutter::createSurfaces()
@@ -254,7 +226,7 @@ MonoShutter::buildComponents(Simulation& System)
   monoShutterB->addInsertCell("Inner",shutterPipe->getCell("Void"));
   monoShutterB->addInsertCell("Inner",PIB.getCell("Void"));
   monoShutterB->addInsertCell("Outer",getCC("Main").getInsertCells());
-  monoShutterB->createAll(System,*shutterPipe,1,PIB,2);
+  monoShutterB->createAll(System,*shutterPipe,0,PIB,2);
 
 
   ContainedGroup::addOuterSurf("Main",shutterPipe->getCC("Main"));
@@ -279,9 +251,12 @@ MonoShutter::createLinks()
 {
   ELog::RegMethod RControl("MonoShutter","createLinks");
   
-  setLinkSignedCopy(0,*shutterPipe,1);
-  setLinkSignedCopy(1,*shutterPipe,2);
-  setLinkSignedCopy(2,*shutterPipe,11);   // center origin
+  setLinkCopy(0,*shutterPipe,1);
+  setLinkCopy(1,*shutterPipe,2);
+  const constructSystem::portItem& PIA=shutterPipe->getPort(0);
+  const constructSystem::portItem& PIB=shutterPipe->getPort(1);
+  const Geometry::Vec3D CP=(PIA.getCentre()+PIB.getCentre())/2.0;
+  setConnect(2,CP,Y);   // center origin between plates
   
   return;
 }

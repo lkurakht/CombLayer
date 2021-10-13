@@ -1,9 +1,9 @@
-/********************************************************************* 
+/*********************************************************************
   CombLayer : MCNP(X) Input builder
- 
+
  * File:   monte/DBModify.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell/Konstantin Batkov
+ * Copyright (c) 2004-2021 by Stuart Ansell/Konstantin Batkov
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  ****************************************************************************/
 #include <fstream>
@@ -34,16 +34,10 @@
 #include <iterator>
 #include <numeric>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "support.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "Element.h"
 #include "Zaid.h"
 #include "MXcards.h"
 #include "Material.h"
@@ -81,13 +75,16 @@ cloneBasicMaterial()
 	  <<"       The results from simualation will be approximate \n"
 	  <<ELog::endCrit;
 
-  // original name to use
-  DB.cloneMaterial("CastIron","Iron");
+  // original material to use ::  name to use [ie thing missing]
   DB.cloneMaterial("Aluminium","Aluminium20K");
-  DB.cloneMaterial("Iron_10H2O","Iron_10H2O");
+  DB.cloneMaterial("Tungsten_15.1g","Tungsten151");
+  DB.cloneMaterial("Tungsten","Tungsten_15.3g");
+  DB.cloneMaterial("Iron_10H2O","Iron10H2O");
   DB.cloneMaterial("Void","Helium");
   DB.cloneMaterial("Void","M2644");
   DB.cloneMaterial("Stainless304","SS316L");
+  DB.cloneMaterial("Stainless304","SS316L785");
+  DB.cloneMaterial("Stainless304","SS316L3925");
 
   // Al.20t -- actually available from Los Alamos-t2
   DB.removeThermal("Aluminium");
@@ -111,12 +108,14 @@ cloneBasicMaterial()
   DB.removeThermal("Silicon80K");
   DB.removeThermal("Silicon300K");
 
-
   // HYDROGENS:
   DB.overwriteMaterial("ParaH2","H2para19K");
   DB.cloneMaterial("H2para19K","ParaOrtho%0.5");
   DB.cloneMaterial("H2para19K","HPARA");
-  
+
+  // avoids the game of renaming H1 to H4 so we have both ortho/para
+  ELog::EM<<"Warning : ALL thermal treatments removed"<<ELog::endWarn;
+  DB.removeAllThermal();
   return;
 }
 
@@ -139,14 +138,13 @@ cloneESSMaterial()
   DB.cloneMaterial("Stainless304","SS316L_7.85g");
   DB.cloneMaterial("Stainless304","SS316L785");
   DB.cloneMaterial("Stainless304","SS316L3925");
-  
-  DB.cloneMaterial("CastIron","Iron");
+
   DB.cloneMaterial("ParaH2","HPARA");
   DB.cloneMaterial("Aluminium","Aluminium20K");
 
   return;
 }
-    
+
 void
 addESSMaterial()
   /*!
@@ -157,94 +155,49 @@ addESSMaterial()
 
   ELog::RegMethod RegA("DBModify[F]","addESSMaterial");
 
-  const std::string MLib="plib=.05p pnlib=.70u elib=.03e hlib=.70h";
+  const std::string MLib="hlib=.70h pnlib=70u";
   ModelSupport::DBMaterial& MDB=ModelSupport::DBMaterial::Instance();
 
   MonteCarlo::Material MObj;
   // ESS materials
-  
-  // offset 1000 to avoid overlapping with the Stuart's numbering
-  // (this makes problems - my materials are used instead of Stuarts
-  // in case they have the same number)
-  int imat=1000;
 
-  // According to Fig. 7 in 10.1103/PhysRevB.91.180301, this cross section actually had 0.5% ortho-H,
-  // therefore using this material is the same as adding 0.5 ortho-H
-  MObj.setMaterial(imat++/*101*/,"HPARA"," 1001.70c 1.0 ","hpara.10t", MLib);
-  MObj.setDensity(-7.0e-2);
-  MDB.resetMaterial(MObj);
-  
-  MObj.setMaterial(imat++/*102*/,"HORTHO"," 1004.70c 1.0 ","hortho.10t", MLib);
-  MObj.setDensity(-7.0e-2);
-  MDB.resetMaterial(MObj);
+  int imat(200);
 
-  MObj.setMaterial(imat++/*103*/, "LH05ortho", " 1001.70c 99.5 "
+  MObj.setMaterial(imat++, "LH05ortho", " 1001.70c 99.5 "
                    "1004.70c 0.5 ","hpara.10t hortho.10t", MLib);
   MObj.setDensity(-7.0e-2*(0.07/0.0689677));
-  // 0.07/0.0689677 because CL for some reason changes the density. This correction works for 0.5% ortho only !!! todo !!!
-  MDB.resetMaterial(MObj);
-
-  // HPARA + 5% vol Al
-  // calculated with mixtures.py (commit b777e0f)
-  MObj.setMaterial(imat++, "HPARAAl05",
-		   " 1001.70c 0.928781449666 13027.70c 0.0712185503336 ", "hpara.10t al27.10t", MLib);
-  MObj.setDensity(-0.203);
-  MDB.resetMaterial(MObj);
-
-  // HPARA + 2.9% vol Al
-  // calculated with mixtures.py (commit 5c3c8ef)
-  MObj.setMaterial(imat++, "HPARA_Al2.9",
-		   " 01001.70c 0.958741450196  "
-		   " 13027.70c 0.0412585498042 ","hpara.10t al27.10t", MLib);
-  MObj.setDensity(-0.14627);
-  MDB.resetMaterial(MObj);
-
-  // Generic light water
-  // Simplified light water for  basic neutronic simulations
-  MObj.setMaterial(imat++/*110*/, "H2O", " 1001.70c 0.66666667 "
-		   " 8016.70c 0.33333333 ", "lwtr.10t", MLib);
-  MObj.setDensity(-1.0);
-  MDB.resetMaterial(MObj);
-
-  // Mix of water and 10% vol Be
-  MObj.setMaterial(imat++/*141*/, "H2OBe10",
-		   " 04009.70c 0.12046753633 "
-                   " 1001.70c 0.58635497578 "
-                   " 8016.70c 0.29317748789 ", "lwtr.10t be.10t", MLib);
-  MObj.setMXitem(4009, 70, 'c', "h", "model");
-  MObj.setDensity(-1.085);
-  MDB.resetMaterial(MObj);
-
-  // Mix of water and 7% vol of Al as estimated by Mark (emails from Mark and Luca 9 May 2017)
-  MObj.setMaterial(imat++, "H2O_7Al",
-		   " 1001.70c  0.637818426911  "
-		   " 13027.70c 0.0432723596334 "
-		   " 8016.70c  0.318909213456  ", "lwtr.10t al27.12t", MLib);
-  MObj.setDensity(-1.119);
+  // 0.07/0.0689677 because CL for some reason changes the density !!! todo !!!
+  // The reason is that CL using the mass of 1004 when we are actuall
+  // using the 1004 as away to get the fake para / ortho system to work.
   MDB.resetMaterial(MObj);
 
   // Natural Helium. Density -1.74E-4 g/cm3
   // Temperature: 300 K
   // Reference: Material Data Compilation 21 Sep 2015
-  MObj.setMaterial(imat++/*200*/, "Helium",
+  MObj.setMaterial(imat++, "Helium",
   		   " 2003.70c 1.34E-6 "
   		   " 2004.70c 0.999998660 ", "", MLib);
   MObj.setDensity(-1.74E-4);
   MDB.resetMaterial(MObj);
 
-  MObj.setMaterial(imat++/*1300*/, "Aluminium", " 13027.70c 1.0 ", "al27.12t", MLib);
+  MObj.setMaterial(imat++, "Aluminium", " 13027.70c 1.0 ", "al27.12t", MLib);
   MObj.setDensity(-2.7);
-  MDB.resetMaterial(MObj); 
+  MDB.resetMaterial(MObj);
 
-  // Same as Aluminium but used in Be container - needed by engineers for Ed mesh
-  MObj.setMaterial(imat++, "AluminiumBe", " 13027.70c 1.0 ", "al27.12t", MLib);
-  MObj.setDensity(-2.7);
-  MDB.resetMaterial(MObj); 
-
-  
-  MObj.setMaterial(imat++/*1301*/, "Aluminium20K", " 13027.70c 1.0 ", "al27.10t", MLib);
+  MObj.setMaterial(imat++, "Aluminium20K", " 13027.70c 1.0 ", "al27.10t", MLib);
   MObj.setDensity(-2.73);
-  MDB.resetMaterial(MObj); 
+  MDB.resetMaterial(MObj);
+
+  // Homogeneous mixture of Iron and 10% volume H2O
+  MObj.setMaterial(imat++/*2610*/, "Iron10H2O",
+                   " 01001.70c 0.077534884 "
+                   " 08016.70c 0.038767442 "
+                   " 26054.70c 0.051652129 "
+                   " 26056.70c 0.810827964 "
+                   " 26057.70c 0.018725554 "
+                   " 26058.70c 0.002492027 ", "lwtr.10t fe56.12t", MLib);
+  MObj.setDensity(-7.17);
+  MDB.resetMaterial(MObj);
 
   // ESS Iron
   MObj.setMaterial(imat++/*2600*/, "Iron",
@@ -256,63 +209,82 @@ addESSMaterial()
   MObj.setDensity(-7.85);
   MDB.resetMaterial(MObj);
 
-  // Homogeneous mixture of Iron and 10% volume H2O
-  MObj.setMaterial(imat++/*2610*/, "Iron_10H2O",
-                   " 01001.70c 0.077534884 "
-                   " 08016.70c 0.038767442 "
-                   " 26054.70c 0.051652129 "
-                   " 26056.70c 0.810827964 "
-                   " 26057.70c 0.018725554 "
-                   " 26058.70c 0.002492027 ", "lwtr.10t fe56.12t", MLib);
-  MObj.setDensity(-7.17);
-  MDB.resetMaterial(MObj);
-
-
   // ESS  SS316L
-  // Steel composition from ESS Design Update WP3
-  // (nlib changed from 71c to 70c since 71c is for 600K)
-  MObj.setMaterial(imat++/*2636*/, "SS316L",
-		   " 06000.70c  0.001392603 "
-		   " 14028.70c  0.007323064 "
-		   " 14029.70c  0.000372017 "
-		   " 14030.70c  0.000245523 "
-		   " 15031.70c  0.000360008 "
-		   " 16032.70c  0.000165168 "
-		   " 16033.70c  0.000001304 "
-		   " 16034.70c  0.000007390 "
-		   " 16036.70c  0.000000017 "
-		   " 24050.70c  0.007920331 "
-		   " 24052.70c  0.152735704 "
-		   " 24053.70c  0.017319003 "
-		   " 24054.70c  0.004311066 "
-		   " 25055.70c  0.018267327 "
-		   " 26054.70c  0.038344779 "
-		   " 26056.70c  0.601931034 "
-		   " 26057.70c  0.013901213 "
-		   " 26058.70c  0.001849996 "
-		   " 27059.70c  0.000283816 "
-		   " 28058.70c  0.080834464 "
-		   " 28060.70c  0.031137291 "
-		   " 28061.70c  0.001353516 "
-		   " 28062.70c  0.004315603 "
-		   " 28064.70c  0.001099057 "
-		   " 42092.70c  0.002145890 "
-		   " 42094.70c  0.001341000 "
-		   " 42095.70c  0.002310064 "
-		   " 42096.70c  0.002423388 "
-		   " 42097.70c  0.001388944 "
-		   " 42098.70c  0.003514494 "
-		   " 42100.70c  0.001404926 ", "fe56.12t", MLib);
+  MObj.setMaterial(imat++,/*2636*/ "SS316L",
+		   " 06000.71c  0.001392603 "
+		   " 14028.71c  0.007323064 "
+		   " 14029.71c  0.000372017 "
+		   " 14030.71c  0.000245523 "
+		   " 15031.71c  0.000360008 "
+		   " 16032.71c  0.000165168 "
+		   " 16033.71c  0.000001304 "
+		   " 16034.71c  0.000007390 "
+		   " 16036.71c  0.000000017 "
+		   " 24050.71c  0.007920331 "
+		   " 24052.71c  0.152735704 "
+		   " 24053.71c  0.017319003 "
+		   " 24054.71c  0.004311066 "
+		   " 25055.71c  0.018267327 "
+		   " 26054.71c  0.038344779 "
+		   " 26056.71c  0.601931034 "
+		   " 26057.71c  0.013901213 "
+		   " 26058.71c  0.001849996 "
+		   " 27059.71c  0.000283816 "
+		   " 28058.71c  0.080834464 "
+		   " 28060.71c  0.031137291 "
+		   " 28061.71c  0.001353516 "
+		   " 28062.71c  0.004315603 "
+		   " 28064.71c  0.001099057 "
+		   " 42092.71c  0.002145890 "
+		   " 42094.71c  0.001341000 "
+		   " 42095.71c  0.002310064 "
+		   " 42096.71c  0.002423388 "
+		   " 42097.71c  0.001388944 "
+		   " 42098.71c  0.003514494 "
+		   " 42100.71c  0.001404926 ", "fe56.14t", MLib);
   MObj.setMXitem(6000, 71, 'c', "h", "06012");
-  MObj.setDensity(-7.85);
+  MObj.setDensity(-7.76);
   MDB.resetMaterial(MObj);
 
-  // Same as SS316L but with reduced density for the
-  // layer of homogenized steel bricks
-  // density scaled down by the same factor as
-  // homogenized Tungsten:
-  // Tungsten/Tungsten_15.3g = 1.26131
-  MObj.setMaterial(imat++/*2636*/, "SS316L_6.22g",
+  // Same ase 2636 but with Bilbao density of 7.93 g/cm3
+  MObj.setMaterial(imat++, "SS316L793",
+		   " 06000.71c  0.001392603 "
+		   " 14028.71c  0.007323064 "
+		   " 14029.71c  0.000372017 "
+		   " 14030.71c  0.000245523 "
+		   " 15031.71c  0.000360008 "
+		   " 16032.71c  0.000165168 "
+		   " 16033.71c  0.000001304 "
+		   " 16034.71c  0.000007390 "
+		   " 16036.71c  0.000000017 "
+		   " 24050.71c  0.007920331 "
+		   " 24052.71c  0.152735704 "
+		   " 24053.71c  0.017319003 "
+		   " 24054.71c  0.004311066 "
+		   " 25055.71c  0.018267327 "
+		   " 26054.71c  0.038344779 "
+		   " 26056.71c  0.601931034 "
+		   " 26057.71c  0.013901213 "
+		   " 26058.71c  0.001849996 "
+		   " 27059.71c  0.000283816 "
+		   " 28058.71c  0.080834464 "
+		   " 28060.71c  0.031137291 "
+		   " 28061.71c  0.001353516 "
+		   " 28062.71c  0.004315603 "
+		   " 28064.71c  0.001099057 "
+		   " 42092.71c  0.002145890 "
+		   " 42094.71c  0.001341000 "
+		   " 42095.71c  0.002310064 "
+		   " 42096.71c  0.002423388 "
+		   " 42097.71c  0.001388944 "
+		   " 42098.71c  0.003514494 "
+		   " 42100.71c  0.001404926 ", "fe56.14t", MLib);
+  MObj.setMXitem(6000, 71, 'c', "h", "06012");
+  MObj.setDensity(-7.93);
+  MDB.resetMaterial(MObj);
+
+  // Same ase 2636 but with a2t density of 7.85 g/cm3 and fe56.12t instead of fe56.14t (material 2636 in a2t200)
+  MObj.setMaterial(imat++, "SS316L785",
 		   " 06000.71c  0.001392603 "
 		   " 14028.71c  0.007323064 "
 		   " 14029.71c  0.000372017 "
@@ -345,128 +317,13 @@ addESSMaterial()
 		   " 42098.71c  0.003514494 "
 		   " 42100.71c  0.001404926 ", "fe56.12t", MLib);
   MObj.setMXitem(6000, 71, 'c', "h", "06012");
-  MObj.setDensity(-6.2237); //  7.85/(19.298/15.3) = 6.2237
+  MObj.setDensity(-7.85);
   MDB.resetMaterial(MObj);
-
-  // Same ase 2636 but with Bilbao density of 7.93 g/cm3
-  // (nlib changed from 71c to 70c since 71c is for 600K)
-  MObj.setMaterial(imat++/*2637*/, "SS316L793",
-		   " 06000.70c  0.001392603 "
-		   " 14028.70c  0.007323064 "
-		   " 14029.70c  0.000372017 "
-		   " 14030.70c  0.000245523 "
-		   " 15031.70c  0.000360008 "
-		   " 16032.70c  0.000165168 "
-		   " 16033.70c  0.000001304 "
-		   " 16034.70c  0.000007390 "
-		   " 16036.70c  0.000000017 "
-		   " 24050.70c  0.007920331 "
-		   " 24052.70c  0.152735704 "
-		   " 24053.70c  0.017319003 "
-		   " 24054.70c  0.004311066 "
-		   " 25055.70c  0.018267327 "
-		   " 26054.70c  0.038344779 "
-		   " 26056.70c  0.601931034 "
-		   " 26057.70c  0.013901213 "
-		   " 26058.70c  0.001849996 "
-		   " 27059.70c  0.000283816 "
-		   " 28058.70c  0.080834464 "
-		   " 28060.70c  0.031137291 "
-		   " 28061.70c  0.001353516 "
-		   " 28062.70c  0.004315603 "
-		   " 28064.70c  0.001099057 "
-		   " 42092.70c  0.002145890 "
-		   " 42094.70c  0.001341000 "
-		   " 42095.70c  0.002310064 "
-		   " 42096.70c  0.002423388 "
-		   " 42097.70c  0.001388944 "
-		   " 42098.70c  0.003514494 "
-		   " 42100.70c  0.001404926 ", "fe56.14t", MLib);
-  MObj.setMXitem(6000, 71, 'c', "h", "06012");
-  MObj.setDensity(-7.93);
-  MDB.resetMaterial(MObj);
-
-  // ESS  20% vol SS316L 80% vol void
-  // (nlib changed from 71c to 70c since 71c is for 600K)
-  MObj.setMaterial(imat++/*2639*/, "SS316L20",
-		   " 06000.70c  0.001392603 "
-		   " 14028.70c  0.007323064 "
-		   " 14029.70c  0.000372017 "
-		   " 14030.70c  0.000245523 "
-		   " 15031.70c  0.000360008 "
-		   " 16032.70c  0.000165168 "
-		   " 16033.70c  0.000001304 "
-		   " 16034.70c  0.000007390 "
-		   " 16036.70c  0.000000017 "
-		   " 24050.70c  0.007920331 "
-		   " 24052.70c  0.152735704 "
-		   " 24053.70c  0.017319003 "
-		   " 24054.70c  0.004311066 "
-		   " 25055.70c  0.018267327 "
-		   " 26054.70c  0.038344779 "
-		   " 26056.70c  0.601931034 "
-		   " 26057.70c  0.013901213 "
-		   " 26058.70c  0.001849996 "
-		   " 27059.70c  0.000283816 "
-		   " 28058.70c  0.080834464 "
-		   " 28060.70c  0.031137291 "
-		   " 28061.70c  0.001353516 "
-		   " 28062.70c  0.004315603 "
-		   " 28064.70c  0.001099057 "
-		   " 42092.70c  0.002145890 "
-		   " 42094.70c  0.001341000 "
-		   " 42095.70c  0.002310064 "
-		   " 42096.70c  0.002423388 "
-		   " 42097.70c  0.001388944 "
-		   " 42098.70c  0.003514494 "
-		   " 42100.70c  0.001404926 ", "fe56.14t", MLib);
-  MObj.setMXitem(6000, 71, 'c', "h", "06012");
-  MObj.setDensity(-1.552); // 7.76*0.2
-  MDB.resetMaterial(MObj);
-
-  // Same ase 2636L785 but with 50%void (material 242 in TSM141108V3000)
-  // (nlib changed from 71c to 70c since 71c is for 600K)
-  MObj.setMaterial(imat++/*2638*/, "SS316L3925",
-		   " 06000.70c  0.001392603 "
-		   " 14028.70c  0.007323064 "
-		   " 14029.70c  0.000372017 "
-		   " 14030.70c  0.000245523 "
-		   " 15031.70c  0.000360008 "
-		   " 16032.70c  0.000165168 "
-		   " 16033.70c  0.000001304 "
-		   " 16034.70c  0.000007390 "
-		   " 16036.70c  0.000000017 "
-		   " 24050.70c  0.007920331 "
-		   " 24052.70c  0.152735704 "
-		   " 24053.70c  0.017319003 "
-		   " 24054.70c  0.004311066 "
-		   " 25055.70c  0.018267327 "
-		   " 26054.70c  0.038344779 "
-		   " 26056.70c  0.601931034 "
-		   " 26057.70c  0.013901213 "
-		   " 26058.70c  0.001849996 "
-		   " 27059.70c  0.000283816 "
-		   " 28058.70c  0.080834464 "
-		   " 28060.70c  0.031137291 "
-		   " 28061.70c  0.001353516 "
-		   " 28062.70c  0.004315603 "
-		   " 28064.70c  0.001099057 "
-		   " 42092.70c  0.002145890 "
-		   " 42094.70c  0.001341000 "
-		   " 42095.70c  0.002310064 "
-		   " 42096.70c  0.002423388 "
-		   " 42097.70c  0.001388944 "
-		   " 42098.70c  0.003514494 "
-		   " 42100.70c  0.001404926 ", "fe56.12t", MLib);
-  MObj.setMXitem(6000, 71, 'c', "h", "06012");
-  MObj.setDensity(-3.925);
-  MDB.resetMaterial(MObj);
-
 
 // SS316L and void
 // density -1.62E-2
 // Reference: a2t200
-MObj.setMaterial(imat++/*2644*/, "M2644",
+MObj.setMaterial(imat++, "M2644",
                  " 06000.70c  0.001392603 "
                  " 14028.70c  0.007323064 "
                  " 14029.70c  0.000372017 "
@@ -501,97 +358,18 @@ MObj.setMaterial(imat++/*2644*/, "M2644",
 MObj.setDensity(-1.62E-2);
 MDB.resetMaterial(MObj);
 
-// ESS  SS316L  with reduced density BilbaoWheelSecPipeCellMat
-// Steel composition from ESS Design Update WP3
-// (nlib changed from 71c to 70c since 71c is for 600K)
- MObj.setMaterial(imat++/*2636*/, "SS316LBilbaoWheelPipeCellMat",
-		  " 06000.70c  0.001392603 "
-		  " 14028.70c  0.007323064 "
-		  " 14029.70c  0.000372017 "
-		  " 14030.70c  0.000245523 "
-		  " 15031.70c  0.000360008 "
-		  " 16032.70c  0.000165168 "
-		  " 16033.70c  0.000001304 "
-		  " 16034.70c  0.000007390 "
-		  " 16036.70c  0.000000017 "
-		  " 24050.70c  0.007920331 "
-		  " 24052.70c  0.152735704 "
-		  " 24053.70c  0.017319003 "
-		  " 24054.70c  0.004311066 "
-		  " 25055.70c  0.018267327 "
-		  " 26054.70c  0.038344779 "
-		  " 26056.70c  0.601931034 "
-		  " 26057.70c  0.013901213 "
-		  " 26058.70c  0.001849996 "
-		  " 27059.70c  0.000283816 "
-		  " 28058.70c  0.080834464 "
-		  " 28060.70c  0.031137291 "
-		  " 28061.70c  0.001353516 "
-		  " 28062.70c  0.004315603 "
-		  " 28064.70c  0.001099057 "
-		  " 42092.70c  0.002145890 "
-		  " 42094.70c  0.001341000 "
-		  " 42095.70c  0.002310064 "
-		  " 42096.70c  0.002423388 "
-		  " 42097.70c  0.001388944 "
-		  " 42098.70c  0.003514494 "
-		  " 42100.70c  0.001404926 ", "fe56.12t", MLib);
- MObj.setMXitem(6000, 71, 'c', "h", "06012");
- MObj.setDensity(-1.04);
- MDB.resetMaterial(MObj);
-
-// Invar36
-// Reference: e-mail from Esben 30 Sep 2015
-//\todo kbat ELog::EM << "Add MX/MT cards for Invar" << ELog::endCrit;
-MObj.setMaterial(imat++/*2660*/, "Invar36",
-                 " 06000.70c  0.001000000 "
-                 " 14028.70c 0.003227805 "
-                 " 14029.70c 0.000163975 "
-                 " 14030.70c 0.000108220 "
-                 " 29063.70c 0.003457501 "
-                 " 29065.70c 0.001542499 "
-                 " 25055.70c 0.006000000 "
-                 " 15031.70c 0.000250000 "
-                 " 16032.70c 0.000237476 "
-                 " 16033.70c 0.000001875 "
-                 " 16034.70c 0.000010625 "
-                 " 16036.70c 0.000000024 "
-                 " 24050.70c 0.000217250 "
-                 " 24052.70c 0.004189450 "
-                 " 24053.70c 0.000475050 "
-                 " 24054.70c 0.000118250 "
-                 " 28058.70c 0.251884530 "
-                 " 28060.70c 0.097025471 "
-                 " 28061.70c 0.004217629 "
-                 " 28062.70c 0.013447651 "
-                 " 28064.70c 0.003424721 "
-                 " 26054.70c 0.035654500 "
-                 " 26056.70c 0.559699400 "
-                 " 26057.70c 0.012925900 "
-                 " 26058.70c  0.001720200 ", "", MLib);
- MObj.setDensity(-8.11);
- MDB.resetMaterial(MObj);
-
-
-  // Beryllium
-  // Reference: Material data compilation table
-  MObj.setMaterial(imat++/*4000*/, "Beryllium",
-                 " 04009.70c  1.0 ", "BE.10T", MLib);
-  MObj.setMXitem(4009, 70, 'c', "h", "model");
-  MObj.setDensity(-1.85);
-  MDB.resetMaterial(MObj);
 
   // Be + 5% H2O coolant - generated by mixtures.py 7 May 2015
-  MObj.setMaterial(imat++/*4005*/, "Be5H2O",
+ MObj.setMaterial(imat++, "Be5H2O",
 		   " 1001.70c 0.0272983770406 "
 		   " 4009.70c 0.959052434439 "
 		   " 8016.70c 0.0136491885203 ", "lwtr.10t be.10t", MLib);
-  MObj.setMXitem(4009,70,'c',"h","model");
-  MObj.setDensity(-1.8075);
-  MDB.resetMaterial(MObj);
+ MObj.setMXitem(4009,70,'c',"h","model");
+ MObj.setDensity(-1.8075);
+ MDB.resetMaterial(MObj);
 
   // Be + 10% H2O coolant
-  MObj.setMaterial(imat++/*4010*/, "Be10H2O",
+  MObj.setMaterial(imat++, "Be10H2O",
 		   " 1001.70c 0.055140611 "
 		   " 4009.70c 0.91728908 "
 		   " 8016.70c 0.027570305 ", "lwtr.10t be.10t", MLib);
@@ -600,7 +378,7 @@ MObj.setMaterial(imat++/*2660*/, "Invar36",
   MDB.resetMaterial(MObj);
 
   // Be + 30% vol H2O coolant - generated by mixtures.py 12 Jan 2016
-  MObj.setMaterial(imat++/*4030*/, "Be30H2O",
+  MObj.setMaterial(imat++, "Be30H2O",
 		   " 1001.70c 0.171984352096 "
 		   " 4009.70c 0.742023471856 "
 		   " 8016.70c 0.0859921760479 ", "lwtr.10t be.10t", MLib);
@@ -608,27 +386,18 @@ MObj.setMaterial(imat++/*2660*/, "Invar36",
   MObj.setDensity(-1.595);
   MDB.resetMaterial(MObj);
 
-  // Tungsten at 300 K
-  MObj.setMaterial(imat++/*7400*/, "Tungsten",
-		   "74180.50c  0.001200000 "
-		   "74182.70c  0.265000000 "
-		   "74183.70c  0.143100000 "
-		   "74184.70c  0.306400000 "
-		   "74186.70c  0.284300000 ",
-		   "",MLib);
-  MObj.setDensity(-19.298); // density at 300 K according to the Material handbook
-  MDB.resetMaterial(MObj);  
 
-  // Tungsten at 600 K
-  MObj.setMaterial(imat++/*7401*/, "Tungsten600K",
+  // ESS M74000 - same ase 74001 but at 300 K
+  // T = 300 K
+  MObj.setMaterial(imat++, "Tungsten",
 		   "74180.50c  0.001200000 "
 		   "74182.71c  0.265000000 "
 		   "74183.71c  0.143100000 "
 		   "74184.71c  0.306400000 "
 		   "74186.71c  0.284300000 ",
 		   "",MLib);
-  MObj.setDensity(-19.298); // density at 300 K according to the Material handbook. YJL says at 600K we should use the same density
-  MDB.resetMaterial(MObj);  
+  MObj.setDensity(-19.3);
+  MDB.resetMaterial(MObj);
 
 
   // Tunsten as in a2t200 mat 7400 with average density 15.1 g/cm3
@@ -636,10 +405,12 @@ MObj.setMaterial(imat++/*2660*/, "Invar36",
   // The length X width of one brick is 3 cm X 1 cm and the gap between bricks is 0.2 cm.
   // Hence, the filling factor of the infinite square lattice is:
   // 3*1/(3+0.2)/(1+0.2) = 0.78125
-  // Natural Tungsten density is 19.298 \approx 19.3 g/cm3 [Material book] at 300 K,
-  // therefore the density of homogenised material is 15.0766 \approx 15.1 g/cm3 
+  // Natural Tungsten density is 19.298 19.3 g/cm3 [Material book] at 300 K,
+  // therefore the density of homogenised material is 15.0766 \approx 15.1 g/cm3
+  // We need to use density at 300 K despite of the fact that during the operation the temperature will be ~600 K since the Tungsten bricks are placed inside
+  // containers which do not allow them to expand.
 
-  MObj.setMaterial(imat++/*7451*/, "Tungsten_15.1g",
+  MObj.setMaterial(imat++, "Tungsten151",
 		   "74180.50c  0.001200000 "
 		   "74182.71c  0.265000000 "
 		   "74183.71c  0.143100000 "
@@ -649,18 +420,8 @@ MObj.setMaterial(imat++/*2660*/, "Invar36",
   MObj.setDensity(-15.1);
   MDB.resetMaterial(MObj);
 
-  MObj.setMaterial(imat++, "Tungsten_15.3g",
-		   "74180.50c  0.001200000 "
-		   "74182.71c  0.265000000 "
-		   "74183.71c  0.143100000 "
-		   "74184.71c  0.306400000 "
-		   "74186.71c  0.284300000 ",
-		   "",MLib);
-  MObj.setDensity(-15.3);
-  MDB.resetMaterial(MObj);
-
   // Bilbao M30001 - same ase 7400 but at 15.6 g/cm3
-  MObj.setMaterial(imat++/*7456*/, "Tungsten156",
+  MObj.setMaterial(7402, "Tungsten156",
 		   "74180.50c  0.001200000 "
 		   "74182.71c  0.265000000 "
 		   "74183.71c  0.143100000 "
@@ -670,8 +431,8 @@ MObj.setMaterial(imat++/*2660*/, "Invar36",
   MObj.setDensity(-15.6);
   MDB.resetMaterial(MObj);
 
-  
-  MObj.setMaterial(imat++/*2660*/, "Invar36",
+
+  MObj.setMaterial(imat++, "Invar36",
 		   " 06000.70c  0.001000000 "
 		   " 14028.70c 0.003227805 "
 		   " 14029.70c 0.000163975 "
@@ -699,6 +460,83 @@ MObj.setMaterial(imat++/*2660*/, "Invar36",
 		   " 26058.70c  0.001720200 ", "", MLib);
   MObj.setDensity(-8.11);
   MDB.resetMaterial(MObj);
+
+
+  // Beryllium
+  // Reference: Material data compilation table
+  MObj.setMaterial(imat++,"Beryllium","4009.70c 1.0", "BE.10T", MLib);
+  MObj.setMXitem(4009, 70, 'c', "h", "model");
+  MObj.setDensity(-1.85);
+  MDB.resetMaterial(MObj);
+
+  // Be + 5% H2O coolant - generated by mixtures.py 7 May 2015
+  MObj.setMaterial(imat++, "Be5H2O",
+		   " 1001.70c 0.0272983770406 "
+		   " 4009.70c 0.959052434439 "
+		   " 8016.70c 0.0136491885203 ", "lwtr.10t be.10t", MLib);
+  MObj.setMXitem(4009,70,'c',"h","model");
+  MObj.setDensity(-1.8075);
+  MDB.resetMaterial(MObj);
+
+  // Be + 10% H2O coolant
+  MObj.setMaterial(imat++, "Be10H2O",
+		   " 1001.70c 0.055140611 "
+		   " 4009.70c 0.91728908 "
+		   " 8016.70c 0.027570305 ", "lwtr.10t be.10t", MLib);
+  MObj.setMXitem(4009,70,'c',"h","model");
+  MObj.setDensity(-1.76);
+  MDB.resetMaterial(MObj);
+
+  // Be + 30% vol H2O coolant - generated by mixtures.py 12 Jan 2016
+  MObj.setMaterial(imat++, "Be30H2O",
+		   " 1001.70c 0.171984352096 "
+		   " 4009.70c 0.742023471856 "
+		   " 8016.70c 0.0859921760479 ", "lwtr.10t be.10t", MLib);
+  MObj.setMXitem(4009,70,'c',"h","model");
+  MObj.setDensity(-1.595);
+  MDB.resetMaterial(MObj);
+
+  // Tungsten at 600 K
+  MObj.setMaterial(imat++, "Tungsten600K",
+		   "74180.50c  0.001200000 "
+		   "74182.71c  0.265000000 "
+		   "74183.71c  0.143100000 "
+		   "74184.71c  0.306400000 "
+		   "74186.71c  0.284300000 ",
+		   "",MLib);
+  MObj.setDensity(-19.298); // density at 300 K according to the Material handbook. YJL says at 600K we should use the same density
+  MDB.resetMaterial(MObj);
+
+
+  // Tunsten as in a2t200 mat 7400 with average density 15.1 g/cm3
+  // Tungsten bricks are arranged in square lattice.
+  // The length X width of one brick is 3 cm X 1 cm and the gap between bricks is 0.2 cm.
+  // Hence, the filling factor of the infinite square lattice is:
+  // 3*1/(3+0.2)/(1+0.2) = 0.78125
+  // Natural Tungsten density is 19.298 \approx 19.3 g/cm3 [Material book] at 300 K,
+  // therefore the density of homogenised material is 15.0766 \approx 15.1 g/cm3
+
+  MObj.setMaterial(imat++, "Tungsten_15.1g",
+		   "74180.50c  0.001200000 "
+		   "74182.71c  0.265000000 "
+		   "74183.71c  0.143100000 "
+		   "74184.71c  0.306400000 "
+		   "74186.71c  0.284300000 ",
+		   "",MLib);
+  MObj.setDensity(-15.1);
+  MDB.resetMaterial(MObj);
+
+  // Bilbao M30001 - same ase 7400 but at 15.6 g/cm3
+  MObj.setMaterial(imat++, "Tungsten156",
+		   "74180.50c  0.001200000 "
+		   "74182.71c  0.265000000 "
+		   "74183.71c  0.143100000 "
+		   "74184.71c  0.306400000 "
+		   "74186.71c  0.284300000 ",
+		   "",MLib);
+  MObj.setDensity(-15.6);
+  MDB.resetMaterial(MObj);
+
 
   // Regular concrete (Alan's mat #815)
   // Temperature: 600 K
@@ -754,281 +592,124 @@ MObj.setMaterial(imat++/*2660*/, "Invar36",
 
   // SS316L and 10% vol water
   // Reference: mixtures.py 19 Jan 2017 git hash:14b5a90
-  // (nlib changed from 71c to 70c since 71c is for 600K)
   MObj.setMaterial(imat++, "SS316L_10H2O",
 		   " 01001.70c 0.0782280522543 "
-		   " 06000.70c 0.00122919206962 "
+		   " 06000.71c 0.00122919206962 "
 		   " 08016.70c 0.0391140261271 "
-		   " 14028.70c 0.00646376045012 "
-		   " 14029.70c 0.000328363752027 "
-		   " 14030.70c 0.00021671282089 "
-		   " 15031.70c 0.000317763913046 "
-		   " 16032.70c 0.000145786843598 "
-		   " 16033.70c 1.15098592979e-06 "
-		   " 16034.70c 6.52284204076e-06 "
-		   " 16036.70c 1.50051846675e-08 "
-		   " 24050.70c 0.00699094289899 "
-		   " 24052.70c 0.13481337905 "
-		   " 24053.70c 0.0152867551925 "
-		   " 24054.70c 0.00380519655552 "
-		   " 25055.70c 0.0161238008833 "
+		   " 14028.71c 0.00646376045012 "
+		   " 14029.71c 0.000328363752027 "
+		   " 14030.71c 0.00021671282089 "
+		   " 15031.71c 0.000317763913046 "
+		   " 16032.71c 0.000145786843598 "
+		   " 16033.71c 1.15098592979e-06 "
+		   " 16034.71c 6.52284204076e-06 "
+		   " 16036.71c 1.50051846675e-08 "
+		   " 24050.71c 0.00699094289899 "
+		   " 24052.71c 0.13481337905 "
+		   " 24053.71c 0.0152867551925 "
+		   " 24054.71c 0.00380519655552 "
+		   " 25055.71c 0.0161238008833 "
 		   " 26054.70c 0.0338453229371 "
 		   " 26056.70c 0.531299195428 "
 		   " 26057.70c 0.0122700157746 "
 		   " 26058.70c 0.00163291362436 "
-		   " 27059.70c 0.000250512440682 "
-		   " 28058.70c 0.0713491799894 "
-		   " 28060.70c 0.0274835765589 "
-		   " 28061.70c 0.00119469161944 "
-		   " 28062.70c 0.00380920117451 "
-		   " 28064.70c 0.00097009136736 "
-		   " 42092.70c 0.00189408680742 "
-		   " 42094.70c 0.00118364427289 "
-		   " 42095.70c 0.00203899628905 "
-		   " 42096.70c 0.00213902261536 "
-		   " 42097.70c 0.00122596242428 "
-		   " 42098.70c 0.00310209596958 "
-		   " 42100.70c 0.00124006906319 ", "fe56.14t", MLib);
+		   " 27059.71c 0.000250512440682 "
+		   " 28058.71c 0.0713491799894 "
+		   " 28060.71c 0.0274835765589 "
+		   " 28061.71c 0.00119469161944 "
+		   " 28062.71c 0.00380920117451 "
+		   " 28064.71c 0.00097009136736 "
+		   " 42092.71c 0.00189408680742 "
+		   " 42094.71c 0.00118364427289 "
+		   " 42095.71c 0.00203899628905 "
+		   " 42096.71c 0.00213902261536 "
+		   " 42097.71c 0.00122596242428 "
+		   " 42098.71c 0.00310209596958 "
+		   " 42100.71c 0.00124006906319 ", "fe56.14t", MLib);
   MObj.setMXitem(6000, 71, 'c', "h", "06012");
   MObj.setDensity(-7.084);
   MDB.resetMaterial(MObj);
 
   // SS316L and 20% vol water
   // Reference: mixtures.py 1 Dec 2016 git hash:14b5a90
-  // (nlib changed from 71c to 70c since 71c is for 600K)
   MObj.setMaterial(imat++, "SS316L_20H2O",
 		   " 01001.70c 0.153498348518 "
-		   " 06000.70c 0.00107195960904 "
+		   " 06000.71c 0.00107195960904 "
 		   " 08016.70c 0.076749174259 "
-		   " 14028.70c 0.00563694665486 "
-		   " 14029.70c 0.000286361007319 "
-		   " 14030.70c 0.000188991937465 "
-		   " 15031.70c 0.00027711704982 "
-		   " 16032.70c 0.000127138477158 "
-		   " 16033.70c 1.0037572303e-06 "
-		   " 16034.70c 5.68847080668e-06 "
-		   " 16036.70c 1.30857921128e-08 "
-		   " 24050.70c 0.00609669440768 "
-		   " 24052.70c 0.117568686514 "
-		   " 24053.70c 0.0133313454623 "
-		   " 24054.70c 0.00331845373297 "
-		   " 25055.70c 0.0140613202105 "
+		   " 14028.71c 0.00563694665486 "
+		   " 14029.71c 0.000286361007319 "
+		   " 14030.71c 0.000188991937465 "
+		   " 15031.71c 0.00027711704982 "
+		   " 16032.71c 0.000127138477158 "
+		   " 16033.71c 1.0037572303e-06 "
+		   " 16034.71c 5.68847080668e-06 "
+		   " 16036.71c 1.30857921128e-08 "
+		   " 24050.71c 0.00609669440768 "
+		   " 24052.71c 0.117568686514 "
+		   " 24053.71c 0.0133313454623 "
+		   " 24054.71c 0.00331845373297 "
+		   " 25055.71c 0.0140613202105 "
 		   " 26054.70c 0.0295159886238 "
 		   " 26056.70c 0.463337904539 "
 		   " 26057.70c 0.0107004931432 "
 		   " 26058.70c 0.00142403900385 "
-		   " 27059.70c 0.000218468069075 "
-		   " 28058.70c 0.062222528909 "
-		   " 28060.70c 0.0239680068813 "
-		   " 28061.70c 0.00104187229396 "
-		   " 28062.70c 0.00332194609996 "
-		   " 28064.70c 0.000846001848359 "
-		   " 42092.70c 0.00165180414335 "
-		   " 42094.70c 0.00103223807196 "
-		   " 42095.70c 0.00177817748654 "
-		   " 42096.70c 0.00186540891627 "
-		   " 42097.70c 0.00106914308472 "
-		   " 42098.70c 0.00270529046268 "
-		   " 42100.70c 0.00108144526881 ", "fe56.14t", MLib);
+		   " 27059.71c 0.000218468069075 "
+		   " 28058.71c 0.062222528909 "
+		   " 28060.71c 0.0239680068813 "
+		   " 28061.71c 0.00104187229396 "
+		   " 28062.71c 0.00332194609996 "
+		   " 28064.71c 0.000846001848359 "
+		   " 42092.71c 0.00165180414335 "
+		   " 42094.71c 0.00103223807196 "
+		   " 42095.71c 0.00177817748654 "
+		   " 42096.71c 0.00186540891627 "
+		   " 42097.71c 0.00106914308472 "
+		   " 42098.71c 0.00270529046268 "
+		   " 42100.71c 0.00108144526881 ", "fe56.14t", MLib);
   MObj.setMXitem(6000, 71, 'c', "h", "06012");
   MObj.setDensity(-6.408);
   MDB.resetMaterial(MObj);
 
-  // SS316L and 35% vol water
-  // Reference: mixtures.py 4 Dec 2017; git hash: 974ac9f
-  // (nlib changed from 71c to 70c since 71c is for 600K)
-  MObj.setMaterial(imat++, "SS316L_35H2O",
-		   " 01001.70c 0.261214827308 "
-		   " 06000.70c 0.00084695017177 "
-		   " 08016.70c 0.130607413654 "
-		   " 14028.70c 0.00445372465281 "
-		   " 14029.70c 0.000226252465384 "
-		   " 14030.70c 0.000149321627932 "
-		   " 15031.70c 0.000218948858676 "
-		   " 16032.70c 0.000100451504105 "
-		   " 16033.70c 7.93063797786e-07 "
-		   " 16034.70c 4.49443363929e-06 "
-		   " 16036.70c 1.03390219036e-08 "
-		   " 24050.70c 0.00481696915842 "
-		   " 24052.70c 0.0928904581838 "
-		   " 24053.70c 0.0105330324333 "
-		   " 24054.70c 0.00262189445895 "
-		   " 25055.70c 0.0111097819985 "
-		   " 26054.70c 0.023320441763 "
-		   " 26056.70c 0.366081067354 "
-		   " 26057.70c 0.00845440857025 "
-		   " 26058.70c 0.00112512642151 "
-		   " 27059.70c 0.000172610578859 "
-		   " 28058.70c 0.0491617231686 "
-		   " 28060.70c 0.0189370078629 "
-		   " 28061.70c 0.000823178327702 "
-		   " 28062.70c 0.00262465376144 "
-		   " 28064.70c 0.000668422023315 "
-		   " 42092.70c 0.00130508257134 "
-		   " 42094.70c 0.00081556637487 "
-		   " 42095.70c 0.00140492954675 "
-		   " 42096.70c 0.00147385068312 "
-		   " 42097.70c 0.00084472484935 "
-		   " 42098.70c 0.00213743708507 "
-		   " 42100.70c 0.000854444746295 ", "fe56.14t", MLib);
-  MObj.setMXitem(6000, 71, 'c', "h", "06012");
-  MObj.setDensity(-5.394);
-  MDB.resetMaterial(MObj);
-
   // SS316L and 40% vol water
   // Reference: mixtures.py 1 Dec 2016; git hash: 14b5a90
-  // (nlib changed from 71c to 70c since 71c is for 600K)
   MObj.setMaterial(imat++, "SS316L_40H2O",
 		   " 01001.70c 0.295812213697 "
-		   " 06000.70c 0.000774679535654 "
+		   " 06000.71c 0.000774679535654 "
 		   " 08016.70c 0.147906106848 "
-		   " 14028.70c 0.00407368634068 "
-		   " 14029.70c 0.000206946241546 "
-		   " 14030.70c 0.000136579946785 "
-		   " 15031.70c 0.000200265854857 "
-		   " 16032.70c 9.18799324322e-05 "
-		   " 16033.70c 7.25391310009e-07 "
-		   " 16034.70c 4.11092161117e-06 "
-		   " 16036.70c 9.45678855073e-09 "
-		   " 24050.70c 0.00440593503052 "
-		   " 24052.70c 0.0849640739338 "
-		   " 24053.70c 0.00963424407532 "
-		   " 24054.70c 0.00239816703472 "
-		   " 25055.70c 0.0101617793427 "
+		   " 14028.71c 0.00407368634068 "
+		   " 14029.71c 0.000206946241546 "
+		   " 14030.71c 0.000136579946785 "
+		   " 15031.71c 0.000200265854857 "
+		   " 16032.71c 9.18799324322e-05 "
+		   " 16033.71c 7.25391310009e-07 "
+		   " 16034.71c 4.11092161117e-06 "
+		   " 16036.71c 9.45678855073e-09 "
+		   " 24050.71c 0.00440593503052 "
+		   " 24052.71c 0.0849640739338 "
+		   " 24053.71c 0.00963424407532 "
+		   " 24054.71c 0.00239816703472 "
+		   " 25055.71c 0.0101617793427 "
 		   " 26054.70c 0.0213304980604 "
 		   " 26056.70c 0.33484320651 "
 		   " 26057.70c 0.0077329901141 "
 		   " 26058.70c 0.00102911888186 "
-		   " 27059.70c 0.000157881641136 "
-		   " 28058.70c 0.0449667313918 "
-		   " 28060.70c 0.0173211045312 "
-		   " 28061.70c 0.000752936153649 "
-		   " 28062.70c 0.0024006908847 "
-		   " 28064.70c 0.000611385273777 "
-		   " 42092.70c 0.00119371929313 "
-		   " 42094.70c 0.000745973732149 "
-		   " 42095.70c 0.00128504628157 "
-		   " 42096.70c 0.00134808634661 "
-		   " 42097.70c 0.000772644100989 "
-		   " 42098.70c 0.00195504862475 "
-		   " 42100.70c 0.00078153459479 ", "fe56.14t", MLib);
+		   " 27059.71c 0.000157881641136 "
+		   " 28058.71c 0.0449667313918 "
+		   " 28060.71c 0.0173211045312 "
+		   " 28061.71c 0.000752936153649 "
+		   " 28062.71c 0.0024006908847 "
+		   " 28064.71c 0.000611385273777 "
+		   " 42092.71c 0.00119371929313 "
+		   " 42094.71c 0.000745973732149 "
+		   " 42095.71c 0.00128504628157 "
+		   " 42096.71c 0.00134808634661 "
+		   " 42097.71c 0.000772644100989 "
+		   " 42098.71c 0.00195504862475 "
+		   " 42100.71c 0.00078153459479 ", "fe56.14t", MLib);
   MObj.setMXitem(6000, 71, 'c', "h", "06012");
   MObj.setDensity(-5.056);
   MDB.resetMaterial(MObj);
 
-  // SS316L and 45% vol water
-  // Reference: mixtures.py 4 Dec 2017; git hash: 974ac9f
-  // (nlib changed from 71c to 70c since 71c is for 600K)
-  MObj.setMaterial(imat++, "SS316L_45H2O",
-		   " 01001.70c 0.329785063509 "
-		   " 06000.70c 0.000703713496803 "
-		   " 08016.70c 0.164892531755 "
-		   " 14028.70c 0.00370050831052 "
-		   " 14029.70c 0.000187988525043 "
-		   " 14030.70c 0.000124068272778 "
-		   " 15031.70c 0.000181920108284 "
-		   " 16032.70c 8.34630909454e-05 "
-		   " 16033.70c 6.58940415776e-07 "
-		   " 16034.70c 3.734332571e-06 "
-		   " 16036.70c 8.59048088051e-09 "
-		   " 24050.70c 0.00400232070722 "
-		   " 24052.70c 0.0771807732343 "
-		   " 24053.70c 0.00875168024359 "
-		   " 24054.70c 0.0021784782381 "
-		   " 25055.70c 0.00923088960774 "
-		   " 26054.70c 0.0193764759333 "
-		   " 26056.70c 0.304169237586 "
-		   " 26057.70c 0.00702459438191 "
-		   " 26058.70c 0.000934844427472 "
-		   " 27059.70c 0.000143418583623 "
-		   " 28058.70c 0.040847465734 "
-		   " 28060.70c 0.0157343707651 "
-		   " 28061.70c 0.000683961959969 "
-		   " 28062.70c 0.00218077088585 "
-		   " 28064.70c 0.000555378126182 "
-		   " 42092.70c 0.0010843662951 "
-		   " 42094.70c 0.000677637344751 "
-		   " 42095.70c 0.00116732709557 "
-		   " 42096.70c 0.00122459225177 "
-		   " 42097.70c 0.000701864522124 "
-		   " 42098.70c 0.00177595255951 "
-		   " 42100.70c 0.000709940584796 ", "fe56.14t", MLib);
-  MObj.setMXitem(6000, 71, 'c', "h", "06012");
-  MObj.setDensity(-4.718);
-  MDB.resetMaterial(MObj);
-
-  MObj.setMaterial(imat++,"Silver","47107.70c 0.51839 "
-                   "47109.70c 0.48161 ","",MLib); // IAEA table of nuclides
-  MObj.setDensity(-10.49); // wiki
-  MDB.resetMaterial(MObj);
-
-  // Skanska concrete
-  // Composition received from Skanska
-  // Source: MATER.INP from MARS. Material "ESSConc"
-  MObj.setMaterial(imat++,"SkanskaConcrete",
-		   " 01001.70c -3.35720233139058521e-03 "
-		   " 08016.70c -3.82342797668609513e-01 "
-		   " 12024.70c -0.0019 "
-		   " 13027.70c -0.0192 "
-		   " 14028.70c -0.1251 "
-		   " 16032.70c -0.0081 "
-		   " 19039.70c -0.0158 "
-		   " 20040.70c -0.3927 "
-		   " 22048.70c -0.0038 "
-		   " 25055.70c -0.0021 "
-		   " 26056.70c -0.0444 "
-		   " 28058.70c -0.0012 ", "lwtr.10t", MLib);
-  MObj.setDensity(-2.35);
-  MDB.resetMaterial(MObj);
-
-
-  // Copper - natural composition from IAEA table of nuclides
-  MObj.setMaterial(imat++,"Copper",
-		   " 29063.70c 0.6915 "
-		   " 29065.70c 0.3085 ","",MLib);
-  MObj.setDensity(-8.94); // as in the outp file produced by MARS
-  MDB.resetMaterial(MObj);
-
-  // SS304L composition from ESS Design Update WP3
-  // Reference: Material Data Compilation 29 Mar 2017
-  MObj.setMaterial(imat++, "SS304L",
-		   " 6000.70c      0.001366050 "
-		   " 14028.70c      0.017958587 "
-		   " 14029.70c      0.000912310 "
-		   " 14030.70c      0.000602105 "
-		   " 15031.70c      0.000794573 "
-		   " 16032.70c      0.000486055 "
-		   " 16033.70c      0.000003838 "
-		   " 16034.70c      0.000021747 "
-		   " 16036.70c      0.000000051 "
-		   " 24050.70c      0.008683351 "
-		   " 24052.70c      0.167449786 "
-		   " 24053.70c      0.018987462 "
-		   " 24054.70c      0.004726381 "
-		   " 25055.70c      0.019910026 "
-		   " 26054.70c      0.038864395 "
-		   " 26056.70c      0.610087892 "
-		   " 26057.70c      0.014089590 "
-		   " 26058.70c      0.001875066 "
-		   " 28058.70c      0.063434555 "
-		   " 28060.70c      0.024434877 "
-		   " 28061.70c      0.001062167 "
-		   " 28062.70c      0.003386654 "
-		   " 28064.70c      0.000862481 ", "fe56.12t", MLib);
-  MObj.setMXitem(6000, 70, 'c', "h", "06012");
-  MObj.setDensity(-7.85);
-  MDB.resetMaterial(MObj);
-
-  // Tungsten at 300 K - 4% density for Beam Monitor
-  MObj.setMaterial(imat++, "Tungsten_BeamMonitor",
-		   "74180.50c  0.001200000 "
-		   "74182.70c  0.265000000 "
-		   "74183.70c  0.143100000 "
-		   "74184.70c  0.306400000 "
-		   "74186.70c  0.284300000 ",
-		   "",MLib);
-  MObj.setDensity(-19.298 * 0.04);
-  MDB.resetMaterial(MObj);  
   return;
 }
 

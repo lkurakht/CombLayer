@@ -3,7 +3,7 @@
  
  * File:   t1BuildInc/MonoPlug.h
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,12 +35,12 @@ namespace shutterSystem
   \brief Specialized for for the ts1 mono [top plug]
 */
 
-class MonoPlug : public attachSystem::FixedComp,
-    public attachSystem::ContainedComp
+class MonoPlug : public attachSystem::FixedRotate,
+  public attachSystem::ContainedComp,
+  public attachSystem::ExternalCut
 {
  private:
   
-
   size_t nPlugs;                   
   std::vector<double> plugRadii;   ///< Inner plug radii [base to top]
   std::vector<double> plugZLen;    ///< Inner plug lengths [Base to top]
@@ -52,13 +52,9 @@ class MonoPlug : public attachSystem::FixedComp,
 
   // Functions:
 
-  void populate(const Simulation&);
-  void createUnitVector(const attachSystem::FixedComp&,const long int);
-
+  void populate(const FuncDataBase&);
   void createSurfaces();
-  void createObjects(Simulation&,const long int,
-		     const attachSystem::FixedComp&,
-		     const attachSystem::FixedComp&);
+  void createObjects(Simulation&);
   void createLinks();
 
  public:
@@ -68,9 +64,8 @@ class MonoPlug : public attachSystem::FixedComp,
   MonoPlug& operator=(const MonoPlug&);
   virtual ~MonoPlug();
 
-  void createAll(Simulation&,const long int,
-		 const attachSystem::FixedComp&,
-		 const attachSystem::FixedComp&);
+  void createAll(Simulation&,const attachSystem::FixedComp&,
+		 const long int);
   
 };
 

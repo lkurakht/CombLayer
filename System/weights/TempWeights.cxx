@@ -3,7 +3,7 @@
  
  * File:   weights/TempWeights.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,34 +35,26 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Surface.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "weightManager.h"
 #include "WForm.h"
 #include "WItem.h"
 #include "WCells.h"
-#include "SimProcess.h"
-#include "SurInter.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "TempWeights.h"
 
 namespace WeightSystem
 {
@@ -94,22 +86,21 @@ scaleTempWeights(Simulation& System,double factor)
 
   
   const Simulation::OTYPE& Cells=System.getCells();
-  Simulation::OTYPE::const_iterator vc;
-  for(vc=Cells.begin();vc!=Cells.end();vc++)
+  
+  for(const auto& [cellNum,objPtr] : Cells)
     {
       // Keep currently masked cells:
-      if (!vc->second->isPlaceHold() && 
-	  !WF->isMasked(vc->first) &&
-	  vc->second->getImp())
+      if (!WF->isMasked(cellNum) &&
+	  !objPtr->isZeroImp())
         {
-	  const double T=vc->second->getTemp();
+	  const double T=objPtr->getTemp();
 	  if (T<275.0)
 	    {
 	      const double Df=1.0/(factor*(1.0-T/275));
-	      std::vector<double> Eval=WF->getWeights(vc->first);
+	      std::vector<double> Eval=WF->getWeights(cellNum);
 	      for(size_t i=0;i<Eval.size();i++)
 		Eval[i]*=Df;
-	      WF->setWeights(vc->first,Eval);
+	      WF->setWeights(cellNum,Eval);
 	    }
 	}
     }

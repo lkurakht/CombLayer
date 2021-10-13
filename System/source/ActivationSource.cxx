@@ -3,7 +3,7 @@
  
  * File:   source/ActivationSource.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,7 +39,6 @@
 #include "Exception.h"
 #include "MersenneTwister.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
@@ -47,34 +46,16 @@
 #include "BaseModVisit.h"
 #include "support.h"
 #include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "doubleErr.h"
-#include "Triple.h"
-#include "NRange.h"
-#include "NList.h"
 #include "Surface.h"
 #include "Quadratic.h"
 #include "Plane.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "Source.h"
-#include "SrcItem.h"
-#include "SrcData.h"
-#include "surfRegister.h"
-#include "ModelSupport.h"
 #include "HeadRule.h"
-#include "LinkUnit.h"
-#include "FixedComp.h"
+#include "Importance.h"
 #include "Object.h"
-#include "WorkData.h"
-#include "Zaid.h"
-#include "MXcards.h"
-#include "Material.h"
-#include "DBMaterial.h"
-#include "ModeCard.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -263,9 +244,9 @@ ActivationSource::createFluxVolumes(const Simulation& System)
       if (!cellPtr)
 	throw ColErr::InContainerError<Geometry::Vec3D>
 	  (testPt,"Point not in cell");
-      const int matN=cellPtr->getMat();
+
       // test for Material / cellFlux / volume.
-      if (matN!=0)
+      if (!cellPtr->isVoid())
 	{
 	  const int cellN=cellPtr->getName();
           if (cellFlux.find(cellN)!=cellFlux.end())

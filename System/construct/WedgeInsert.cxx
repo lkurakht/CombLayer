@@ -3,7 +3,7 @@
  
  * File:   construct/WedgeInsert.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,27 +35,20 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
 #include "RuleSupport.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -63,7 +56,6 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
@@ -157,34 +149,21 @@ WedgeInsert::populate(const FuncDataBase& Control)
       zStep=Cent.Z();
     }
 
-  viewWidth=Control.EvalPair<double>(keyName,baseName,"ViewWidth");   
-  viewHeight=Control.EvalPair<double>(keyName,baseName,"ViewHeight");   
-  viewXY=Control.EvalPair<double>(keyName,baseName,"ViewXY");   
-  viewZ=Control.EvalPair<double>(keyName,baseName,"ViewZ");   
+  viewWidth=Control.EvalTail<double>(keyName,baseName,"ViewWidth");   
+  viewHeight=Control.EvalTail<double>(keyName,baseName,"ViewHeight");   
+  viewXY=Control.EvalTail<double>(keyName,baseName,"ViewXY");   
+  viewZ=Control.EvalTail<double>(keyName,baseName,"ViewZ");   
   mat=ModelSupport::EvalMat<int>(Control,keyName+"Mat",baseName+"Mat");   
 
-  wall=Control.EvalPair<double>(keyName,baseName,"Wall");   
+  wall=Control.EvalTail<double>(keyName,baseName,"Wall");   
   wallMat=(wall>Geometry::zeroTol) ? 
     ModelSupport::EvalMat<int>(Control,keyName+"WallMat"
 			       ,baseName+"WallMat") : 0;   
-  temp=Control.EvalPair<double>(keyName,baseName,"Temp");
+  temp=Control.EvalTail<double>(keyName,baseName,"Temp");
   
   return;
 }
 
-void
-WedgeInsert::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    \param FC :: Fixed Component
-  */
-{
-  ELog::RegMethod RegA("WedgeInsert","createUnitVector");
-  attachSystem::FixedComp::createUnitVector(FC);
-
-  applyOffset();
-  return;
-}
 
 void
 WedgeInsert::createSurfaces()
@@ -247,10 +226,7 @@ WedgeInsert::createSurfaces()
 }
 
 void
-WedgeInsert::createObjects(Simulation& System,
-			   const attachSystem::FixedComp& FC,
-			   const size_t layerIndex,
-			   const size_t sideIndex)
+WedgeInsert::createObjects(Simulation& System)
   /*!
     Create the wedge using the surfaces from layer 1/2 of 
     LC
@@ -262,14 +238,13 @@ WedgeInsert::createObjects(Simulation& System,
 {
   ELog::RegMethod RegA("WedgeInsert","createObjects");
 
-
-  const attachSystem::LayerComp* LCPtr=
-    System.getObjectThrow<attachSystem::LayerComp>(FC.getKeyName(),"LayerComp");
+  if (!LCPtr)
+    throw ColErr::EmptyValue<attachSystem::LayerComp*>("LayerComp LCPtr");
 
   std::string Out;
   const std::string CShape=
     MonteCarlo::getComplementShape
-    (LCPtr->getLayerString(layerIndex,static_cast<long int>(sideIndex+1)));
+    (LCPtr->getLayerString(layerIndex,static_cast<long int>(layerIndex+1)));
 
   if (wall>Geometry::zeroTol)
     {
@@ -318,34 +293,43 @@ WedgeInsert::createLinks()
 }
 
 
+void
+WedgeInsert::setLayer(const attachSystem::LayerComp& LC,
+		      const size_t LIndex,const size_t LSide)
+  /*!
+    Set layer components
+    \param LC :: LayerComp
+    \param LIndex :: Layer index 
+    \param LSide :: Layer side
+   */
+{
+  LCPtr=&LC;
+  layerIndex=LIndex;
+  layerSide=LSide;
+  return;
+}
 
 void
 WedgeInsert::createAll(Simulation& System,
-		       const int mainCell,
 		       const attachSystem::FixedComp& FC,
-		       const size_t layerIndex,
-		       const size_t layerSide)
+		       const long int sideIndex)
+
 /*!
     Extrenal build everything
     \param System :: Simulation
     \param mainCell :: Main cell
     \param FC :: FixedComponent for origin
-    \param layerIndex :: depth of layer
-    \param layerSide :: Layer side to use
+    \param sideIndex :: Layer side to use
    */
 {
   ELog::RegMethod RegA("WedgeInsert","createAll");
+  
   populate(System.getDataBase());
 
-  createUnitVector(FC);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
-  createObjects(System,FC,layerIndex,layerSide);  // layerIndex was 1
+  createObjects(System);  // layerIndex was 1
   createLinks();
-  // Messy code to add insCert cells
-  addInsertCell(mainCell);
-  if (wall>Geometry::zeroTol)
-    addInsertCell(mainCell+1);
-
   insertObjects(System);       
 
   return;

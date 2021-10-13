@@ -3,7 +3,7 @@
  
  * File:   flukaTallyInc/flukaTally.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,19 +38,26 @@ namespace flukaSystem
 
 class flukaTally
 {
+ private:
+
+  static std::string idForm(const std::string&,const int);  
+
  protected:
 
+
+  
   std::string keyName;              ///< tally name
+  int ID;                           ///< ID number
   int outputUnit;                   ///< Fortran output number
   std::string comments;             ///< comment line
-
   std::string auxParticle;          ///< Auxillary particles
   std::string doseType;             ///< Auxillary dose type if used
-  
+
+  std::string userName;             ///< Selected for fluscw treatment
+
  public:
   
-  explicit flukaTally(const int);
-  flukaTally(const std::string&,const int);
+  flukaTally(const std::string&,const int,const int);
   flukaTally(const flukaTally&);
   flukaTally& operator=(const flukaTally&);
   virtual flukaTally* clone() const; 
@@ -60,6 +67,11 @@ class flukaTally
   virtual std::string getType() const { return "VOID"; }
 
   void setKeyName(const std::string&);
+  /// Simple assignment to userName
+  void setUserName(const std::string& A)
+    { userName=A;}
+
+  void setAscii();
   void setBinary();
   void setComment(const std::string&);
   void setAuxParticles(const std::string&);
@@ -68,9 +80,11 @@ class flukaTally
   virtual void setAngle(const bool,const double,const double,const size_t);
 
   const std::string& getKeyName() const;
+  const std::string& getUserName() const { return userName; }
+  /// access out unit
+  int getID() const { return ID; }
   /// access out unit
   int getOutUnit() const { return outputUnit; }
-
   
   virtual void write(std::ostream&) const;
   virtual void writeAuxScore(std::ostream&) const;

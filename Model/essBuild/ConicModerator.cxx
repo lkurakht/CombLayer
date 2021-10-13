@@ -3,7 +3,7 @@
  
  * File:   essBuild/ConicModerator.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,30 +34,18 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -412,9 +400,25 @@ ConicModerator::getLayerSurf(const size_t layerIndex,
   
 void
 ConicModerator::createAll(Simulation& System,
-			  const attachSystem::FixedComp& axisFC,
-			  const attachSystem::FixedComp* orgFC,
+			  const attachSystem::FixedComp& FC,
 			  const long int sideIndex)
+  /*!
+    Generic function to create everything
+    \param System :: Simulation to create objects in
+    \param FUnit :: Fixed Base unit
+  */
+{
+  ELog::RegMethod RegA("ConicModerator","createAll(FC)");
+  createAll(System,FC,sideIndex,FC,sideIndex);
+  return;
+}
+
+void
+ConicModerator::createAll(Simulation& System,
+			  const attachSystem::FixedComp& orgFC,
+			  const long int orgIndex,
+			  const attachSystem::FixedComp& axisFC,
+			  const long int axisIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation to create objects in
@@ -424,7 +428,7 @@ ConicModerator::createAll(Simulation& System,
   ELog::RegMethod RegA("ConicModerator","createAll");
   populate(System.getDataBase());
 
-  ModBase::createUnitVector(axisFC,orgFC,sideIndex);
+  ModBase::createUnitVector(orgFC,orgIndex,axisFC,axisIndex);
   createSurfaces();
   createObjects(System);
   createLinks();

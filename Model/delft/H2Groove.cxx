@@ -3,7 +3,7 @@
  
  * File:   delft/H2Groove.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,34 +33,21 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
 #include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -71,10 +58,7 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
-// #include "SecondTrack.h"
 #include "ContainedComp.h"
-#include "pipeUnit.h"
-#include "PipeLine.h"
 #include "H2Groove.h"
 
 namespace delftSystem
@@ -154,28 +138,6 @@ H2Groove::populate(const FuncDataBase& Control)
   
   siMat=ModelSupport::EvalMat<int>(Control,keyNum+"SiMat",keyNum+"SiMat");
   siTemp=Control.EvalPair<double>(keyNum+"SiTemp",keyName+"SiTemp");
-
-  return;
-}
-  
-
-void
-H2Groove::createUnitVector(const attachSystem::FixedComp& FUnit,
-			   const long int sideIndex)
-  /*!
-    Create the unit vectors
-    - Y Points down the H2Groove direction
-    - X Across the H2Groove
-    - Z up (towards the target)
-    \param FUnit :: Fixed unit that it is connected to 
-    \param sideIndex :: link point
-  */
-{
-  ELog::RegMethod RegA("H2Groove","createUnitVector");
-  
-  // Opposite since other face:
-  attachSystem::FixedComp::createUnitVector(FUnit,sideIndex);
-  FixedOffset::applyOffset();
 
   return;
 }

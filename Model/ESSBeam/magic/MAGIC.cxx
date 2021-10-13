@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   essBuild/MAGIC.cxx
+ * File:   ESSBeam/magic/MAGIC.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,24 +36,13 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -65,35 +54,32 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h" 
 #include "World.h"
 #include "AttachSupport.h"
 #include "beamlineSupport.h"
 #include "GuideItem.h"
 #include "Aperture.h"
-#include "Jaws.h"
 #include "GuideLine.h"
 #include "DiskChopper.h"
 #include "VacuumPipe.h"
 #include "Bunker.h"
 #include "BunkerInsert.h"
-#include "CompBInsert.h"
 #include "SingleChopper.h"
 #include "ChopperPit.h"
-#include "DetectorTank.h"
-#include "CylSample.h"
 #include "LineShield.h"
 #include "MultiChannel.h"
-#include "HoleShape.h"
 
 #include "MAGIC.h"
 
@@ -103,7 +89,7 @@ namespace essSystem
 MAGIC::MAGIC(const std::string& keyName) :
   attachSystem::CopiedComp("magic",keyName),
   startPoint(0),stopPoint(0),
-  magicAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  magicAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
   FocusA(new beamlineSystem::GuideLine(newName+"FA")),
   VPipeB(new constructSystem::VacuumPipe(newName+"PipeB")),
   VPipeC(new constructSystem::VacuumPipe(newName+"PipeC")),
@@ -166,7 +152,6 @@ MAGIC::MAGIC(const std::string& keyName) :
 
 
   // This is necessary as not directly constructed:
-  // OR.cell(newName+"Axis");
   OR.addObject(magicAxis);
 
   OR.addObject(FocusA);
@@ -253,10 +238,10 @@ MAGIC::buildBunkerUnits(Simulation& System,
           <<FA.getLinkPt(startIndex).abs()
           <<ELog::endDiag;
     
-  VPipeB->addInsertCell(bunkerVoid);
+  VPipeB->addAllInsertCell(bunkerVoid);
   VPipeB->createAll(System,FA,startIndex);
 
-  VPipeC->addInsertCell(bunkerVoid);
+  VPipeC->addAllInsertCell(bunkerVoid);
   VPipeC->createAll(System,*VPipeB,2);
   
   BendC->addInsertCell(VPipeC->getCells("Void"));
@@ -272,19 +257,19 @@ MAGIC::buildBunkerUnits(Simulation& System,
   //  PSCDisk->addInsertCell(ChopperA->getCell("Void"));
   //  PSCDisk->createAll(System,ChopperA->getKey("Main"),0);
 
-  VPipeD->addInsertCell(bunkerVoid);
+  VPipeD->addAllInsertCell(bunkerVoid);
   VPipeD->createAll(System,ChopperA->getKey("Beam"),2);
 
   FocusD->addInsertCell(VPipeD->getCells("Void"));
   FocusD->createAll(System,*VPipeD,0,*VPipeD,0);
 
-  VPipeE->addInsertCell(bunkerVoid);
+  VPipeE->addAllInsertCell(bunkerVoid);
   VPipeE->createAll(System,FocusD->getKey("Guide0"),2);
   
   FocusE->addInsertCell(VPipeE->getCells("Void"));
   FocusE->createAll(System,*VPipeE,0,*VPipeE,0);
 
-  VPipeF->addInsertCell(bunkerVoid);
+  VPipeF->addAllInsertCell(bunkerVoid);
   VPipeF->createAll(System,FocusE->getKey("Guide0"),2);
   
   FocusF->addInsertCell(VPipeF->getCells("Void"));
@@ -324,7 +309,7 @@ MAGIC::buildOutGuide(Simulation& System,
   ShieldA->addInsertCell(voidCell);
   ShieldA->createAll(System,FWshield,startShield);
   
-  VPipeOutA->addInsertCell(ShieldA->getCell("Void"));
+  VPipeOutA->addAllInsertCell(ShieldA->getCell("Void"));
   VPipeOutA->createAll(System,FWguide,startGuide);
 
   FocusOutA->addInsertCell(VPipeOutA->getCells("Void"));
@@ -333,7 +318,7 @@ MAGIC::buildOutGuide(Simulation& System,
   ShieldB->addInsertCell(voidCell);
   ShieldB->createAll(System,*ShieldA,2);
 
-  VPipeOutB->addInsertCell(ShieldB->getCell("Void"));
+  VPipeOutB->addAllInsertCell(ShieldB->getCell("Void"));
   VPipeOutB->createAll(System,FocusOutA->getKey("Guide0"),2);
 
   FocusOutB->addInsertCell(VPipeOutB->getCells("Void"));
@@ -342,7 +327,7 @@ MAGIC::buildOutGuide(Simulation& System,
   
   ShieldC->addInsertCell(voidCell);
   ShieldC->createAll(System,*ShieldB,2);
-  VPipeOutC->addInsertCell(ShieldC->getCell("Void"));
+  VPipeOutC->addAllInsertCell(ShieldC->getCell("Void"));
   VPipeOutC->createAll(System,FocusOutB->getKey("Guide0"),2);
   FocusOutC->addInsertCell(VPipeOutC->getCells("Void"));
   FocusOutC->createAll(System,*ShieldB,2,*VPipeOutC,0);
@@ -350,7 +335,7 @@ MAGIC::buildOutGuide(Simulation& System,
     
   ShieldD->addInsertCell(voidCell);
   ShieldD->createAll(System,*ShieldC,2);
-  VPipeOutD->addInsertCell(ShieldD->getCell("Void"));
+  VPipeOutD->addAllInsertCell(ShieldD->getCell("Void"));
   VPipeOutD->createAll(System,FocusOutC->getKey("Guide0"),2);
   FocusOutD->addInsertCell(VPipeOutD->getCells("Void"));
   FocusOutD->createAll(System,*ShieldC,2,*VPipeOutD,0);
@@ -358,7 +343,7 @@ MAGIC::buildOutGuide(Simulation& System,
       
   ShieldE->addInsertCell(voidCell);
   ShieldE->createAll(System,*ShieldD,2);
-  VPipeOutE->addInsertCell(ShieldE->getCell("Void"));
+  VPipeOutE->addAllInsertCell(ShieldE->getCell("Void"));
   VPipeOutE->createAll(System,FocusOutD->getKey("Guide0"),2);
   FocusOutE->addInsertCell(VPipeOutE->getCells("Void"));
   FocusOutE->createAll(System,*ShieldD,2,*VPipeOutE,0);
@@ -392,7 +377,7 @@ MAGIC::buildPolarizer(Simulation& System,
   ShieldF->addInsertCell(voidCell);
   ShieldF->createAll(System,FWshield,startShield);
 
-  VPipeOutF->addInsertCell(ShieldF->getCell("Void"));
+  VPipeOutF->addAllInsertCell(ShieldF->getCell("Void"));
   VPipeOutF->createAll(System,FWguide,startGuide);
 
   FocusOutF->addInsertCell(VPipeOutF->getCells("Void"));
@@ -460,7 +445,7 @@ MAGIC::buildIsolated(Simulation& System,const int voidCell)
 
   if (startPoint<2)
     {
-      VPipeWall->addInsertCell(voidCell);
+      VPipeWall->addAllInsertCell(voidCell);
       VPipeWall->createAll(System,*FStart,startIndex);
       
       FocusWall->addInsertCell(VPipeWall->getCell("Void"));
@@ -533,7 +518,8 @@ MAGIC::build(Simulation& System,
   ELog::EM<<"STOP POINT == "<<stopPoint<<ELog::endDiag;
   // IN WALL
   // Make bunker insert
-  BInsert->createAll(System,FocusF->getKey("Guide0"),2,bunkerObj);
+  BInsert->setBunkerObject(bunkerObj);
+  BInsert->createAll(System,FocusF->getKey("Guide0"),2);
   attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsert);  
   
   // using 7 : mid point 

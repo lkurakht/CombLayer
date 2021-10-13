@@ -3,7 +3,7 @@
  
  * File:   maxpeem/maxpeemOpticsHut.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,30 +34,18 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Surface.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -66,10 +54,8 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"  
 #include "FixedComp.h"
-#include "FixedGroup.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
@@ -135,29 +121,30 @@ maxpeemOpticsHut::populate(const FuncDataBase& Control)
   inletZStep=Control.EvalDefVar<double>(keyName+"InletZStep",0.0);
   inletRadius=Control.EvalDefVar<double>(keyName+"InletRadius",0.0);
 
+  double holeRad(0.0);
+  size_t holeIndex(0);
+  do
+    {
+      const std::string iStr("Hole"+std::to_string(holeIndex));
+      const Geometry::Vec3D hVec=
+	Control.EvalDefVar<Geometry::Vec3D>(keyName+iStr+"Offset",
+					    Geometry::Vec3D(0,0,0));
+      holeRad=
+	Control.EvalDefVar<double>(keyName+iStr+"Radius",-1.0);
+
+      if (holeRad>Geometry::zeroTol)
+	{
+	  holeOffset.push_back(hVec);
+	  holeRadius.push_back(holeRad);
+	  holeIndex++;
+	}
+    } while(holeRad>Geometry::zeroTol);
+
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   innerMat=ModelSupport::EvalMat<int>(Control,keyName+"InnerMat");
   pbMat=ModelSupport::EvalMat<int>(Control,keyName+"PbMat");
   outerMat=ModelSupport::EvalMat<int>(Control,keyName+"OuterMat");
   
-  return;
-}
-
-void
-maxpeemOpticsHut::createUnitVector(const attachSystem::FixedComp& FC,
-				     const long int sideIndex)
-  /*!
-    Create the unit vectors
-    \param FC :: Fixed component to link to
-    \param sideIndex :: Link point and direction [0 for origin]
-  */
-{
-  ELog::RegMethod RegA("maxpeemOpticsHut","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
-
-  // shift forward for back wall
-  Origin+=Y*(outerSkin+innerSkin+pbFrontThick);
   return;
 }
  
@@ -239,7 +226,15 @@ maxpeemOpticsHut::createSurfaces()
   ModelSupport::buildPlane(SMap,buildIndex+324,Origin+X*(ringShortWidth+TW),X);
   ModelSupport::buildShiftedPlane(SMap,buildIndex+314,SPtr,TW);
 
-
+  // Exit holes
+  int BI(buildIndex);
+  for(size_t i=0;i<holeRadius.size();i++)
+    {
+      const Geometry::Vec3D HPt(holeOffset[i].getInBasis(X,Y,Z));
+      ModelSupport::buildCylinder(SMap,BI+1007,Origin+HPt,Y,holeRadius[i]);
+      BI+=100;
+    }
+  
   if (inletRadius>Geometry::zeroTol)
     ModelSupport::buildCylinder
       (SMap,buildIndex+7,Origin+X*inletXStep+Z*inletZStep,Y,inletRadius);
@@ -264,47 +259,55 @@ maxpeemOpticsHut::createObjects(Simulation& System)
 {
   ELog::RegMethod RegA("maxpeemOpticsHut","createObjects");
 
-  const std::string floorStr=getRuleStr("Floor");
-  const std::string ringWall=getRuleStr("RingWall");
-  std::string Out;
+  const HeadRule floorHR=getRule("Floor");
+  const HeadRule ringWallHR=getRule("RingWall");
+  HeadRule HR;
 
 
   if (innerFarVoid>Geometry::zeroTol)
     {
-      Out=ModelSupport::getComposite(SMap,buildIndex,"1 -2 3 -1003 -6 ");
-      makeCell("InnerFarVoid",System,cellIndex++,0,0.0,Out+floorStr);
-      Out=ModelSupport::getComposite(SMap,buildIndex,"1 -2 1003 -4 (-14:-24) -6 ");
-      makeCell("Void",System,cellIndex++,0,0.0,Out+floorStr);
+      HR=ModelSupport::getHeadRule(SMap,buildIndex,"1 -2 3 -1003 -6");
+      makeCell("InnerFarVoid",System,cellIndex++,voidMat,0.0,HR*floorHR);
+      HR=ModelSupport::getHeadRule(SMap,buildIndex,"1 -2 1003 -4 (-14:-24) -6");
+      makeCell("Void",System,cellIndex++,voidMat,0.0,HR*floorHR);
     }
   else
     {
-      Out=ModelSupport::getComposite(SMap,buildIndex,"1 -2 3 -4 (-14:-24) -6  ");
-      makeCell("Void",System,cellIndex++,0,0.0,Out+floorStr);
+      HR=ModelSupport::getHeadRule(SMap,buildIndex,"1 -2 3 -4 (-14:-24) -6");
+      makeCell("Void",System,cellIndex++,voidMat,0.0,HR*floorHR);
     }
-    
-    
+
+  // Holes for exit wall
+  HeadRule holeCut;
+  int BI(buildIndex);
+  for(size_t i=0;i<holeRadius.size();i++)
+    {
+      holeCut*=ModelSupport::getHeadRule(SMap,BI,"1007");
+      BI+=100;
+    }
+
+  
   std::list<int> matList({innerMat,pbMat,outerMat});
   int HI(buildIndex);
   for(const std::string& layer : {"Inner","Lead","Outer"})
     {
       const int mat=matList.front();
       matList.pop_front();
-      Out=ModelSupport::getComposite(SMap,HI,"1 -2 -104 (-114:-124) (4:(14 24)) -6 ");
-      makeCell("Ring"+layer,System,cellIndex++,mat,0.0,Out+floorStr);
+      HR=ModelSupport::getHeadRule(SMap,HI,"1 -2 -104 (-114:-124) (4:(14 24)) -6 ");
+      makeCell("Ring"+layer,System,cellIndex++,mat,0.0,HR*floorHR);
       
-      Out=ModelSupport::getComposite(SMap,HI,"1 -2 -3 103 -6 ");
-      makeCell("Far"+layer,System,cellIndex++,mat,0.0,Out+floorStr);
+      HR=ModelSupport::getHeadRule(SMap,HI,"1 -2 -3 103 -6");
+      makeCell("Far"+layer,System,cellIndex++,mat,0.0,HR*floorHR);
       
-      Out=ModelSupport::getComposite(SMap,HI,"1 -2 103 -104 (-114:-124) 6 -106 ");
-      makeCell("Roof"+layer,System,cellIndex++,mat,0.0,Out);
+      HR=ModelSupport::getHeadRule(SMap,HI,"1 -2 103 -104 (-114:-124) 6 -106");
+      makeCell("Roof"+layer,System,cellIndex++,mat,0.0,HR);
       
-      Out=ModelSupport::getSetComposite(SMap,HI,buildIndex,"2 -102 103 -104 -106 17M");
-      makeCell("Back"+layer,System,cellIndex++,mat,0.0,Out+floorStr);
-      addCell("Back",cellIndex-1);
+      HR=ModelSupport::getSetHeadRule(SMap,HI,"2 -102 103 -104 -106");
+      makeCell("Back"+layer,System,cellIndex++,mat,0.0,HR*floorHR*holeCut);
 
-      Out=ModelSupport::getSetComposite(SMap,HI,buildIndex,"101 -1 103 -124 -106 7M ");
-      if (layer=="Outer") Out+=ringWall;
-      makeCell("Front"+layer,System,cellIndex++,mat,0.0,Out+floorStr);
+      HR=ModelSupport::getSetHeadRule(SMap,HI,buildIndex,"101 -1 103 -124 -106 7M ");
+      if (layer=="Outer") HR*=ringWallHR;
+      makeCell("Front"+layer,System,cellIndex++,mat,0.0,HR*floorHR);
 
       HI+=100;
     }
@@ -313,26 +316,35 @@ maxpeemOpticsHut::createObjects(Simulation& System)
   if (extension>Geometry::zeroTol)
     {
       // note use of the 1303 surface for outerFarVoid distance
-      Out=ModelSupport::getSetComposite(SMap,HI,buildIndex," 2 1303M -4 -6 -3002M ");
-      makeCell("Extension",System,cellIndex++,0,0.0,Out+floorStr);
+      HR=ModelSupport::getSetHeadRule(SMap,HI,buildIndex," 2 1303M -4 -6 -3002M ");
+      makeCell("BackVoid",System,cellIndex++,0,0.0,HR*floorHR);
     }
 
   // Front/back hole
   if (inletRadius>Geometry::zeroTol)
     {
-      Out=ModelSupport::getComposite(SMap,buildIndex," -1 -7 ");
-      makeCell("InletHole",System,cellIndex++,0,0.0,Out+ringWall);
+      HR=ModelSupport::getHeadRule(SMap,buildIndex," -1 -7 ");
+      makeCell("InletHole",System,cellIndex++,voidMat,0.0,HR*ringWallHR);
+    }
+
+  // Outer void for pipe(s)
+  BI=buildIndex;
+  for(size_t i=0;i<holeRadius.size();i++)
+    {
+      HR=ModelSupport::getSetHeadRule(SMap,buildIndex,BI," 2 -302 -1007M");
+      makeCell("ExitHole",System,cellIndex++,voidMat,0.0,HR);
+      BI+=100;
     }
 
   // far/side wall extension
   if (outerFarVoid>Geometry::zeroTol)
     {
-      Out=ModelSupport::getComposite(SMap,buildIndex,HI,"-2M -303 1303 -6M ");
-      makeCell("OuterFarVoid",System,cellIndex++,0,0.0,Out+floorStr+ringWall);
+      HR=ModelSupport::getHeadRule(SMap,buildIndex,HI,"-2M -303 1303 -6M");
+      makeCell("OuterFarVoid",System,cellIndex++,0,0.0,HR*floorHR*ringWallHR);
     }
   
-  Out=ModelSupport::getSetComposite(SMap,buildIndex,"301 -3002 1303 -304 (-314:-324) -306 ");
-  addOuterSurf(Out);  
+  HR=ModelSupport::getSetHeadRule(SMap,buildIndex,"301 -3002 1303 -304 (-314:-324) -306");
+  addOuterSurf(HR);  
 
   return;
 }
@@ -443,8 +455,8 @@ maxpeemOpticsHut::createChicane(Simulation& System)
 
 void
 maxpeemOpticsHut::createAll(Simulation& System,
-		       const attachSystem::FixedComp& FC,
-		       const long int FIndex)
+			    const attachSystem::FixedComp& FC,
+			    const long int FIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation item
@@ -455,7 +467,7 @@ maxpeemOpticsHut::createAll(Simulation& System,
   ELog::RegMethod RegA("maxpeemOpticsHut","createAll(FC)");
 
   populate(System.getDataBase());
-  createUnitVector(FC,FIndex);
+  createCentredUnitVector(FC,FIndex,outerSkin+innerSkin+pbFrontThick);
   
   createSurfaces();    
   createObjects(System);

@@ -3,7 +3,7 @@
  
  * File:   epbBuild/makeEPB.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,30 +35,19 @@
 #include <iterator>
 #include <memory>
 
-#include <boost/format.hpp>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -66,6 +55,9 @@
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
+#include "ExternalCut.h"
+#include "BaseMap.h"
+#include "CellMap.h"
 #include "World.h"
 #include "AttachSupport.h"
 
@@ -114,10 +106,11 @@ makeEPB::makeMagnets(Simulation& System)
     ModelSupport::objectRegister::Instance();
 
   const size_t nItems=Control.EvalVar<size_t>("EPBNMagnets");
+  
   for(size_t i=0;i<nItems;i++)
     {
       std::shared_ptr<Magnet> GA(new Magnet("Magnet",i+1));
-      GA->createAll(System,*LineVoid);
+      GA->createAll(System,*LineVoid,0);
       attachSystem::addToInsertSurfCtrl(System,*Hall,*GA);
       OR.addObject(GA);
       BendMags.push_back(GA);
@@ -127,7 +120,7 @@ makeEPB::makeMagnets(Simulation& System)
   for(size_t i=0;i<nFocus;i++)
     {
       std::shared_ptr<Magnet> GA(new Magnet("Focus",i+1));
-      GA->createAll(System,*LineVoid);
+      GA->createAll(System,*LineVoid,0);
       attachSystem::addToInsertSurfCtrl(System,*Hall,*GA);
       OR.addObject(GA);
       FocusMags.push_back(GA);
@@ -150,9 +143,9 @@ makeEPB::build(Simulation* SimPtr,
 
   int voidCell(74123);
   Hall->addInsertCell(voidCell);
-  Hall->createAll(*SimPtr,World::masterOrigin());
+  Hall->createAll(*SimPtr,World::masterOrigin(),0);
 
-  LineVoid->createAll(*SimPtr,World::masterOrigin());
+  LineVoid->createAll(*SimPtr,World::masterOrigin(),0);
   attachSystem::addToInsertSurfCtrl(*SimPtr,*Hall,*LineVoid);
   
   makeMagnets(*SimPtr);
@@ -160,5 +153,5 @@ makeEPB::build(Simulation* SimPtr,
 }
 
 
-}   // NAMESPACE ts1System
+}   // NAMESPACE epbSystem
 

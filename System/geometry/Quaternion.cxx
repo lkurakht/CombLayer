@@ -3,7 +3,7 @@
  
  * File:   geometry/Quaternion.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,6 @@
 #include <map>
 
 #include "Exception.h"
-#include "mathSupport.h"
 #include "MatrixBase.h"
 #include "Matrix.h"
 #include "Vec3D.h"
@@ -526,6 +525,73 @@ Quaternion::rMatrix() const
   return Out;
 }
 
+
+void
+Quaternion::rotateBasis(Vec3D& A,Vec3D& B,Vec3D& C) const
+  /*!
+    Rotate a basis group in order
+    \param A :: Vector to be rotated 
+    \param B :: Vector to be rotated 
+    \param C :: Vector to be rotated 
+
+    The quaternion is assumed to be normalized
+    then \f$ q.v.q^{-1} \f$ is the rotated value.
+  */
+{
+   Quaternion QI(*this);
+   Quaternion RA(0.0,A);
+   Quaternion RB(0.0,B);
+   Quaternion RC(0.0,C);
+
+   QI.inverse();
+   RA*=QI;
+   RB*=QI;
+   RC*=QI;
+
+   RA=(*this)*RA;
+   RB=(*this)*RB;
+   RC=(*this)*RC;
+
+   A=RA.getVec();
+   B=RB.getVec();
+   C=RC.getVec();
+
+   return;
+ }
+
+void
+Quaternion::invRotateBasis(Vec3D& A,Vec3D& B,Vec3D& C) const
+  /*!
+    Rotate a basis group in order in opposite direction
+    \param A :: Vector to be rotated 
+    \param B :: Vector to be rotated 
+    \param C :: Vector to be rotated 
+
+    The quaternion is assumed to be normalized
+    then \f$ q.v.q^{-1} \f$ is the rotated value.
+  */
+{
+   Quaternion QI(*this);
+
+   Quaternion RA(0.0,A);
+   Quaternion RB(0.0,B);
+   Quaternion RC(0.0,C);
+   
+   RA*=QI;
+   RB*=QI;
+   RC*=QI;
+
+   QI.inverse();
+   RA=QI*RA;
+   RB=QI*RB;
+   RC=QI*RC;
+   
+   A=RA.getVec();
+   B=RB.getVec();
+   C=RC.getVec();
+   return;
+ }
+
 Geometry::Vec3D&
 Quaternion::rotate(Vec3D& V) const
   /*!
@@ -561,6 +627,40 @@ Quaternion::invRotate(Vec3D& V) const
    V=RV.getVec();
    return V;
  }
+
+Geometry::Vec3D
+Quaternion::makeRotate(const Vec3D& V) const
+  /*!
+    Rotate a vector for move export
+    \param V :: Vector to be rotated 
+    \return V_rotated
+    The quaternion is assumed to be normalized
+    then \f$ q.v.q^{-1} \f$ is the rotated value.
+  */
+{
+   Quaternion QI(*this);
+   Quaternion RV(0.0,V);
+   RV*=QI.inverse();
+   RV=(*this)*RV;
+   return RV.getVec();
+ }
+
+Geometry::Vec3D
+Quaternion::makeInvRotate(const Vec3D& V) const
+  /*!
+    Rotate a vector for move export
+    \param V :: Vector to be rotated 
+    \return V_rotated
+    The quaternion is assumed to be normalized
+    then \f$ q.v.q^{-1} \f$ is the rotated value.
+  */
+{
+   Quaternion QI(*this);
+   Quaternion RV(0.0,V);
+   RV*=QI;
+   RV=QI.inverse()*RV;
+   return RV.getVec();
+}
 
 Geometry::Vec3D
 Quaternion::getAxis() const

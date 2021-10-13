@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   essBuild/VOR.cxx
+ * File:   ESSBeam/vor/VOR.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,24 +35,13 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -64,21 +53,22 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "World.h"
 #include "AttachSupport.h"
 #include "beamlineSupport.h"
 #include "GuideItem.h"
-#include "Jaws.h"
 #include "GuideLine.h"
 #include "DiskChopper.h"
 #include "VacuumPipe.h"
@@ -99,7 +89,7 @@ namespace essSystem
 
 VOR::VOR(const std::string& keyName) :
   attachSystem::CopiedComp("vor",keyName),
-  vorAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  vorAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
 
   FocusA(new beamlineSystem::GuideLine(newName+"FA")),
 
@@ -114,7 +104,6 @@ VOR::VOR(const std::string& keyName) :
 
   VPipeD(new constructSystem::VacuumPipe(newName+"PipeD")),
   FocusD(new beamlineSystem::GuideLine(newName+"FD")),
-
   
   BInsert(new BunkerInsert(newName+"BInsert")),
   VPipeWall(new constructSystem::VacuumPipe(newName+"PipeWall")),
@@ -153,10 +142,7 @@ VOR::VOR(const std::string& keyName) :
   ModelSupport::objectRegister& OR=
     ModelSupport::objectRegister::Instance();
 
-  // This necessary:
-  //  OR.cell("vorAxis");
   OR.addObject(vorAxis);
-
   OR.addObject(FocusA);
   
   OR.addObject(VPipeB);
@@ -212,13 +198,13 @@ VOR::buildBunkerUnits(Simulation& System,
 {
   ELog::RegMethod RegA("VOR","buildBunkerUnits");
   
-  VPipeB->addInsertCell(bunkerVoid);
+  VPipeB->addAllInsertCell(bunkerVoid);
   VPipeB->createAll(System,FA,startIndex);
 
   FocusB->addInsertCell(VPipeB->getCells("Void"));
   FocusB->createAll(System,*VPipeB,0,*VPipeB,0);
 
-  VPipeC->addInsertCell(bunkerVoid);
+  VPipeC->addAllInsertCell(bunkerVoid);
   VPipeC->createAll(System,FocusB->getKey("Guide0"),2);
 
   FocusC->addInsertCell(VPipeC->getCells("Void"));
@@ -235,7 +221,7 @@ VOR::buildBunkerUnits(Simulation& System,
   DDisk->createAll(System,ChopperA->getKey("Main"),0);
   ChopperA->insertAxle(System,*DDisk);
 
-  VPipeD->addInsertCell(bunkerVoid);
+  VPipeD->addAllInsertCell(bunkerVoid);
   VPipeD->createAll(System,ChopperA->getKey("Beam"),2);
 
   FocusD->addInsertCell(VPipeD->getCells("Void"));
@@ -275,7 +261,7 @@ VOR::buildIsolated(Simulation& System,const int voidCell)
 
   if (startPoint<2)
     {
-      /*      VPipeWall->addInsertCell(voidCell);
+      /*      VPipeWall->addAllInsertCell(voidCell);
       VPipeWall->createAll(System,*FStart,startIndex);
       
       FocusWall->addInsertCell(VPipeWall->getCell("Void"));
@@ -348,11 +334,12 @@ VOR::build(Simulation& System,
   if (stopPoint==2) return;
 
   // Make bunker insert
-  BInsert->createAll(System,FocusD->getKey("Guide0"),-1,bunkerObj);
+  BInsert->setBunkerObject(bunkerObj);
+  BInsert->createAll(System,FocusD->getKey("Guide0"),-1);
   attachSystem::addToInsertLineCtrl(System,bunkerObj,"frontWall",
 				    *BInsert,*BInsert);
 
-  VPipeWall->addInsertCell(BInsert->getCell("Void"));
+  VPipeWall->addAllInsertCell(BInsert->getCell("Void"));
   VPipeWall->createAll(System,*BInsert,-1);
 
     // using 7 : mid point
@@ -409,7 +396,7 @@ VOR::build(Simulation& System,
   ShieldA->setBack(OutPitB->getKey("Mid"),1);
   ShieldA->createAll(System,FocusWall->getKey("Shield"),2);
 
-  VPipeOutA->addInsertCell(ShieldA->getCell("Void"));
+  VPipeOutA->addAllInsertCell(ShieldA->getCell("Void"));
   VPipeOutA->createAll(System,*ShieldA,-1);
 
   FocusOutA->addInsertCell(VPipeOutA->getCells("Void"));
@@ -432,7 +419,7 @@ VOR::build(Simulation& System,
   ShieldB->setBack(Cave->getKey("Mid"),1);
   ShieldB->createAll(System,OutPitB->getKey("Inner"),0);
 
-  VPipeOutC->addInsertCell(ShieldB->getCell("Void"));
+  VPipeOutC->addAllInsertCell(ShieldB->getCell("Void"));
   VPipeOutC->createAll(System,*ShieldB,-1);
 
   FocusOutC->addInsertCell(VPipeOutC->getCells("Void"));

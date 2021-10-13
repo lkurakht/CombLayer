@@ -3,7 +3,7 @@
  
  * File:   commonBeamInc/RingDoor.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,11 +31,11 @@ namespace xraySystem
     \version 1.0
     \author S. Ansell
     \date June 2018
-    \brief Extra beam stop for opticshutch
+    \brief Door for the outer wall of the R1/R3 rings
   */
   
 class RingDoor :
-  public attachSystem::ContainedComp,
+  public attachSystem::ContainedGroup,
   public attachSystem::FixedOffset,
   public attachSystem::CellMap,
   public attachSystem::ExternalCut
@@ -53,7 +53,18 @@ class RingDoor :
   double outerHeight;                 ///< height of outer gap
   double outerWidth;                  ///< width of outer gap
 
-  int doorMat;                   ///< wall material
+  double tubeRadius;                  ///< Radius of top tubes
+  double tubeXStep;                   ///< X of top tubes
+  double tubeZStep;                   ///< Z of top tubes
+
+  double underStepHeight;             ///< height of gap
+  double underStepWidth;              ///< Width of under gap
+  double underStepXSep;               ///< X separation of steps
+
+  int underAMat;                      ///< Filling of under material
+  int underBMat;                      ///< Filling of under material
+  int tubeMat;                        ///< tube material material
+  int doorMat;                        ///< wall material
 
   void populate(const FuncDataBase&);
   void createUnitVector(const attachSystem::FixedComp&,

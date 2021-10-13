@@ -3,7 +3,7 @@
  
  * File:   essBuild/GuideItem.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,37 +32,26 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "localRotate.h"
-#include "masterRotate.h"
 #include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
 #include "SurInter.h"
 #include "Quadratic.h"
 #include "Plane.h"
 #include "Cylinder.h"
 #include "Line.h"
 #include "LineIntersectVisit.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "Object.h"
 #include "groupRange.h"
@@ -73,15 +62,12 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "World.h"
 #include "GuideItem.h"
 
 namespace essSystem
@@ -92,7 +78,7 @@ GuideItem::GuideItem(const std::string& Key,const size_t Index)  :
   attachSystem::FixedOffsetGroup(Key+std::to_string(Index),
                                  "Main",6,"Beam",6),
   attachSystem::CellMap(),baseName(Key),
-  active(1),innerCyl(0),outerCyl(0)
+  active(1),innerCyl(0),outerCyl(0),GPtr(0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Name for item in search
@@ -110,7 +96,7 @@ GuideItem::GuideItem(const GuideItem& A) :
   beamHeight(A.beamHeight),nSegment(A.nSegment),
   height(A.height),depth(A.depth),width(A.width),length(A.length),
   mat(A.mat),innerCyl(A.innerCyl),outerCyl(A.outerCyl),
-  RInner(A.RInner),ROuter(A.ROuter)
+  RInner(A.RInner),ROuter(A.ROuter),GPtr(A.GPtr)
   /*!
     Copy constructor
     \param A :: GuideItem to copy
@@ -147,6 +133,7 @@ GuideItem::operator=(const GuideItem& A)
       outerCyl=A.outerCyl;
       RInner=A.RInner;
       ROuter=A.ROuter;
+      GPtr=A.GPtr;
     }
   return *this;
 }
@@ -192,33 +179,33 @@ GuideItem::populate(const FuncDataBase& Control)
   ELog::RegMethod RegA("GuideItem","populate");
 
   FixedOffsetGroup::populate(Control);
-  active=Control.EvalPair<int>(keyName,baseName,"Active");
+  active=Control.EvalTail<int>(keyName,baseName,"Active");
 
-  beamXYAngle=Control.EvalPair<double>(keyName,baseName,"BeamXYAngle");
-  beamZAngle=Control.EvalPair<double>(keyName,baseName,"BeamZAngle");
-  beamXStep=Control.EvalPair<double>(keyName,baseName,"BeamXStep");
-  beamZStep=Control.EvalPair<double>(keyName,baseName,"BeamZStep");
+  beamXYAngle=Control.EvalTail<double>(keyName,baseName,"BeamXYAngle");
+  beamZAngle=Control.EvalTail<double>(keyName,baseName,"BeamZAngle");
+  beamXStep=Control.EvalTail<double>(keyName,baseName,"BeamXStep");
+  beamZStep=Control.EvalTail<double>(keyName,baseName,"BeamZStep");
 
-  beamHeight=Control.EvalPair<double>(keyName,baseName,"BeamHeight");
-  beamWidth=Control.EvalPair<double>(keyName,baseName,"BeamWidth");
+  beamHeight=Control.EvalTail<double>(keyName,baseName,"BeamHeight");
+  beamWidth=Control.EvalTail<double>(keyName,baseName,"BeamWidth");
 
-  sideGap=Control.EvalPair<double>(keyName,baseName,"SideGap");
-  topGap=Control.EvalPair<double>(keyName,baseName,"TopGap");
-  baseGap=Control.EvalPair<double>(keyName,baseName,"BaseGap");
+  sideGap=Control.EvalTail<double>(keyName,baseName,"SideGap");
+  topGap=Control.EvalTail<double>(keyName,baseName,"TopGap");
+  baseGap=Control.EvalTail<double>(keyName,baseName,"BaseGap");
 
   double D,W,H,L(RInner);
-  nSegment=Control.EvalPair<size_t>(keyName,baseName,"NSegment");
+  nSegment=Control.EvalTail<size_t>(keyName,baseName,"NSegment");
   for(size_t i=0;i<nSegment;i++)
     {
-      W=Control.EvalPair<double>(keyName,baseName,
+      W=Control.EvalTail<double>(keyName,baseName,
 				 "Width"+std::to_string(i+1));
-      H=Control.EvalPair<double>(keyName,baseName,
+      H=Control.EvalTail<double>(keyName,baseName,
 				 "Height"+std::to_string(i+1));
-      D=Control.EvalPair<double>(keyName,baseName,
+      D=Control.EvalTail<double>(keyName,baseName,
 				 "Depth"+std::to_string(i+1));
       if (i!=nSegment-1)
 	{
-	  L+=Control.EvalPair<double>(keyName,baseName,
+	  L+=Control.EvalTail<double>(keyName,baseName,
 				      "Length"+std::to_string(i+1));
 	  length.push_back(L);
 	}
@@ -227,7 +214,7 @@ GuideItem::populate(const FuncDataBase& Control)
       width.push_back(W);
     }
   mat=ModelSupport::EvalMat<int>(Control,keyName+"Mat",baseName+"Mat");
-  filled=Control.EvalPair<int>(keyName,baseName,"Filled");
+  filled=Control.EvalTail<int>(keyName,baseName,"Filled");
 
 
   return;
@@ -385,16 +372,15 @@ GuideItem::getEdgeStr(const GuideItem* GPtr) const
 }
 
 void
-GuideItem::createObjects(Simulation& System,const GuideItem* GPtr)
+GuideItem::createObjects(Simulation& System)
   /*!
     Adds the all the components
     \param System :: Simulation to create objects in
-    \param GPtr :: Near neigbour
   */
 {
   ELog::RegMethod RegA("GuideItem","createObjects");
   if (!active) return;
-  
+
   const std::string edgeStr=getEdgeStr(GPtr);
   std::string Out;
 
@@ -558,14 +544,13 @@ GuideItem::createLinks()
 void
 GuideItem::createAll(Simulation& System,
 		     const attachSystem::FixedComp& FC,
-		     const long int sideIndex,
-		     const GuideItem* GPtr)
+		     const long int sideIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation item
     \param FC :: Central origin
     \param sideIndex :: side to used
-    \param GPtr :: Previous Guide item for edge intersect
+
   */
 {
   ELog::RegMethod RegA("GuideItem","createAll");
@@ -573,7 +558,7 @@ GuideItem::createAll(Simulation& System,
   populate(System.getDataBase());
   createUnitVector(FC,sideIndex);
   createSurfaces();
-  createObjects(System,GPtr);
+  createObjects(System);
   createLinks();
   insertObjects(System);              
 

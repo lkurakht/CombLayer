@@ -3,7 +3,7 @@
  
  * File:   essBuildInc/BunkerWall.h
  *
- * Copyright (c) 2004-2016 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -76,8 +76,6 @@ class BunkerWall : public attachSystem::ContainedComp,
   int baseSurf;                     ///< Real outer surf
   
   void populate(const FuncDataBase&);
-  void createUnitVector(const attachSystem::FixedComp&,
-			const long int);
 
  public:
 
@@ -93,9 +91,9 @@ class BunkerWall : public attachSystem::ContainedComp,
   void createSector(Simulation&,const size_t,const int,
 		    const int,const int);
   
-  void initialize(const FuncDataBase&,
-		  const attachSystem::FixedComp&,
-		  const long int);
+  virtual void createAll(Simulation&,
+			 const attachSystem::FixedComp&,
+			 const long int);
 
 };
 

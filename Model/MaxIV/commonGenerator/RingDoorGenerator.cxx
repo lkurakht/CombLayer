@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   commonBeam/RingDoorGenerator.cxx
+ * File:   commonGenerator/RingDoorGenerator.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,18 +35,10 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
@@ -57,11 +49,31 @@
 namespace setVariable
 {
 
+RingDoorGenerator::RingDoorGenerator(const bool) :
+  innerHeight(210.0),innerWidth(218.0),
+  innerThick(40.0),outerHeight(180.0),
+  outerWidth(238.0),gapSpace(1.0),
+  innerTopGap(2.5),outerTopGap(5.0),
+  tubeRadius(5.0),tubeXStep(30.0),tubeZStep(140.0),
+  underStepHeight(6.5),underStepWidth(47.0),
+  underStepXSep(80.0),
+  underAMat("Void"),underBMat("Void"),
+  tubeMat("Void"),doorMat("Concrete")
+  /*!
+    Constructor and defaults
+  */
+{}
+
 RingDoorGenerator::RingDoorGenerator() :
-  innerHeight(180.0),innerWidth(180.0),innerThick(50.0),
-  outerHeight(240.0),outerWidth(240.0),
-  gapSpace(1.0),innerTopGap(2.5),outerTopGap(5.0),
-  doorMat("Concrete")
+  innerHeight(205.0),innerWidth(220.0),
+  innerThick(55.0),outerHeight(220.0),
+  outerWidth(240.0),gapSpace(1.0),
+  innerTopGap(2.5),outerTopGap(5.0),
+  tubeRadius(5.0),tubeXStep(30.0),tubeZStep(140.0),
+  underStepHeight(7.0),underStepWidth(48.0),
+  underStepXSep(96.0),
+  underAMat("Void"),underBMat("Void"),
+  tubeMat("Void"),doorMat("Concrete")
   /*!
     Constructor and defaults
   */
@@ -72,7 +84,11 @@ RingDoorGenerator::RingDoorGenerator(const RingDoorGenerator& A) :
   innerThick(A.innerThick),outerHeight(A.outerHeight),
   outerWidth(A.outerWidth),gapSpace(A.gapSpace),
   innerTopGap(A.innerTopGap),outerTopGap(A.outerTopGap),
-  doorMat(A.doorMat)
+  tubeRadius(A.tubeRadius),tubeXStep(A.tubeXStep),tubeZStep(A.tubeZStep),
+  underStepHeight(A.underStepHeight),underStepWidth(A.underStepWidth),
+  underStepXSep(A.underStepXSep),
+  underAMat(A.underAMat),underBMat(A.underBMat),
+  tubeMat(A.tubeMat),doorMat(A.doorMat)
   /*!
     Copy constructor
     \param A :: RingDoorGenerator to copy
@@ -97,7 +113,16 @@ RingDoorGenerator::operator=(const RingDoorGenerator& A)
       gapSpace=A.gapSpace;
       innerTopGap=A.innerTopGap;
       outerTopGap=A.outerTopGap;
+      tubeRadius=A.tubeRadius;
+      tubeXStep=A.tubeXStep;
+      tubeZStep=A.tubeZStep;
+      underStepHeight=A.underStepHeight;
+      underStepWidth=A.underStepWidth;
+      underStepXSep=A.underStepXSep;
+      underAMat=A.underAMat;
+      underBMat=A.underBMat;
       doorMat=A.doorMat;
+      tubeMat=A.tubeMat;
     }
   return *this;
 }
@@ -134,7 +159,6 @@ RingDoorGenerator::setOuter(const double W,
     Set the outer door
     \param W :: Width of door
     \param H :: Height of door
-    \param T :: Thickness of dorr
    */
 {
   outerWidth=W;
@@ -171,6 +195,17 @@ RingDoorGenerator::generateDoor(FuncDataBase& Control,
     
   Control.addVariable(keyName+"InnerThick",innerThick);
 
+  Control.addVariable(keyName+"TubeRadius",tubeRadius);
+  Control.addVariable(keyName+"TubeXStep",tubeXStep);
+  Control.addVariable(keyName+"TubeZStep",tubeZStep);
+
+  Control.addVariable(keyName+"UnderStepHeight",underStepHeight);
+  Control.addVariable(keyName+"UnderStepWidth",underStepWidth);
+  Control.addVariable(keyName+"UnderStepXSep",underStepXSep);
+
+  Control.addVariable(keyName+"UnderAMat",underAMat);
+  Control.addVariable(keyName+"UnderBMat",underBMat);
+  Control.addVariable(keyName+"TubeMat",tubeMat);
   Control.addVariable(keyName+"DoorMat",doorMat);
        
   return;

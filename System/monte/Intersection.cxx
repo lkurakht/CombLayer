@@ -35,22 +35,10 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
-#include "NameStack.h"
-#include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "MatrixBase.h"
-#include "Matrix.h"
-#include "Vec3D.h"
-#include "Transform.h"
-#include "Track.h"
-#include "Surface.h"
 #include "Rules.h"
 #include "Token.h"
-#include "HeadRule.h"
-#include "Object.h"
 
 Intersection::Intersection() : Rule(),
   A(0),B(0)
@@ -409,6 +397,18 @@ Intersection::displayAddress() const
 }
 
 bool
+Intersection::isEmpty() const
+  /*!
+    Calculates if valid surface
+    \return if A/B have a valid surface rule
+  */
+{
+  if ((A && !A->isEmpty()) ||
+      (B && !B->isEmpty())) return 0;
+  return 1;
+}
+
+bool
 Intersection::isValid(const Geometry::Vec3D& Vec) const
   /*!
     Calculates if Vec is within the object
@@ -417,8 +417,7 @@ Intersection::isValid(const Geometry::Vec3D& Vec) const
     \retval 0 :: Vec is outside object.
   */
 {
-  if (!A || !B)
-    return 0;
+  if (!A || !B) return 0;
   return (A->isValid(Vec) && B->isValid(Vec)) ? 1 : 0;
 }
 
@@ -437,6 +436,25 @@ Intersection::isDirectionValid(const Geometry::Vec3D& Vec,
     return 0;
   return (A->isDirectionValid(Vec,ExSN) && 
 	  B->isDirectionValid(Vec,ExSN)) ? 1 : 0;
+}
+
+bool
+Intersection::isDirectionValid(const Geometry::Vec3D& Pt,
+			       const std::set<int>& sideSet,
+			       const int ExSN) const
+  /*!
+    Calculates if Vec is within the object
+    \param Pt :: Point to test
+    \param sideSet : surface which we consider Pt to be on 
+     so their sign is to help validity
+    \param ExSN :: Excluded surface number [signed]
+    \retval 1 ::  Vec is within object 
+    \retval 0 :: Vec is outside object.
+  */
+{
+  if (!A || !B)  return 0;
+  return (A->isDirectionValid(Pt,ExSN) && 
+	  B->isDirectionValid(Pt,ExSN)) ? 1 : 0;
 }
 
 bool

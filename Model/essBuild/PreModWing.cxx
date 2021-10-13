@@ -3,7 +3,7 @@
  
  * File:   essBuild/PreModWing.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell/Konstantin Batkov
+ * Copyright (c) 2004-2019 by Stuart Ansell/Konstantin Batkov
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,28 +32,19 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -61,23 +52,12 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "SurInter.h"
-#include "stringCombine.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "ContainedComp.h"
-#include "CylFlowGuide.h"
-#include "Cone.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "LayerComp.h"
-#include "EssModBase.h"
-#include "H2Wing.h"
-#include "ButterflyModerator.h"
 #include "PreModWing.h"
 
 
@@ -192,9 +172,9 @@ PreModWing::populate(const FuncDataBase& Control)
       const std::string sNum=std::to_string(i);
       const double RL=Control.EvalVar<double>
         (keyName+"LayerRadius"+sNum);
-      const int iMat=ModelSupport::EvalDefMat<int>
+      const int iMat=ModelSupport::EvalDefMat
         (Control,keyName+"InnerMat"+sNum,mat);
-      const int sMat=ModelSupport::EvalDefMat<int>
+      const int sMat=ModelSupport::EvalDefMat
         (Control,keyName+"SurfMat"+sNum,wallMat);
       layerRadii.push_back(RL);
       innerMat.push_back(iMat);

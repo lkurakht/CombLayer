@@ -532,6 +532,7 @@ groupRange::getCellIndex(const size_t cellIndex) const
     Returns the next valid cell after cellIndex
     \param cellIndex :: Index number from first nubmer
     \throw RangeError if cellIndex exceeds last index
+    \return  next valid cell
   */
 {
 
@@ -547,7 +548,7 @@ groupRange::getCellIndex(const size_t cellIndex) const
 	return LA+static_cast<int>(cellIndex-indexPoint);
     }
 
-  throw ColErr::RangeError<int>(cellIndex,0,indexPoint,
+  throw ColErr::RangeError<size_t>(cellIndex,0,indexPoint,
 				"cellIndex out of groupRange");
 }
 

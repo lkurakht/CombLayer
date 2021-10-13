@@ -31,7 +31,7 @@ namespace constructSystem
 {
   class Bellows;
   class CrossPipe;
-  class GateValve;
+  class GateValveCube;
   class OffsetFlangePipe;
   class portItem;
   class PipeTube;
@@ -58,7 +58,6 @@ namespace xraySystem
   class SquareFMask;
   class UTubePipe;
   class Undulator;
-  class Wiggler;
 
     
   /*!
@@ -80,11 +79,9 @@ class formaxFrontEnd :
   std::shared_ptr<xraySystem::Undulator> undulator;
 
   virtual const attachSystem::FixedComp&
-    buildUndulator(Simulation&,MonteCarlo::Object*,
+    buildUndulator(Simulation&,
 		   const attachSystem::FixedComp&,const long int);
 			      
-  void createSurfaces();
-  void buildObjects(Simulation&);
   virtual void createLinks();
   
  public:

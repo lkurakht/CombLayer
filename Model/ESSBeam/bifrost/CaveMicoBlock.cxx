@@ -220,10 +220,10 @@ CaveMicoBlock::populate(const FuncDataBase& Control)
   hup=Control.EvalDefVar<double>(keyName+"HeightUp",49.5+10+53);
   hlow=Control.EvalDefVar<double>(keyName+"HeightLow",50.5+10-53);
   
-  defMat=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMat",144);
-  gapMat=ModelSupport::EvalDefMat<int>(Control,keyName+"GapMat",60);
-  tubeMat=ModelSupport::EvalDefMat<int>(Control,keyName+"TubeMat",148); // 148=PVC
-  waxMat= ModelSupport::EvalDefMat<int>(Control,keyName+"WaxMat",48); // 48=poly
+  defMat=ModelSupport::EvalDefMat(Control,keyName+"DefMat","LimestoneConcrete");
+  gapMat=ModelSupport::EvalDefMat(Control,keyName+"GapMat",60);
+  tubeMat=ModelSupport::EvalDefMat(Control,keyName+"TubeMat",148); // 148=PVC
+  waxMat= ModelSupport::EvalDefMat(Control,keyName+"WaxMat",48); // 48=poly
   //  int B4CMat;
 
   nSeg=Control.EvalDefVar<size_t>(keyName+"NSeg",3);

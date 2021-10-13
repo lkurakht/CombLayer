@@ -36,49 +36,18 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Rules.h"
-#include "Code.h"
-#include "varList.h"
-#include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "FixedGroup.h"
-#include "FixedOffsetGroup.h"
-#include "ContainedComp.h"
-#include "SpaceCut.h"
-#include "ContainedGroup.h"
-#include "CopiedComp.h"
-#include "BaseMap.h"
-#include "CellMap.h"
-#include "SurfMap.h"
-#include "FrontBackCut.h"
-#include "World.h"
-#include "AttachSupport.h"
-#include "GuideItem.h"
 
-#include "beamlineSupport.h"
 
 namespace essBeamSystem
 {
@@ -99,11 +68,11 @@ setBeamAxis(attachSystem::FixedOffset& beamAxis,
   ELog::RegMethod RegA("beamlineSupport","setBeamAxis");
   
   beamAxis.populate(Control);
-  beamAxis.createUnitVector(GItem);
-  beamAxis.setLinkSignedCopy(0,GItem.getKey("Main"),1);
-  beamAxis.setLinkSignedCopy(1,GItem.getKey("Main"),2);
-  beamAxis.setLinkSignedCopy(2,GItem.getKey("Beam"),1);
-  beamAxis.setLinkSignedCopy(3,GItem.getKey("Beam"),2);
+  beamAxis.createUnitVector(GItem,0);
+  beamAxis.setLinkCopy(0,GItem.getKey("Main"),1);
+  beamAxis.setLinkCopy(1,GItem.getKey("Main"),2);
+  beamAxis.setLinkCopy(2,GItem.getKey("Beam"),1);
+  beamAxis.setLinkCopy(3,GItem.getKey("Beam"),2);
 
   // change to unsigned !!!
   beamAxis.linkShift(2); 

@@ -3,7 +3,7 @@
  
  * File:   Main/reactor.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,39 +38,22 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "surfRegister.h"
-#include "objectRegister.h"
 #include "InputControl.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "inputParam.h"
-#include "Transform.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "Quadratic.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "HeadRule.h"
 #include "surfIndex.h"
-#include "Object.h"
 #include "MainProcess.h"
 #include "MainInputs.h"
-#include "SimProcess.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "SimInput.h"
-#include "mainJobs.h"
 #include "Volumes.h"
-#include "TallySelector.h"
 #include "variableSetup.h"
-#include "World.h"
 
 #include "makeDelft.h"
 
@@ -80,7 +63,6 @@ MTRand RNG(12345UL);
 namespace ELog 
 {
   ELog::OutputLog<EReport> EM;
-  ELog::OutputLog<FileReport> FM("Spectrum.log");
   ELog::OutputLog<FileReport> RN("Renumber.txt");   ///< Renumber
   ELog::OutputLog<StreamReport> CellM;
 }
@@ -115,7 +97,6 @@ main(int argc,char* argv[])
       mainSystem::setMaterialsDataBase(IParam);
 	
       delftSystem::makeDelft RObj;
-      World::createOuterObjects(*SimPtr);
       RObj.build(*SimPtr,IParam);
 
       //      RObj.setSource(*SimPtr,IParam);

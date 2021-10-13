@@ -3,7 +3,7 @@
  
  * File:   test/testSurIntersect.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,33 +35,24 @@
 #include <memory>
 #include <tuple>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "mathSupport.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Surface.h"
 #include "Quadratic.h"
 #include "Plane.h"
 #include "Sphere.h"
 #include "Cylinder.h"
-#include "Cone.h"
 #include "General.h"
-#include "Line.h"
 #include "Intersect.h"
 #include "SglLine.h"
 #include "DblLine.h"
 #include "Circle.h"
 #include "Ellipse.h"
-#include "HeadRule.h"
 #include "SurInter.h"
 
 #include "testFunc.h"
@@ -428,7 +419,7 @@ testSurIntersect::testCylPlaneIntersect()
   IPtr.reset(SurInter::calcIntersect(CA,TB));
   if (!IPtr)
     {
-      ELog::EM<<"Intersect zero [SngLine]"<<*IPtr<<ELog::endCrit;
+      ELog::EM<<"Intersect zero [SngLine]"<<ELog::endCrit;
       return -2;
     }
   std::shared_ptr<Geometry::SglLine> SPtr=

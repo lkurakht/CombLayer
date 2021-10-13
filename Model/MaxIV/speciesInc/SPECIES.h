@@ -3,7 +3,7 @@
  
  * File:   speciesInc/SPECIES.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,8 +32,8 @@ namespace constructSystem
   class VacuumBox;
   class portItem;
   class PortTube;
-  class GateValve;
-  class JawValve;
+  class GateValveCube;
+  class JawValveCube;
 }
 
 
@@ -51,7 +51,7 @@ namespace xraySystem
   class R1Ring;
   class speciesFrontEnd;
   class speciesOpticsHut;
-  class speciesOpticsBeamline;
+  class speciesOpticsLine;
   class ExperimentalHutch;
   class ExptBeamline;
   class OpticsBeamline;
@@ -68,14 +68,9 @@ namespace xraySystem
   */
 
 class SPECIES :
-  public attachSystem::CopiedComp
+  public R1Beamline
 {
  private:
-
-  /// ring component  [taken from main setup]
-  std::shared_ptr<R1Ring> r1Ring;
-  std::string startPoint;       ///< Start point
-  std::string stopPoint;        ///< End point
 
   std::shared_ptr<speciesFrontEnd> frontBeam;    ///< in ring front end
   std::shared_ptr<WallLead> wallLead;            ///< lead in beam wall
@@ -83,21 +78,16 @@ class SPECIES :
   /// Pipe joining frontend to optics hut
   std::shared_ptr<constructSystem::VacuumPipe> joinPipe;
   /// Main optics hutch components
-  std::shared_ptr<speciesOpticsBeamline> opticsBeam;
+  std::shared_ptr<speciesOpticsLine> opticsBeam;
 
  public:
   
   SPECIES(const std::string&);
   SPECIES(const SPECIES&);
   SPECIES& operator=(const SPECIES&);
-  ~SPECIES();
+  virtual ~SPECIES();
 
-  /// set ring
-  void setRing(std::shared_ptr<R1Ring> R) { r1Ring=R; }
-
-  /// Accessor to stop point
-  void setStopPoint(const std::string& SP)  { stopPoint=SP; }
-  void build(Simulation&,const attachSystem::FixedComp&,
+  virtual void build(Simulation&,const attachSystem::FixedComp&,
 	     const long int);
 
 };

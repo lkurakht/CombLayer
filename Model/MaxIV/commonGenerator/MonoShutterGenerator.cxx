@@ -3,7 +3,7 @@
  
  * File:   commonBeam/MonoShutterGenerator.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,17 +35,10 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
@@ -74,7 +67,8 @@ MonoShutterGenerator::MonoShutterGenerator() :
   PItemGen->setCF<setVariable::CF40>(0.45);
   PItemGen->setPlate(0.0,"Void");  
 
-  PTubeGen->setCF<CF63>();
+  PTubeGen->setPipe(7.5,0.5);
+  PTubeGen->setPortCF<CF63>();
   PTubeGen->setPortLength(3.0,3.0);
 
   PTubeGen->setAPortOffset(0,-3.0);
@@ -121,10 +115,11 @@ MonoShutterGenerator::generateShutter(FuncDataBase& Control,
   SUnitGen->generateShutter(Control,keyName+"UnitB",upFlagB);
   
   // Main outer structure:
-  PTubeGen->generateTube(Control,keyName+"Pipe",0.0,7.50,20.0);
+  PTubeGen->generateTube(Control,keyName+"Pipe",0.0,20.0);
   Control.addVariable(keyName+"PipeNPorts",2);
   
   const Geometry::Vec3D ZVec(0,0,1);
+  PItemGen->setLength(14.0);
   PItemGen->generatePort(Control,keyName+"PipePort0",
 			Geometry::Vec3D(0,-4,0),ZVec);
   PItemGen->generatePort(Control,keyName+"PipePort1",

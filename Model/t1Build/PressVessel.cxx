@@ -3,7 +3,7 @@
  
  * File:   t1Build/PressVessel.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,36 +34,22 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "localRotate.h"
-#include "masterRotate.h"
 #include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
 #include "Quadratic.h"
 #include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -73,8 +59,11 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
+#include "BaseMap.h"
+#include "CellMap.h"
 #include "channel.h"
 #include "boxValues.h"
 #include "boxUnit.h"
@@ -466,6 +455,7 @@ PressVessel::createObjects(Simulation& System)
   
   std::string Out;
 
+  HeadRule HR;
   Out=ModelSupport::getComposite(SMap,buildIndex,"1 -2 3 -4 5 -6 -8 -9 ");
   addOuterSurf(Out);
 
@@ -633,7 +623,8 @@ PressVessel::buildChannels(Simulation& System)
       CItem.push_back(channel("PVesselChannel",i,buildIndex));
       CPtr=&CItem.back();
       CPtr->addInsertCell(outerWallCell);
-      CPtr->createAll(System,*this,CPtr);
+      CPtr->setDefaultValues(Control,CPtr);
+      CPtr->createAll(System,*this,0);
     }
   return;
 }
@@ -664,13 +655,13 @@ PressVessel::buildFeedThrough(Simulation& System)
       SideWaterChannel.addPoint(PEnd);
       SideWaterChannel.addSection(sideWidth,sideHeight,waterMat,0.0);
       SideWaterChannel.setInitZAxis(Z);
-      SideWaterChannel.createAll(System);
+      SideWaterChannel.build(System);
     }
 
   for(size_t i=0;i<nBwch;i++)
     {
       ModelSupport::BoxLine 
-	EndWaterChannel(StrFunc::makeString("endWaterChannel",i+1));   
+	EndWaterChannel("endWaterChannel"+std::to_string(i+1));   
 
 //      const double sX((i % 2) ? -1 : 1);
 //      const double sZ((i / 2) ? -1 : 1);
@@ -682,7 +673,7 @@ PressVessel::buildFeedThrough(Simulation& System)
       EndWaterChannel.addPoint(PEnd);
       EndWaterChannel.addSection(bigWchbegWidth/2.0,bigWchbegHeight/2.0,waterMat,0.0);
       EndWaterChannel.setInitZAxis(Z);
-      EndWaterChannel.createAll(System);
+      EndWaterChannel.build(System);
     }
 
   return;

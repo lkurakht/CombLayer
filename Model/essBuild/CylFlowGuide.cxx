@@ -3,7 +3,7 @@
  
  * File:   essBuild/CylFlowGuide.cxx
  *
- * Copyright (c) 2004-2018 by Konstantin Batkov
+ * Copyright (c) 2004-2019 by Konstantin Batkov
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,27 +34,21 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
 #include "Surface.h"
 #include "Quadratic.h"
 #include "Cylinder.h"
-#include "surfIndex.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -62,10 +56,9 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "stringCombine.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "ContainedComp.h"
@@ -77,7 +70,7 @@ namespace essSystem
 
 CylFlowGuide::CylFlowGuide(const std::string& Key) :
   attachSystem::ContainedComp(),
-  attachSystem::FixedComp(Key,0),
+  attachSystem::FixedUnit(Key,0),
   attachSystem::CellMap()
   /*!
     Constructor
@@ -87,7 +80,7 @@ CylFlowGuide::CylFlowGuide(const std::string& Key) :
 
 CylFlowGuide::CylFlowGuide(const CylFlowGuide& A) : 
   attachSystem::ContainedComp(A),
-  attachSystem::FixedComp(A),
+  attachSystem::FixedUnit(A),
   attachSystem::CellMap(A),
   wallThick(A.wallThick),
   wallMat(A.wallMat),

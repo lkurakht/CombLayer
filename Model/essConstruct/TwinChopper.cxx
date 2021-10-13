@@ -3,7 +3,7 @@
  
  * File:   essConstruct/TwinChopper.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,54 +34,39 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
-#include "MaterialSupport.h"
-#include "generateSurf.h"
 #include "LinkUnit.h"  
 #include "FixedComp.h"
 #include "FixedGroup.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
-#include "ContainedGroup.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
-#include "RingSeal.h"
 #include "InnerPort.h"
 #include "boltRing.h"
-#include "Motor.h"
 #include "TwinBase.h"
 #include "TwinChopper.h"
 
@@ -154,7 +139,8 @@ TwinChopper::buildPorts(Simulation& System)
   System.addCell(MonteCarlo::Object(cellIndex++,0,0.0,Out+innerFSurf));
   addCell("PortVoid",cellIndex-1);
   IPA->addInnerCell(getCell("PortVoid",0));
-  IPA->createAll(System,Beam,0,Out+innerFSurf);
+  IPA->setCutSurf("Boundary",Out+innerFSurf);
+  IPA->createAll(System,Beam,0);
 
   
   Out=ModelSupport::getComposite(SMap,buildIndex,"12 -2 ");
@@ -162,7 +148,8 @@ TwinChopper::buildPorts(Simulation& System)
   addCell("PortVoid",cellIndex-1);
 
   IPB->addInnerCell(getCell("PortVoid",1));
-  IPB->createAll(System,Beam,0,Out+innerBSurf);
+  IPB->setCutSurf("Boundary",Out+innerBSurf);
+  IPB->createAll(System,Beam,0);
   return;
 }
 

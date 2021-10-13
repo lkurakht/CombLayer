@@ -3,7 +3,7 @@
  
  * File:   essBuild/BeamMonitor.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,32 +35,18 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -68,12 +54,11 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "SimProcess.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedOffsetUnit.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 
 #include "BeamMonitor.h"
@@ -82,7 +67,7 @@ namespace essSystem
 {
 
 BeamMonitor::BeamMonitor(const std::string& Key) :
-  attachSystem::ContainedComp(),attachSystem::FixedOffset(Key,3)
+  attachSystem::ContainedComp(),attachSystem::FixedOffsetUnit(Key,3)
   /*!
     Constructor
     \param Key :: Keyname for system
@@ -90,7 +75,7 @@ BeamMonitor::BeamMonitor(const std::string& Key) :
 {}
 
 BeamMonitor::BeamMonitor(const BeamMonitor& A) : 
-  attachSystem::ContainedComp(A),attachSystem::FixedOffset(A),
+  attachSystem::ContainedComp(A),attachSystem::FixedOffsetUnit(A),
   nSec(A.nSec),radius(A.radius),thick(A.thick),
   mat(A.mat),halfThick(A.halfThick)
   /*!
@@ -145,16 +130,16 @@ BeamMonitor::populate(const FuncDataBase& Control)
   for(size_t i=0;i<nSec;i++)
     {
       RW=Control.EvalDefVar<double>
-	(StrFunc::makeString(keyName+"BoxRadius",i+1),-1.0);   
+	(keyName+"BoxRadius"+std::to_string(i+1),-1.0);   
       TW=Control.EvalDefVar<double>
-	(StrFunc::makeString(keyName+"BoxThick",i+1),-1.0);     
-      MW=ModelSupport::EvalDefMat<int>
-	(Control,StrFunc::makeString(keyName+"BoxMat",i+1),0);   
+	(keyName+"BoxThick"+std::to_string(i+1),-1.0);     
+      MW=ModelSupport::EvalDefMat
+	(Control,keyName+"BoxMat"+std::to_string(i+1),0);   
       if (RW<0.0 || TW<0.0)
 	{
 	  if (i<nSec/2)
 	    throw ColErr::InContainerError<std::string>
-	      (StrFunc::makeString(keyName+"BoxRadius/Thick",i+1),"Search");   
+	      (keyName+"BoxRadius/Thick"+std::to_string(i+1),"Search");   
 	  
 	  const size_t index=nSec-(i+1);
 	  RW=radius[index];
@@ -237,7 +222,7 @@ BeamMonitor::calcExclude(const size_t index,
   std::string Out;
   for(size_t i=0;i<CG.nGroups();i++)
     {
-      const std::string CKey=CName+StrFunc::makeString(i);
+      const std::string CKey=CName+std::to_string(i);
       if (CG.hasKey(CKey))
 	{
 	  const ContainedComp& CA=CG.getCC(CKey);

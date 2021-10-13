@@ -3,7 +3,7 @@
  
  * File:   ESSBeam/simpleItem/SimpleITEM.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,24 +35,13 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -64,6 +53,7 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
@@ -72,12 +62,10 @@
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
-#include "World.h"
-#include "AttachSupport.h"
 #include "GuideItem.h"
 #include "Bunker.h"
-#include "BunkerInsert.h"
 #include "insertObject.h"
 #include "insertPlate.h"
 #include "beamlineSupport.h"
@@ -89,7 +77,7 @@ namespace essSystem
 
 simpleITEM::simpleITEM(const std::string& keyN) :
   attachSystem::CopiedComp("simple",keyN),stopPoint(0),
-  simpleAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  simpleAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
   Plate(new insertSystem::insertPlate(newName+"Plate"))
   /*!
     Constructor
@@ -101,8 +89,6 @@ simpleITEM::simpleITEM(const std::string& keyN) :
   ModelSupport::objectRegister& OR=
     ModelSupport::objectRegister::Instance();
 
-  // This necessary:
-  // OR.cell(newName+"Axis");
   OR.addObject(simpleAxis);
   OR.addObject(Plate);
 }

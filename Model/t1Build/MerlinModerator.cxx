@@ -3,7 +3,7 @@
  
  * File:   t1Build/MerlinModerator.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,31 +36,20 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
 #include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -72,7 +61,6 @@
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
-#include "t1Reflector.h"
 #include "VanePoison.h"
 #include "MerlinModerator.h"
 
@@ -173,20 +161,6 @@ MerlinModerator::populate(const FuncDataBase& Control)
   poisonMat=ModelSupport::EvalMat<int>(Control,keyName+"PoisonMat");
 
   applyModification();
-  return;
-}
-  
-void
-MerlinModerator::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    - Y Down the beamline
-    \param FC :: Linked object
-  */
-{
-  ELog::RegMethod RegA("MerlinModerator","createUnitVector");
-  attachSystem::FixedComp::createUnitVector(FC);
-  applyOffset();
   return;
 }
 
@@ -393,7 +367,8 @@ MerlinModerator::createVanes(Simulation& System)
 
 void
 MerlinModerator::createAll(Simulation& System,
-			  const attachSystem::FixedComp& FC)
+			   const attachSystem::FixedComp& FC,
+			   const long int sideIndex)
   /*!
     Global creation of the hutch
     \param System :: Simulation to add vessel to
@@ -403,7 +378,7 @@ MerlinModerator::createAll(Simulation& System,
   ELog::RegMethod RegA("MerlinModerator","createAll");
   populate(System.getDataBase());
 
-  createUnitVector(FC);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System);
   createLinks();

@@ -3,7 +3,7 @@
 
  * File:   essBuild/PBW.cxx
  *
- * Copyright (c) 2004-2018 by Konstantin Batkov
+ * Copyright (c) 2004-2019 by Konstantin Batkov
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,59 +32,39 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ReadFunctions.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedOffset.h"
+#include "FixedOffsetUnit.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "BaseMap.h"
-#include "FixedOffset.h"
-#include "surfDBase.h"
-#include "surfDIter.h"
-#include "surfDivide.h"
-#include "SurInter.h"
-#include "mergeTemplate.h"
 #include "AttachSupport.h"
 
 //#include "BaseMap.h"
 #include "CellMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "TelescopicPipe.h"
 #include "PBW.h"
@@ -94,7 +74,7 @@ namespace essSystem
 
 PBW::PBW(const std::string& Key)  :
   attachSystem::ContainedComp(),
-  attachSystem::FixedOffset(Key,8),
+  attachSystem::FixedOffsetUnit(Key,8),
   shield(new TelescopicPipe(Key+"Shield"))
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -111,7 +91,12 @@ PBW::PBW(const std::string& Key)  :
 
 PBW::PBW(const PBW& A) :
   attachSystem::ContainedComp(A),
+<<<<<<< HEAD
   attachSystem::FixedOffset(A),
+=======
+  attachSystem::FixedOffsetUnit(A),
+
+>>>>>>> origin/master
   engActive(A.engActive),
   plugLength1(A.plugLength1),
   plugLength2(A.plugLength2),
@@ -236,7 +221,7 @@ PBW::populate(const FuncDataBase& Control)
   ELog::RegMethod RegA("PBW","populate");
 
   FixedOffset::populate(Control);
-  engActive=Control.EvalPair<int>(keyName,"","EngineeringActive");
+  engActive=Control.EvalTail<int>(keyName,"","EngineeringActive");
 
   plugLength1=Control.EvalVar<double>(keyName+"PlugLength1");
   plugLength2=Control.EvalVar<double>(keyName+"PlugLength2");
@@ -275,22 +260,6 @@ PBW::populate(const FuncDataBase& Control)
 
   coolingMat=ModelSupport::EvalMat<int>(Control,keyName+"CoolingMat");
   mat=ModelSupport::EvalMat<int>(Control,keyName+"Mat");
-
-  return;
-}
-
-void
-PBW::createUnitVector(const attachSystem::FixedComp& FC,const long int& sideIndex)
-  /*!
-    Create the unit vectors
-    \param FC :: object for origin
-  */
-{
-  ELog::RegMethod RegA("PBW","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  applyShift(xStep,yStep,zStep);
-  applyAngleRotate(xyAngle,zAngle);
 
   return;
 }
@@ -583,9 +552,6 @@ PBW::createLinks()
 
   return;
 }
-
-
-
 
 void
 PBW::createAll(Simulation& System,

@@ -34,21 +34,14 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "essVariables.h"
 #include "ShieldGenerator.h"
 #include "FocusGenerator.h"
 #include "ChopperGenerator.h"
@@ -149,14 +142,16 @@ HEIMDALvariables(FuncDataBase& Control)
   BGen.generateBlades(Control,"heimdalADiskTwo",1.0,22.5,35.0);
 
   PipeGen.setPipe(4.0,0.5);
-  PipeGen.generatePipe(Control,"heimdalPipeTD",2.5,130.0);
+  PipeGen.generatePipe(Control,"heimdalPipeTD",130.0);
+  Control.addVariable("heimdalPipeTDYStep",2.5);
   Control.addParse<double>("heimdalPipeTDZStep","-heimdalTChopAZStep");    
   
   FGen.clearYOffset();
   FGen.generateTaper(Control,"heimdalFTD",126.0,4.0,4.0,4.0,4.0);
   
   PipeGen.setPipe(3.0,0.5);
-  PipeGen.generatePipe(Control,"heimdalPipeCD",15.0,530.0);
+  PipeGen.generatePipe(Control,"heimdalPipeCD",530.0);
+  Control.addVariable("heimdalPipeCDYStep",15.0);
   FGen.setYOffset(18.0);
   FGen.generateTaper(Control,"heimdalFCD",126.0,2.0,2.0,2.0,2.0);   
 
@@ -171,7 +166,8 @@ HEIMDALvariables(FuncDataBase& Control)
   BGen.generateBlades(Control,"heimdalBDisk",0.0,22.5,35.0);
 
   PipeGen.setPipe(4.5,0.5);
-  PipeGen.generatePipe(Control,"heimdalPipeTE",2.5,1170.0);
+  PipeGen.generatePipe(Control,"heimdalPipeTE",1170.0);
+  Control.addVariable("heimdalPipeTEYStep",2.5);
   Control.addParse<double>("heimdalPipeTEZStep","-heimdalTChopBZStep");    
     
   FGen.clearYOffset();
@@ -195,7 +191,8 @@ HEIMDALvariables(FuncDataBase& Control)
   BGen.generateBlades(Control,"heimdalT0Disk",0.0,25.0,35.0);
 
   PipeGen.setPipe(4.5,0.5);
-  PipeGen.generatePipe(Control,"heimdalPipeTF",2.5,444.0);
+  PipeGen.generatePipe(Control,"heimdalPipeTF",444.0);
+  Control.addVariable("heimdalPipeTFYStep",2.5);
   Control.addParse<double>("heimdalPipeTFZStep","-heimdalChopperT0ZStep");    
     
   FGen.clearYOffset();

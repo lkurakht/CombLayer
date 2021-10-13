@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   essBuild/MIRACLES.cxx
+ * File:   ESSBeam/miracles/MIRACLES.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,24 +36,13 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -65,15 +54,17 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "World.h"
 #include "AttachSupport.h"
@@ -82,18 +73,13 @@
 #include "Aperture.h"
 #include "TwinBase.h"
 #include "TwinChopper.h"
-#include "Jaws.h"
 #include "GuideLine.h"
 #include "DiskChopper.h"
 #include "VacuumPipe.h"
 #include "Bunker.h"
 #include "BunkerInsert.h"
 #include "SingleChopper.h"
-#include "ChopperPit.h"
-#include "DetectorTank.h"
-#include "CylSample.h"
 #include "LineShield.h"
-#include "HoleShape.h"
 #include "BeamShutter.h"
 
 #include "MIRACLES.h"
@@ -104,7 +90,7 @@ namespace essSystem
 MIRACLES::MIRACLES(const std::string& keyName) :
   attachSystem::CopiedComp("miracles",keyName),
   nGuideSection(8),nSndSection(7),nEllSection(4),stopPoint(0),
-  miraclesAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  miraclesAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
   FocusA(new beamlineSystem::GuideLine(newName+"FA")),
 
   VPipeB(new constructSystem::VacuumPipe(newName+"PipeB")),
@@ -159,8 +145,11 @@ MIRACLES::MIRACLES(const std::string& keyName) :
   ModelSupport::objectRegister& OR=
     ModelSupport::objectRegister::Instance();
 
+<<<<<<< HEAD
   // This is necessary as not directly constructed:
   // OR.cell(newName+"Axis");
+=======
+>>>>>>> origin/master
   OR.addObject(miraclesAxis);
 
   OR.addObject(FocusA);
@@ -232,13 +221,13 @@ MIRACLES::buildBunkerUnits(Simulation& System,
 
   const Geometry::Vec3D& ZVert(World::masterOrigin().getZ());
   
-  VPipeB->addInsertCell(bunkerVoid);
+  VPipeB->addAllInsertCell(bunkerVoid);
   VPipeB->createAll(System,FA,startIndex);
 
   FocusB->addInsertCell(VPipeB->getCells("Void"));
   FocusB->createAll(System,*VPipeB,0,*VPipeB,0);
 
-  VPipeC->addInsertCell(bunkerVoid);
+  VPipeC->addAllInsertCell(bunkerVoid);
   VPipeC->createAll(System,FocusB->getKey("Guide0"),2);
 
   FocusC->addInsertCell(VPipeC->getCells("Void"));
@@ -259,7 +248,7 @@ MIRACLES::buildBunkerUnits(Simulation& System,
                       TwinB->getKey("Beam"),-1);
   TwinB->insertAxle(System,*BDiskLow,*BDiskTop);
   
-  VPipeD->addInsertCell(bunkerVoid);
+  VPipeD->addAllInsertCell(bunkerVoid);
   VPipeD->createAll(System,TwinB->getKey("BuildBeam"),2);
 
   FocusD->addInsertCell(VPipeD->getCells("Void"));
@@ -277,7 +266,7 @@ MIRACLES::buildBunkerUnits(Simulation& System,
                       TwinC->getKey("Beam"),-1);
   TwinC->insertAxle(System,*CDiskLow,*CDiskTop);
   
-  VPipeE->addInsertCell(bunkerVoid);
+  VPipeE->addAllInsertCell(bunkerVoid);
   VPipeE->createAll(System,TwinC->getKey("BuildBeam"),2);
 
   FocusE->addInsertCell(VPipeE->getCells("Void"));
@@ -294,13 +283,13 @@ MIRACLES::buildBunkerUnits(Simulation& System,
   ShutterA->addInsertCell(bunkerVoid);
   ShutterA->createAll(System,ChopE->getKey("Beam"),2);
 
-  VPipeF->addInsertCell(bunkerVoid);
+  VPipeF->addAllInsertCell(bunkerVoid);
   VPipeF->createAll(System,ShutterA->getKey("Beam"),2);
 
   FocusF->addInsertCell(VPipeF->getCells("Void"));
   FocusF->createAll(System,*VPipeF,0,*VPipeF,0);
 
-  VPipeG->addInsertCell(bunkerVoid);
+  VPipeG->addAllInsertCell(bunkerVoid);
   VPipeG->createAll(System,FocusF->getKey("Guide0"),2);
 
   BendG->addInsertCell(VPipeG->getCells("Void"));
@@ -328,14 +317,14 @@ MIRACLES::buildOutGuide(Simulation& System,
   ShieldA->createAll(System,FA,startIndex);
 
   // Bender 10m
-  VPipeOutA->addInsertCell(ShieldA->getCell("Void"));
+  VPipeOutA->addAllInsertCell(ShieldA->getCell("Void"));
   VPipeOutA->createAll(System,FA,startIndex);
 
   BendOutA->addInsertCell(VPipeOutA->getCells("Void"));
   BendOutA->createAll(System,*VPipeOutA,0,*VPipeOutA,0);
 
   // Bender 10m
-  VPipeOutB->addInsertCell(ShieldA->getCell("Void"));
+  VPipeOutB->addAllInsertCell(ShieldA->getCell("Void"));
   VPipeOutB->createAll(System,BendOutA->getKey("Guide0"),2);
 
   BendOutB->addInsertCell(VPipeOutB->getCells("Void"));
@@ -377,13 +366,12 @@ MIRACLES::buildIsolated(Simulation& System,const int voidCell)
 
   if (startPoint<2)
     {
-      VPipeWall->addInsertCell(voidCell);
+      VPipeWall->addAllInsertCell(voidCell);
       VPipeWall->createAll(System,*FStart,startIndex);
       
       FocusWall->addInsertCell(VPipeWall->getCell("Void"));
       FocusWall->createAll(System,*VPipeWall,0,*VPipeWall,0);
       FStart= &(FocusWall->getKey("Guide0"));
-      startIndex=2;
     }
 
 
@@ -433,7 +421,8 @@ MIRACLES::build(Simulation& System,
 
   // IN WALL
   // Make bunker insert
-  BInsert->createAll(System,FocusF->getKey("Guide0"),2,bunkerObj);
+  BInsert->setBunkerObject(bunkerObj);
+  BInsert->createAll(System,FocusF->getKey("Guide0"),2);
   attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsert);  
 
   // using 7 : mid point

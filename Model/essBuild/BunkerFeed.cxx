@@ -3,7 +3,7 @@
  
  * File:   bunker/BunkerFeed.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,37 +35,21 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ModelSupport.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 #include "ContainedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
@@ -84,7 +68,7 @@ namespace essSystem
 
 BunkerFeed::BunkerFeed(const std::string& Key,
                        const size_t Index)  :
-  attachSystem::FixedComp(Key+std::to_string(Index),2),
+  attachSystem::FixedUnit(Key+std::to_string(Index),2),
   ID(Index),baseName(Key),
   voidTrack(new ModelSupport::BoxLine(keyName))
   /*!
@@ -94,7 +78,7 @@ BunkerFeed::BunkerFeed(const std::string& Key,
 {}
 
 BunkerFeed::BunkerFeed(const BunkerFeed& A) : 
-  attachSystem::FixedComp(A),attachSystem::CellMap(A),
+  attachSystem::FixedUnit(A),attachSystem::CellMap(A),
   ID(A.ID),baseName(A.baseName),
   voidTrack(new ModelSupport::BoxLine(*A.voidTrack)),
   height(A.height),width(A.width),Offset(A.Offset),
@@ -238,21 +222,20 @@ BunkerFeed::insertColl(Simulation& System)
 	X*trackPt[0]+Y*trackPt[1]+Z*trackPt[2];
       realPoint+=Origin;
       voidTrack->addPoint(realPoint);
-      ELog::EM<<"Adding Point == "<<realPoint<<ELog::endDiag;
     }
         
   // make void
-  ELog::EM<<"WH == "<<width<<" "<<height<<ELog::endDiag;
   voidTrack->addSection(width,height,0,0.0);
   voidTrack->setInitZAxis(Z);
   DegA.activate();
-  voidTrack->createAll(System);
+
+  voidTrack->build(System);
 
   return;
 }
   
 void
-BunkerFeed::createAll(Simulation& System,
+BunkerFeed::buildAll(Simulation& System,
                       const Bunker& bunkerObj,
                       const size_t segNumber,
                       const std::string& feedName)

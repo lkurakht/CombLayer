@@ -34,38 +34,19 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
 #include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "localRotate.h"
-#include "masterRotate.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDivide.h"
-#include "surfDIter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
-#include "ReadFunctions.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "Object.h"
 #include "groupRange.h"
@@ -80,8 +61,12 @@
 #include "ContainedComp.h"
 #include "BaseMap.h"
 #include "SurfMap.h"
+<<<<<<< HEAD
 #include "CellMap.h"
 #include "World.h"
+=======
+#include "ExternalCut.h"
+>>>>>>> origin/master
 #include "BulkModule.h"
 
 namespace essSystem
@@ -89,7 +74,11 @@ namespace essSystem
 
 BulkModule::BulkModule(const std::string& Key)  :
   attachSystem::ContainedComp(),attachSystem::FixedOffset(Key,9),
+<<<<<<< HEAD
   attachSystem::SurfMap(),attachSystem::CellMap()
+=======
+  attachSystem::SurfMap(),attachSystem::ExternalCut()
+>>>>>>> origin/master
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Name for item in search
@@ -98,7 +87,11 @@ BulkModule::BulkModule(const std::string& Key)  :
 
 BulkModule::BulkModule(const BulkModule& A) : 
   attachSystem::ContainedComp(A),attachSystem::FixedOffset(A),
+<<<<<<< HEAD
   attachSystem::SurfMap(A),attachSystem::CellMap(A),
+=======
+  attachSystem::SurfMap(A),attachSystem::ExternalCut(A),
+>>>>>>> origin/master
   nLayer(A.nLayer),radius(A.radius),height(A.height),depth(A.depth),
   COffset(A.COffset),Mat(A.Mat)
   /*!
@@ -120,7 +113,11 @@ BulkModule::operator=(const BulkModule& A)
       attachSystem::ContainedComp::operator=(A);
       attachSystem::FixedOffset::operator=(A);
       attachSystem::SurfMap::operator=(A);
+<<<<<<< HEAD
       attachSystem::CellMap::operator=(A);
+=======
+      attachSystem::ExternalCut::operator=(A);
+>>>>>>> origin/master
       nLayer=A.nLayer;
       radius=A.radius;
       height=A.height;
@@ -221,8 +218,7 @@ BulkModule::createSurfaces()
 }
 
 void
-BulkModule::createObjects(Simulation& System,
-			  const attachSystem::ContainedComp& CC)
+BulkModule::createObjects(Simulation& System)
   /*!
     Adds the all the components
     \param System :: Simulation to create objects in
@@ -231,7 +227,14 @@ BulkModule::createObjects(Simulation& System,
 {
   ELog::RegMethod RegA("BulkModule","createObjects");
 
+<<<<<<< HEAD
   std::string Out,OutX,cellName;
+=======
+  const std::string boundary=
+    ExternalCut::getRuleStr("Reflector");
+  
+  std::string Out,OutX;
+>>>>>>> origin/master
   int RI(buildIndex);
   for(size_t i=0;i<nLayer;i++)
     {
@@ -241,12 +244,17 @@ BulkModule::createObjects(Simulation& System,
 	OutX=ModelSupport::getComposite(SMap,RI-10,"(-5:6:7)");
 	}
       else
+<<<<<<< HEAD
 	{
 	  OutX=CC.getExclude();
 	  setCell("Inner", cellIndex);
 	}
        System.addCell(MonteCarlo::Object(cellIndex++,Mat[i],0.0,Out+OutX));
 
+=======
+	OutX=boundary;
+      System.addCell(MonteCarlo::Object(cellIndex++,Mat[i],0.0,Out+OutX));
+>>>>>>> origin/master
       RI+=10;
     }
   
@@ -350,21 +358,21 @@ BulkModule::addFlightUnit(Simulation& System,
 void
 BulkModule::createAll(Simulation& System,
 		      const attachSystem::FixedComp& FC,
-		      const attachSystem::ContainedComp& CC)
+		      const long int sideIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation item
     \param FC :: Central origin
-    \param CC :: Central origin
+    \param sideIndex
   */
 {
   ELog::RegMethod RegA("BulkModule","createAll");
 
   populate(System.getDataBase());
-  createUnitVector(FC,0);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createLinks();
-  createObjects(System,CC);
+  createObjects(System);
   insertObjects(System);              
 
   return;

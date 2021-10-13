@@ -36,31 +36,18 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -73,7 +60,6 @@
 #include "FixedOffset.h"
 #include "LayerComp.h"
 #include "ContainedComp.h"
-#include "t1Reflector.h"
 #include "H2Moderator.h"
 
 namespace ts1System
@@ -199,21 +185,7 @@ H2Moderator::applyModification()
   modLayer[46]=vacTop;
   return;
 }
-  
-void
-H2Moderator::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    - Y Down the beamline
-    \param FC :: Linked object
-  */
-{
-  ELog::RegMethod RegA("H2Moderator","createUnitVector");
-  attachSystem::FixedComp::createUnitVector(FC,0);
-  applyOffset();
-  return;
-}
-
+ 
 void
 H2Moderator::createSurfaces()
   /*!
@@ -494,7 +466,8 @@ H2Moderator::getComposite(const std::string& surfList) const
 
 void
 H2Moderator::createAll(Simulation& System,
-			const attachSystem::FixedComp& FC)
+		       const attachSystem::FixedComp& FC,
+		       const long int sideIndex)
   /*!
     Global creation of the hutch
     \param System :: Simulation to add vessel to
@@ -504,7 +477,7 @@ H2Moderator::createAll(Simulation& System,
   ELog::RegMethod RegA("H2Moderator","createAll");
   populate(System.getDataBase());
 
-  createUnitVector(FC);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System);
   createLinks();

@@ -32,23 +32,16 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "support.h"
 #include "regexBuild.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
-#include "Vec3D.h"
 #include "XMLattribute.h"
 #include "XMLobject.h"
 #include "XMLgroup.h"
-#include "XMLcomp.h"
 #include "XMLload.h"
-#include "XMLcollect.h"
 #include "XMLnamespace.h"
 #include "XMLiterator.h"
 
@@ -192,7 +185,7 @@ getGroupContent(XMLload& IFile,std::string& Key,
   // Ok found either (a) a close group (b) a new open group
   // (c) a comment
   if (!Line.empty())
-    Data=StrFunc::fullBlock(Line);
+    Data=StrFunc::removeOuterSpace(Line);
   if (c!='<') return 0;
 
   while(IFile.get(c) && c!='>')

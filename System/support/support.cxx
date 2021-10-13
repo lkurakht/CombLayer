@@ -3,7 +3,7 @@
  
  * File:   support/support.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,8 +36,6 @@
 #include <boost/format.hpp>
 
 #include "Exception.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
 #include "doubleErr.h"
@@ -222,7 +220,7 @@ getPartLine(std::istream& IX,std::string& Out,
 }
 
 std::string
-removeSpace(const std::string& CLine)
+removeAllSpace(const std::string& CLine)
   /*!
     Removes all spaces from a string 
     except those with in the form '\ '
@@ -486,6 +484,31 @@ getDelimUnit(const std::string& A,
   return Out;
 }
 
+bool
+splitUnit(const std::string& Item,
+	  std::string& A,
+	  std::string& B,
+	  const std::string& delimit)
+  /*!
+    Splits the first instance of XXX delimit YYY 
+    Note that XXX and YYY are space trimmed
+    \param A :: part A
+    \param B :: part B
+    \param delimit :: string to delimit on
+    \return true if A and B found 
+  */
+{
+  std::string Out;
+  const std::string::size_type posA=Item.find(delimit);
+  if (posA==std::string::npos)
+    return 0;
+
+  A=removeOuterSpace(Item.substr(0,posA));
+  B=removeOuterSpace(Item.substr(posA+delimit.size()));
+    
+  return 1;
+}
+
 int
 quoteBlock(std::string& Line,std::string& Unit)
   /*!
@@ -550,7 +573,7 @@ singleLine(const std::string& A)
   std::string Out(A);
   std::replace(Out.begin(),Out.end(),'\n',' ');
   Out=StrFunc::stripMultSpc(Out);
-  Out=StrFunc::fullBlock(Out);
+  Out=StrFunc::removeOuterSpace(Out);
   return Out;
 }
 
@@ -576,7 +599,7 @@ frontBlock(const std::string& A)
 }
 
 std::string
-fullBlock(const std::string& A)
+removeOuterSpace(const std::string& A)
   /*!
     Returns the string from the first non-space to the 
     last non-space 
@@ -1073,6 +1096,30 @@ convert(const char* A,T& out)
   return convert(Cx,out);
 }
 
+template<typename T>
+bool
+convertNameWithIndex(std::string& Unit,T& Index)
+  /*!
+    If Unit has a [ ] index : then the value is placed into
+    index+1 else Index==0 
+    \param Unit :: string of type Name[index] / Name on output
+    \param Index :: value of index
+    \retval true if convertable / false if not
+   */
+{
+  const std::string::size_type bPosA=Unit.find('[');
+  const std::string::size_type bPosB=Unit.find(']');
+
+  if (bPosA!=std::string::npos &&
+      bPosB!=std::string::npos &&
+      convert(Unit.substr(bPosA+1,bPosB-bPosA-1),Index))
+    {
+      Unit.erase(bPosA);
+      return 1;
+    }
+  return 0;
+}
+
 template<typename T> 
 int
 setValues(const std::string& Line,const std::vector<int>& Index,
@@ -1339,6 +1386,9 @@ template size_t convPartNum(const std::string&,double&);
 template size_t convPartNum(const std::string&,int&);
 template size_t convPartNum(const std::string&,size_t&);
 template size_t convPartNum(const std::string&,std::string&);
+
+template bool convertNameWithIndex(std::string&,size_t&);
+template bool convertNameWithIndex(std::string&,long int&);
 
 template int setValues(const std::string&,const std::vector<int>&,
 		      std::vector<double>&);

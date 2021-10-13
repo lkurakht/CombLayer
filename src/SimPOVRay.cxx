@@ -1,9 +1,9 @@
-/********************************************************************* 
+/*********************************************************************
   CombLayer : MCNP(X) Input builder
- 
+
  * File:   src/SimPOVRay.cxx
  *
- * Copyright (c) 2004-2018 by Konstantin Batkov/Stuart Ansell
+ * Copyright (c) 2004-2019 by Konstantin Batkov/Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,17 +16,17 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  ****************************************************************************/
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <cmath>
-#include <complex> 
+#include <complex>
 #include <vector>
 #include <list>
-#include <map> 
+#include <map>
 #include <set>
 #include <string>
 #include <algorithm>
@@ -36,34 +36,23 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "mathSupport.h"
-#include "support.h"
-#include "Element.h"
 #include "Zaid.h"
-#include "MapSupport.h"
 #include "MXcards.h"
 #include "Material.h"
-#include "DBMaterial.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
 #include "Surface.h"
 #include "surfIndex.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
-#include "FItem.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 
 #include "groupRange.h"
@@ -79,7 +68,7 @@ SimPOVRay::SimPOVRay() : Simulation()
 {}
 
 SimPOVRay::SimPOVRay(const SimPOVRay& A) : Simulation(A)
- /*! 
+ /*!
    Copy constructor
    \param A :: Simulation to copy
  */
@@ -103,13 +92,13 @@ SimPOVRay::operator=(const SimPOVRay& A)
 void
 SimPOVRay::writeCells(std::ostream& OX) const
   /*!
-    Write all the cells in standard POVRay output 
+    Write all the cells in standard POVRay output
     type.
     \param OX :: Output stream
   */
 {
   ELog::RegMethod RegA("SimPOVRay","writeCells");
-    
+
   OTYPE::const_iterator mp;
   for(mp=OList.begin();mp!=OList.end();mp++)
     mp->second->writePOVRay(OX);
@@ -119,7 +108,7 @@ SimPOVRay::writeCells(std::ostream& OX) const
 void
 SimPOVRay::writeSurfaces(std::ostream& OX) const
   /*!
-    Write all the surfaces in standard MCNPX output 
+    Write all the surfaces in standard MCNPX output
     type.
     \param OX :: Output stream
   */
@@ -132,52 +121,55 @@ SimPOVRay::writeSurfaces(std::ostream& OX) const
 
   OX<<std::endl;
   return;
-} 
+}
 
 void
 SimPOVRay::writeMaterial(std::ostream& OX) const
   /*!
-    Write all the used Materials in standard MCNPX output 
+    Write all the used Materials in standard MCNPX output
     type.
     \param OX :: Output stream
   */
 {
   ELog::RegMethod RegA("SimPOVRay","writeMaterial");
 
-  // WRITE OUT ASSIGNMENT:
-  for(const OTYPE::value_type& mp : OList)
-    mp.second->writePOVRaymat(OX);
-    
-  ModelSupport::DBMaterial& DB=ModelSupport::DBMaterial::Instance();  
-  DB.resetActive();
+  std::set<int> writtenMat;      ///< set of written materials
+  for(const auto& [cellNum,objPtr]  : OList)
+    {
+      (void) cellNum;        // avoid warning -- fixed c++20
+      const MonteCarlo::Material* mPtr = objPtr->getMatPtr();
+      const int ID=mPtr->getID();
+      if (ID && writtenMat.find(ID)==writtenMat.end())
+	{
+	  mPtr->writePOVRay(OX);
+	  writtenMat.emplace(ID);
+	}
+    }
 
-  OTYPE::const_iterator mp;
-  for(mp=OList.begin();mp!=OList.end();mp++)
-    DB.setActive(mp->second->getMat());
+  OX << "#if (file_exists(\"povray/materials.inc\"))" << std::endl;
+  OX << "#include \"povray/materials.inc\"" << std::endl;
+  OX << "#end"  << std::endl;
 
-  DB.writePOVRay(OX);
-  
-  // Overwrite textures by a user-provided file
   OX << "#if (file_exists(\"materials.inc\"))" << std::endl;
   OX << "#include \"materials.inc\"" << std::endl;
   OX << "#end"  << std::endl;
 
   return;
 }
-  
+
 void
 SimPOVRay::write(const std::string& Fname) const
   /*!
     Write out all the system for povray
-    \param Fname :: Output file 
+    \param Fname :: Output file
   */
 {
   ELog::RegMethod RegA("SimPOVRay","write");
   ELog::EM<<"WRITE"<<ELog::endDiag;
-  std::ofstream OX(Fname.c_str()); 
+  std::ofstream OX(Fname.c_str());
   OX << "// POV-Ray model from CombLayer."<<std::endl;
   OX << "// This file contains only geomety." << std::endl;
-  OX << "// It is supposed to be included from a .pov file with defined camera, light source and material textures" << std::endl;
+  OX << "// It is supposed to be included from a .pov file with defined camera and light source" << std::endl;
   OX << std::endl;
   OX << "// Material" << std::endl;
   writeMaterial(OX);

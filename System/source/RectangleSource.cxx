@@ -3,7 +3,7 @@
  
  * File:   source/RectangleSource.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,33 +35,23 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "support.h"
 #include "writeSupport.h"
 #include "MatrixBase.h"
 #include "Matrix.h"
 #include "Vec3D.h"
 #include "Transform.h"
-#include "doubleErr.h"
-#include "varList.h"
-#include "Code.h"
-#include "FuncDataBase.h"
 #include "Source.h"
-#include "SrcItem.h"
 #include "SrcData.h"
 #include "surfRegister.h"
-#include "ModelSupport.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
-#include "WorkData.h"
-#include "World.h"
+#include "FixedOffsetUnit.h"
 #include "inputSupport.h"
 #include "SourceBase.h"
 #include "particleConv.h"
@@ -71,7 +61,7 @@ namespace SDef
 {
 
 RectangleSource::RectangleSource(const std::string& keyName) : 
-  attachSystem::FixedOffset(keyName,0),
+  attachSystem::FixedOffsetUnit(keyName,0),
   SourceBase(),
   width(1.0),height(1.0),angleSpread(0.0)
   /*!
@@ -81,7 +71,7 @@ RectangleSource::RectangleSource(const std::string& keyName) :
 {}
 
 RectangleSource::RectangleSource(const RectangleSource& A) : 
-  attachSystem::FixedOffset(A),SourceBase(A),
+  attachSystem::FixedOffsetUnit(A),SourceBase(A),
   width(A.width),height(A.height),
   angleSpread(A.angleSpread)
   /*!

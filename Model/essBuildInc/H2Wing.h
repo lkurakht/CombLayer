@@ -3,7 +3,11 @@
 
  * File:   essBuildInc/H2Wing.h
  *
+<<<<<<< HEAD
  * Copyright (c) 2004-2016 by Stuart Ansell
+=======
+ * Copyright (c) 2004-2019 by Stuart Ansell
+>>>>>>> origin/master
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,7 +77,8 @@ class H2Wing :
 
 
   void populate(const FuncDataBase&);
-  void createUnitVector(const attachSystem::FixedComp&);
+  void createUnitVector(const attachSystem::FixedComp&,
+			const long int);
 
   void createSurfaces(const attachSystem::FixedComp&);
   void createObjects(Simulation&);
@@ -98,7 +103,9 @@ class H2Wing :
   virtual Geometry::Vec3D getSurfacePoint(const size_t,const long int) const;
   virtual std::string getLayerString(const size_t,const long int) const;
   virtual int getLayerSurf(const size_t,const long int) const;
-  void createAll(Simulation&,const attachSystem::FixedComp&);
+
+  void createAll(Simulation&,const attachSystem::FixedComp&,
+		 const long int);
 };
 
 }

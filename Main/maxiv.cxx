@@ -3,7 +3,7 @@
  
  * File:   Main/maxiv.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,47 +39,22 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "surfRegister.h"
-#include "objectRegister.h"
 #include "InputControl.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "inputParam.h"
-#include "Transform.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "surfIndex.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "HeadRule.h"
-#include "Object.h"
 #include "MainProcess.h"
 #include "MainInputs.h"
-#include "SimProcess.h"
-#include "SimImportance.h"
 #include "SimInput.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "SimMCNP.h" 
-#include "SimPHITS.h"
-#include "ContainedComp.h"
-#include "LinkUnit.h"
-#include "FixedComp.h"
-#include "mainJobs.h"
 #include "Volumes.h"
-#include "DefPhysics.h"
-#include "variableSetup.h"
-#include "ImportControl.h"
-#include "World.h"
+#include "maxivVariables.h"
 
 #include "DefUnitsMaxIV.h"
 #include "makeMaxIV.h"
@@ -120,20 +95,24 @@ main(int argc,char* argv[])
       mainSystem::setDefUnits(SimPtr->getDataBase(),IParam);
       const std::set<std::string> beamlines=
         IParam.getComponents<std::string>("beamlines",0);
-      setVariable::MaxIVVariables(SimPtr->getDataBase(),beamlines);
+      const std::string magField=
+        IParam.getDefValue<std::string>("","defMagnet");
+
+      setVariable::MaxIVVariables
+	(SimPtr->getDataBase(),magField,beamlines);
 
       InputModifications(SimPtr,IParam,Names);
       mainSystem::setMaterialsDataBase(IParam);
 
       xraySystem::makeMaxIV BObj;
-      World::createOuterObjects(*SimPtr);
       BObj.build(*SimPtr,IParam);
 
       mainSystem::buildFullSimulation(SimPtr,IParam,Oname);
       exitFlag=SimProcess::processExitChecks(*SimPtr,IParam);
 
       ModelSupport::calcVolumes(SimPtr,IParam);
-      SimPtr->objectGroups::write("ObjectRegister.txt");
+      SimPtr->objectGroups::write("ObjectRegister.txt",
+				  IParam.flag("fullOR"));
     }
   
   catch (ColErr::ExitAbort& EA)

@@ -3,7 +3,7 @@
  
  * File:   phitsTallyInc/T3DShow.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,15 +36,7 @@ class T3DShow : public phitsTally
 {
  private:
 
-  bool binaryOut;                   ///< Make file binary output
-  int meshType;                     ///< type / 10 / 0 for mesh
-  std::string particle;             ///< particle/type
-    
-  std::array<size_t,3> Pts;      ///< N-Points
-  Geometry::Vec3D minCoord;      ///< Min coordinate
-  Geometry::Vec3D maxCoord;      ///< Max coordinate
-  
-  void writeMesh(std::ostream&) const;
+  MeshXYZ xyz; 
   
  public:
 
@@ -53,27 +45,9 @@ class T3DShow : public phitsTally
   virtual T3DShow* clone() const; 
   T3DShow& operator=(const T3DShow&);
   virtual ~T3DShow();
-  
-  void setPointMesh() { meshType=0; }  ///< Set as a point mesh
-  void setGridMesh() { meshType=10; }  ///< Set as a grid [default] mesh
-  
-  void setParticle(const std::string&);
-  //  virtual void setDoseType(const std::string&,const std::string&);
- 
-  void setIndex(const std::array<size_t,3>&);
-  void setCoordinates(const Geometry::Vec3D&,const Geometry::Vec3D&);
+     
 
-  /// Access the centre
-  Geometry::Vec3D getCentre() const { return (minCoord+maxCoord)/2.0; }
-  /// access min/max point
-  const Geometry::Vec3D& getMinPt() const { return minCoord; }
-  /// access min/max point
-  const Geometry::Vec3D& getMaxPt() const { return maxCoord; }
-  /// access min/max point
-  const std::array<size_t,3>& getNPt() const { return Pts; }
-  
-  void writeCoordinates(std::ostream&) const;
-  virtual void write(std::ostream&) const;
+  virtual void write(std::ostream&,const std::string&) const;
   
 };
 

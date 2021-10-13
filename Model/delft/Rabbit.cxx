@@ -3,7 +3,7 @@
  
  * File:   delft/Rabbit.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,33 +35,19 @@
 #include <memory>
 #include <boost/multi_array.hpp>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -85,6 +71,7 @@ namespace delftSystem
 Rabbit::Rabbit(const std::string& Key,const int index)  :
   attachSystem::ContainedComp(),
   attachSystem::FixedOffset(Key+std::to_string(index),3),
+  attachSystem::CellMap(),
   baseName(Key),innerVoid(0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -95,6 +82,7 @@ Rabbit::Rabbit(const std::string& Key,const int index)  :
 
 Rabbit::Rabbit(const Rabbit& A) : 
   attachSystem::ContainedComp(A),attachSystem::FixedOffset(A),
+  attachSystem::CellMap(A),
   baseName(A.baseName),
   nLayer(A.nLayer),
   Radii(A.Radii),Mat(A.Mat),length(A.length),capThick(A.capThick),
@@ -117,6 +105,7 @@ Rabbit::operator=(const Rabbit& A)
     {
       attachSystem::ContainedComp::operator=(A);
       attachSystem::FixedComp::operator=(A);
+      attachSystem::CellMap::operator=(A);
       nLayer=A.nLayer;
       Radii=A.Radii;
       Mat=A.Mat;
@@ -150,31 +139,31 @@ Rabbit::populate(const FuncDataBase& Control)
   
       objName=Control.EvalVar<std::string>(keyName+"GridKey");
       // First get inner widths:
-      length=Control.EvalPair<double>(keyName,baseName,"Length");
-      capThick=Control.EvalPair<double>(keyName,baseName,"CapThick");
+      length=Control.EvalTail<double>(keyName,baseName,"Length");
+      capThick=Control.EvalTail<double>(keyName,baseName,"CapThick");
       capMat=ModelSupport::EvalMat<int>(Control,keyName+"CapMat",
 					baseName+"CapMat");
       
-      nLayer=Control.EvalPair<size_t>(keyName,baseName,"NLayer");
+      nLayer=Control.EvalTail<size_t>(keyName,baseName,"NLayer");
       double D;
       int M;
       for(size_t i=0;i<nLayer;i++)
 	{ 
-	  const std::string mName="Mat"+StrFunc::makeString(i);
-	  D=Control.EvalPair<double>(keyName,baseName,
-				     "Radius"+StrFunc::makeString(i));
+	  const std::string mName="Mat"+std::to_string(i);
+	  D=Control.EvalTail<double>(keyName,baseName,
+				     "Radius"+std::to_string(i));
 	  M=ModelSupport::EvalMat<int>(Control,keyName+mName,baseName+mName);
 	  
 	  Radii.push_back(D);
 	  Mat.push_back(M);
 	}
       
-      sampleRadius=Control.EvalPair<double>(keyName,baseName,"SampleRadius");
+      sampleRadius=Control.EvalTail<double>(keyName,baseName,"SampleRadius");
       sampleMat=ModelSupport::EvalMat<int>(Control,keyName+"SampleMat",
 					   baseName+"SampleMat");
-      capsuleRadius=Control.EvalPair<double>(keyName,baseName,"CapsuleRadius");
-      capsuleWall=Control.EvalPair<double>(keyName,baseName,"CapsuleWall");
-      capsuleLen=Control.EvalPair<double>(keyName,baseName,"CapsuleLen");
+      capsuleRadius=Control.EvalTail<double>(keyName,baseName,"CapsuleRadius");
+      capsuleWall=Control.EvalTail<double>(keyName,baseName,"CapsuleWall");
+      capsuleLen=Control.EvalTail<double>(keyName,baseName,"CapsuleLen");
       capsuleMat=ModelSupport::EvalMat<int>(Control,keyName+"CapsuleMat",
 					    baseName+"CapsuleMat");
     }
@@ -202,27 +191,6 @@ Rabbit::createUnitVector(const ReactorGrid& RG)
   Origin=RG.getCellOrigin(GPt.first,GPt.second);
   FixedOffset::applyOffset();
 
-  return;
-}
-
-void
-Rabbit::createUnitVector(const attachSystem::FixedComp& FC,
-			 const long int sideIndex)
-  /*!
-    Create the unit vectors
-    - Y Points towards the beamline
-    - X Across the Face
-    - Z up (towards the target)
-    \param FC :: A Contained FixedComp to use as basis set
-    \param sideIndex :: link point [signed]
-  */
-{
-  ELog::RegMethod RegA("Rabbit","createUnitVector");
-
-  // PROCESS Origin of a point
-  attachSystem::FixedComp::createUnitVector(FC,sideIndex);
-  FixedOffset::applyOffset();
-		
   return;
 }
 
@@ -294,8 +262,8 @@ Rabbit::createObjects(Simulation& System)
 
   // Add sample
   Out=ModelSupport::getComposite(SMap,buildIndex," -1007 ");
-  System.addCell(MonteCarlo::Object(cellIndex++,sampleMat,0.0,Out));
-
+  makeCell("Sample",System,cellIndex++,sampleMat,0.0,Out);
+  
   // Capsule
   Out=ModelSupport::getComposite(SMap,buildIndex
 ,				 "-507 (-508:501) (-509:-502) 1007 ");
@@ -354,21 +322,17 @@ Rabbit::createLinks()
   return;
 }
 
-
-
 int
-Rabbit::createAll(Simulation& System,
-		  const ReactorGrid& RG)
-  /*!
+Rabbit::build(Simulation& System,const ReactorGrid& RG)
+/*!
     Global creation of the vac-vessel
     \param System :: Simulation to add vessel to
     \param RG :: Reactor Grid
-    \return success / failure
   */
 {
   ELog::RegMethod RegA("Rabbit","createAll");
   populate(System.getDataBase());
-  if (!objName.empty())
+  if (!objName.empty() )
     {
       createUnitVector(RG);
       createSurfaces();
@@ -378,8 +342,26 @@ Rabbit::createAll(Simulation& System,
       return 1;
     }
   return 0;
-      
+}
 
+void
+Rabbit::createAll(Simulation& System,const attachSystem::FixedComp& FC,
+		  const long int sideIndex)
+/*!
+    Global creation of the vac-vessel
+    \param System :: Simulation to add vessel to
+    \param FC :: Reactor Grid
+  */
+{
+  ELog::RegMethod RegA("Rabbit","createAll");
+  populate(System.getDataBase());
+  FixedOffset::createUnitVector(FC,sideIndex);
+  createSurfaces();
+  createObjects(System);
+  createLinks();
+  insertObjects(System);
+
+  return;
 }
 
 

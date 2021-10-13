@@ -3,7 +3,7 @@
  
  * File:   attachComp/FixedOffset.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,24 +33,12 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "surfEqual.h"
-#include "Rules.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
@@ -63,6 +51,26 @@
 namespace attachSystem
 {
 
+FixedOffset::FixedOffset(const size_t NL,const std::string& KN) :
+  FixedComp(NL,KN),
+  preXYAngle(0.0),preZAngle(0.0),
+  xStep(0.0),yStep(0.0),zStep(0.0),
+  xyAngle(0.0),zAngle(0.0)
+ /*!
+    Null version Constructor 
+    \param NL :: Number of links
+    \param KN :: KeyName [not registered]
+  */
+{}
+
+FixedOffset::FixedOffset(const size_t NL) :
+  FixedOffset(NL,"Null")
+ /*!
+    Null version Constructor 
+    \param NL :: Number of links
+  */
+{}
+
 FixedOffset::FixedOffset(const std::string& KN,const size_t NL) :
   FixedComp(KN,NL),
   preXYAngle(0.0),preZAngle(0.0),
@@ -74,6 +82,21 @@ FixedOffset::FixedOffset(const std::string& KN,const size_t NL) :
     \param NL :: Number of links
   */
 {}
+
+FixedOffset::FixedOffset(const std::string& KN,const size_t NL,
+			 const size_t resSize) :
+  FixedComp(KN,NL,resSize),
+  preXYAngle(0.0),preZAngle(0.0),
+  xStep(0.0),yStep(0.0),zStep(0.0),
+  xyAngle(0.0),zAngle(0.0)
+ /*!
+    Constructor 
+    \param KN :: KeyName
+    \param NL :: Number of links
+    \param resSize :: Reserved space
+  */
+{}
+
 
 FixedOffset::FixedOffset(const FixedOffset& A) : 
   FixedComp(A),
@@ -123,7 +146,7 @@ FixedOffset::populate(const FuncDataBase& Control)
   preZAngle=Control.EvalDefVar<double>(keyName+"PreZAngle",preZAngle);
 
   const Geometry::Vec3D CentOffset=Control.EvalDefVar<Geometry::Vec3D>
-    (keyName+"CentOffset",Geometry::Vec3D(xStep,yStep,zStep));
+    (keyName+"Offset",Geometry::Vec3D(xStep,yStep,zStep));
   
   xStep=CentOffset.X();
   yStep=CentOffset.Y();
@@ -152,7 +175,7 @@ FixedOffset::populate(const std::map<std::string,
 
   Geometry::Vec3D CentOffset(xStep,yStep,zStep);
 				
-  mainSystem::findInput(inputMap,"offset",0,CentOffset);
+  mainSystem::findInput(inputMap,"Offset",0,CentOffset);
   
   mainSystem::findInput(inputMap,"preXYAngle",0,preXYAngle);
   mainSystem::findInput(inputMap,"preZAngle",0,preZAngle);
@@ -182,24 +205,60 @@ FixedOffset::populate(const std::string& baseName,
   ELog::RegMethod RegA("FixedOffset","populate(baseName)");
 
   // defaults used to fixedoffset can be used in a setting class.
-  preXYAngle=Control.EvalDefPair<double>(keyName,baseName,
+  preXYAngle=Control.EvalDefTail<double>(keyName,baseName,
 					 "PreXYAngle",preXYAngle);
-  preZAngle=Control.EvalDefPair<double>(keyName,baseName,"PreZAngle",preZAngle);
+  preZAngle=Control.EvalDefTail<double>(keyName,baseName,"PreZAngle",preZAngle);
 
-  const Geometry::Vec3D CentOffset=Control.EvalDefPair<Geometry::Vec3D>
-    (keyName,baseName,"CentOffset",Geometry::Vec3D(0,0,0));
+  const Geometry::Vec3D CentOffset=Control.EvalDefTail<Geometry::Vec3D>
+    (keyName,baseName,"Offset",Geometry::Vec3D(0,0,0));
   xStep=CentOffset.X();
   yStep=CentOffset.Y();
   zStep=CentOffset.Z();
 
-
-  xStep=Control.EvalDefPair<double>(keyName,baseName,"XStep",xStep);
-  yStep=Control.EvalDefPair<double>(keyName,baseName,"YStep",yStep);
-  zStep=Control.EvalDefPair<double>(keyName,baseName,"ZStep",zStep);
-  xyAngle=Control.EvalDefPair<double>(keyName,baseName,"XYAngle",xyAngle);
-  zAngle=Control.EvalDefPair<double>(keyName,baseName,"ZAngle",zAngle);
+  xStep=Control.EvalDefTail<double>(keyName,baseName,"XStep",xStep);
+  yStep=Control.EvalDefTail<double>(keyName,baseName,"YStep",yStep);
+  zStep=Control.EvalDefTail<double>(keyName,baseName,"ZStep",zStep);
+  xyAngle=Control.EvalDefTail<double>(keyName,baseName,"XYAngle",xyAngle);
+  zAngle=Control.EvalDefTail<double>(keyName,baseName,"ZAngle",zAngle);
   return;
   
+}
+
+void
+FixedOffset::createUnitVector(const attachSystem::FixedComp& FC,
+			      const long int sideIndex)
+  /*!
+    Create the unit vectors
+    \param FC :: Fixed Component
+    \param sideIndex :: signed linkpt			
+  */
+{
+  ELog::RegMethod RegA("FixedOffset","createUnitVector");
+
+  FixedComp::createUnitVector(FC,sideIndex);
+  applyOffset();
+    
+  return;
+}
+
+void
+FixedOffset::createCentredUnitVector(const attachSystem::FixedComp& FC,
+				     const long int sideIndex,
+				     const double length)
+  /*!
+    Create the unit vectors
+    \param FC :: Fixed Component
+    \param sideIndex :: signed linkpt			
+    \param length :: full length of object
+  */
+{
+  ELog::RegMethod RegA("FixedRotate","createUnitVector");
+
+  FixedComp::createUnitVector(FC,sideIndex);
+  applyOffset();
+
+  Origin+=Y*length;
+  return;
 }
 
 void

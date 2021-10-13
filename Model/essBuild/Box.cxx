@@ -3,7 +3,7 @@
 
  * File:   essBuild/Box.cxx
  *
- * Copyright (c) 2017 by Konstantin Batkov
+ * Copyright (c) 2004-2021 by Konstantin Batkov
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,37 +34,22 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ReadFunctions.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
@@ -72,14 +57,9 @@
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
-#include "BaseMap.h"
 #include "LayerComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "surfDBase.h"
-#include "surfDIter.h"
-#include "surfDivide.h"
-#include "SurInter.h"
 
 #include "Box.h"
 
@@ -168,7 +148,7 @@ Box::populate(const FuncDataBase& Control)
   ELog::RegMethod RegA("Box","populate");
 
   FixedOffset::populate(Control);
-  engActive=Control.EvalPair<int>(keyName,"","EngineeringActive");
+  engActive=Control.EvalTail<int>(keyName,"","EngineeringActive");
 
   double L(0.0);
   double W(0.0);
@@ -299,7 +279,7 @@ Box::createLinks()
 
   FixedComp::setConnect(2,Origin-X*w,-X);
   FixedComp::setLinkSurf(2,-SMap.realSurf(SI+3));
-  FixedComp::setConnect(3,Origin+X*w,X);
+  FixedComp::setConnect(3,Origin+X*w,X); 
   FixedComp::setLinkSurf(3,SMap.realSurf(SI+4));
 
   FixedComp::setConnect(4,Origin-Z*(depth[nLayers-1]),-Z);

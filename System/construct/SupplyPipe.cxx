@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   essBuild/SupplyPipe.cxx
+ * File:   construct/SupplyPipe.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,42 +35,25 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDIter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 #include "ContainedComp.h"
+#include "BaseMap.h"
+#include "CellMap.h"
 #include "LayerComp.h"
 #include "pipeUnit.h"
 #include "PipeLine.h"
@@ -147,24 +130,24 @@ SupplyPipe::populate(const FuncDataBase& Control)
   NSegIn=Control.EvalPair<size_t>(optName+"NSegIn",keyName+"NSegIn");
   for(size_t i=0;i<=NSegIn;i++)
     {
-      numStr=StrFunc::makeString(i);
+      numStr=std::to_string(i);
       PPts.push_back(Control.EvalPair<Geometry::Vec3D>
 		     (optName+"PPt"+numStr,keyName+"PPt"+numStr));
     }
 
   size_t aN(0);
-  numStr=StrFunc::makeString(aN);
+  numStr="0";
   while(Control.hasVariable(keyName+"Active"+numStr))
     {
       ActiveFlag.push_back
 	(Control.EvalVar<size_t>(keyName+"Active"+numStr)); 
-      numStr=StrFunc::makeString(++aN);
+      numStr=std::to_string(++aN);
     }
 
   const size_t NRadii=Control.EvalVar<size_t>(keyName+"NRadii"); 
   for(size_t i=0;i<NRadii;i++)
     {
-      const std::string numStr=StrFunc::makeString(i);
+      const std::string numStr=std::to_string(i);
       Radii.push_back(Control.EvalVar<double>(keyName+"Radius"+numStr)); 
       Mat.push_back
 	(ModelSupport::EvalMat<int>(Control,keyName+"Mat"+numStr)); 
@@ -249,7 +232,7 @@ SupplyPipe::insertInlet(const attachSystem::FixedComp& FC,
   PtZ+=layerOffset;
   const int commonSurf=LC->getCommonSurf(lSideIndex);
   const std::string commonStr=(commonSurf) ? 		       
-    StrFunc::makeString(commonSurf) : "";
+    std::to_string(commonSurf) : "";
   if (PtZ!=Pt)
     Coaxial.addPoint(Pt);
   
@@ -293,7 +276,7 @@ SupplyPipe::addExtraLayer(const attachSystem::LayerComp& LC,
   if (NL)
     {
       const std::string commonStr=(commonSurf) ? 		       
-	StrFunc::makeString(commonSurf) : "";
+	std::to_string(commonSurf) : "";
       const Geometry::Vec3D PtZ=
 	LC.getSurfacePoint(NL-1,lSideIndex)+
 	layerOffset;
@@ -402,7 +385,7 @@ SupplyPipe::createAll(Simulation& System,
   Coaxial.setNAngle(nAngle);
   if (!startSurf.empty())
     Coaxial.setStartSurf(startSurf);
-  Coaxial.createAll(System);
+  Coaxial.build(System);
   createLinks();
   return;
 }
@@ -433,7 +416,7 @@ SupplyPipe::createAll(Simulation& System,
   Coaxial.setNAngle(nAngle);
   if (!startSurf.empty())
     Coaxial.setStartSurf(startSurf);
-  Coaxial.createAll(System);
+  Coaxial.build(System);
   
   createLinks();
   return;
@@ -471,7 +454,7 @@ SupplyPipe::createAll(Simulation& System,
   Coaxial.setNAngle(nAngle);
   if (!startSurf.empty())
     Coaxial.setStartSurf(startSurf);
-  Coaxial.createAll(System);
+  Coaxial.build(System);
   createLinks();
   return;
 }

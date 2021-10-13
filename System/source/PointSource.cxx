@@ -3,7 +3,7 @@
  
  * File:   source/PointSource.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,30 +34,18 @@
 #include <memory>
 #include <boost/format.hpp>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "doubleErr.h"
 #include "Source.h"
-#include "SrcItem.h"
-#include "SrcData.h"
 #include "surfRegister.h"
-#include "ModelSupport.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
-#include "WorkData.h"
-#include "World.h"
+#include "FixedOffsetUnit.h"
 #include "inputSupport.h"
 #include "SourceBase.h"
 #include "PointSource.h"
@@ -66,7 +54,7 @@ namespace SDef
 {
 
 PointSource::PointSource(const std::string& keyName) : 
-  FixedOffset(keyName,0),SourceBase(),
+  FixedOffsetUnit(keyName,0),SourceBase(),
   angleSpread(0.0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -75,7 +63,7 @@ PointSource::PointSource(const std::string& keyName) :
 {}
 
 PointSource::PointSource(const PointSource& A) : 
-  attachSystem::FixedOffset(A),SourceBase(A),
+  attachSystem::FixedOffsetUnit(A),SourceBase(A),
   angleSpread(A.angleSpread)
   /*!
     Copy constructor

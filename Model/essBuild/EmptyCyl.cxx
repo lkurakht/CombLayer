@@ -3,7 +3,7 @@
  
  * File:   essBuild/EmptyCyl.cxx
  *
- * Copyright (c) 2018 by Konstantin Batkov
+ * Copyright (c) 2004-2019 by Konstantin Batkov
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,54 +33,41 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ReadFunctions.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedOffsetUnit.h"
 #include "ContainedComp.h"
+<<<<<<< HEAD
 #include "BaseMap.h"
 #include "surfDBase.h"
 #include "surfDIter.h"
 #include "surfDivide.h"
 #include "SurInter.h"
 #include "mergeTemplate.h"
+=======
+>>>>>>> origin/master
 
 #include "EmptyCyl.h"
 
@@ -89,7 +76,7 @@ namespace essSystem
 
 EmptyCyl::EmptyCyl(const std::string& Key)  :
   attachSystem::ContainedComp(),
-  attachSystem::FixedOffset(Key,6)
+  attachSystem::FixedOffsetUnit(Key,6)
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Name for item in search
@@ -98,7 +85,7 @@ EmptyCyl::EmptyCyl(const std::string& Key)  :
 
 EmptyCyl::EmptyCyl(const EmptyCyl& A) : 
   attachSystem::ContainedComp(A),
-  attachSystem::FixedOffset(A),
+  attachSystem::FixedOffsetUnit(A),
   height(A.height),mat(A.mat)
   /*!
     Copy constructor
@@ -264,9 +251,9 @@ EmptyCyl::createLinks(const attachSystem::FixedComp&FC,
 {
   ELog::RegMethod RegA("EmptyCyl","createLinks");
 
-  FixedComp::setLinkSignedCopy(0,FC,floor); // ??? how to invert surf sign?
-  FixedComp::setLinkSignedCopy(1,FC,side);
-  FixedComp::setLinkSignedCopy(2,FC,side+1);
+  FixedComp::setLinkCopy(0,FC,floor); // ??? how to invert surf sign?
+  FixedComp::setLinkCopy(1,FC,side);
+  FixedComp::setLinkCopy(2,FC,side+1);
   
   FixedComp::setConnect(3,Origin+Y*(height),Y);
   //  FixedComp::setLinkSurf(3,SMap.realSurf(buildIndex+6));

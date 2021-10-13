@@ -3,7 +3,7 @@
  
  * File:   support/MatrixBase.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,6 @@
 #include <boost/multi_array.hpp> 
 
 #include "Exception.h"
-#include "mathSupport.h"
 #include "MatrixBase.h"
 #include "PolyFunction.h"
 #include "PolyVar.h"
@@ -102,7 +101,8 @@ MatrixBase<T>::MatrixBase(const std::vector<T>& A,const std::vector<T>& B)
 }
 
 template<typename T>
-MatrixBase<T>::MatrixBase(const MatrixBase<T>& A,const size_t nrow,
+MatrixBase<T>::MatrixBase(const MatrixBase<T>& A,
+			  const size_t nrow,
 			  const size_t ncol)
   : nx(0),ny(0),V(0)
   /*!
@@ -151,12 +151,9 @@ MatrixBase<T>::MatrixBase(const MatrixBase<T>& A)
 {
   // Note:: nx,ny zeroed so setMem always works
   setMem(A.nx,A.ny);
-  if (nx*ny!=0)
-    {
-      for(size_t i=0;i<nx;i++)
-	for(size_t j=0;j<ny;j++)
-	  V[i][j]=A.V[i][j];
-    }
+  for(size_t i=0;i<nx;i++)
+    for(size_t j=0;j<ny;j++)
+      V[i][j]=A.V[i][j];
 }
 
 
@@ -172,10 +169,9 @@ MatrixBase<T>::operator=(const MatrixBase<T>& A)
   if (&A!=this)
     {
       setMem(A.nx,A.ny);
-      if (nx*ny!=0)
-	for(size_t i=0;i<nx;i++)
-	  for(size_t j=0;j<ny;j++)
-	    V[i][j]=A.V[i][j];
+      for(size_t i=0;i<nx;i++)
+	for(size_t j=0;j<ny;j++)
+	  V[i][j]=A.V[i][j];
     }
   return *this;
 }

@@ -3,7 +3,7 @@
  
  * File:   commonBeam/DipoleChamberGenerator.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,17 +35,10 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
@@ -83,8 +76,8 @@ DipoleChamberGenerator::~DipoleChamberGenerator()
 
 void
 DipoleChamberGenerator::generatePipe(FuncDataBase& Control,
-				 const std::string& keyName,
-				 const double yStep) const
+				     const std::string& keyName,
+				     const double chamberAngle) const
   /*!
     Primary funciton for setting the variables
     \param Control :: Database to add variables 
@@ -94,13 +87,13 @@ DipoleChamberGenerator::generatePipe(FuncDataBase& Control,
 {
   ELog::RegMethod RegA("DipoleChamberGenerator","generatePipe");
 
-  Control.addVariable(keyName+"YStep",yStep);
+  const double CA((chamberAngle>1.0) ? chamberAngle : curveAngle);
   
   Control.addVariable(keyName+"Length",length);
   Control.addVariable(keyName+"OutWidth",outWidth);
   Control.addVariable(keyName+"RingWidth",ringWidth);
   Control.addVariable(keyName+"CurveRadius",curveRadius);
-  Control.addVariable(keyName+"CurveAngle",curveAngle);
+  Control.addVariable(keyName+"CurveAngle",CA);
   Control.addVariable(keyName+"Height",height);
   
   Control.addVariable(keyName+"ExitWidth",exitWidth);

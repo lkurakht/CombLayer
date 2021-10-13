@@ -3,7 +3,7 @@
  
  * File:   essBuildInc/DiskLayerMod.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ namespace essSystem
 
 class DiskLayerMod : public attachSystem::ContainedComp,
     public attachSystem::LayerComp,
-    public attachSystem::FixedComp,
+    public attachSystem::FixedRotate,
     public attachSystem::CellMap,
     public attachSystem::SurfMap
 {
@@ -45,7 +45,6 @@ class DiskLayerMod : public attachSystem::ContainedComp,
   
   size_t midIndex;                ///< Mid index
   double midZ;                    ///< step in Z
-  double zStep;                   ///< Step away from target
   double outerRadius;             ///< Outer radius of Be Zone
   
   std::vector<double> thick;          ///< Full thickness [additive]
@@ -54,10 +53,7 @@ class DiskLayerMod : public attachSystem::ContainedComp,
   std::vector<std::vector<int>> mat;               ///< Materials 
   std::vector<std::vector<double>> temp;           ///< Temperatures
 
-  void populate(const FuncDataBase&,const double,const double);
-  void createUnitVector(const attachSystem::FixedComp&,const long int,
-			const bool);
-
+  void populate(const FuncDataBase&);
   void createSurfaces();
   void createObjects(Simulation&);
   void createLinks();
@@ -80,8 +76,9 @@ class DiskLayerMod : public attachSystem::ContainedComp,
   /// Step on object
   double getZOffset() const { return zStep; }
 
-  void createAll(Simulation&,const attachSystem::FixedComp&,
-		 const long int,const bool,const double,const double);
+  void setLayout(const bool,const double,const double);
+  virtual void createAll(Simulation&,const attachSystem::FixedComp&,
+			 const long int);
 
 };
 

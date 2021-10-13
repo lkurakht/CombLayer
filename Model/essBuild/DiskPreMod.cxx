@@ -3,7 +3,7 @@
  
  * File:   essBuild/DiskPreMod.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,6 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
@@ -42,18 +41,12 @@
 #include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -61,12 +54,12 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "SurInter.h"
 #include "stringCombine.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 #include "FixedOffset.h"
+#include "FixedOffsetUnit.h"
 #include "LayerComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
@@ -83,7 +76,7 @@ namespace essSystem
 DiskPreMod::DiskPreMod(const std::string& Key) :
   attachSystem::ContainedComp(),
   attachSystem::LayerComp(0),
-  attachSystem::FixedOffset(Key,9),
+  attachSystem::FixedOffsetUnit(Key,9),
   attachSystem::CellMap(),attachSystem::SurfMap(),  
   NWidth(0),
   InnerComp(new CylFlowGuide(Key+"FlowGuide")),
@@ -101,7 +94,7 @@ DiskPreMod::DiskPreMod(const std::string& Key) :
 
 DiskPreMod::DiskPreMod(const DiskPreMod& A) : 
   attachSystem::ContainedComp(A),
-  attachSystem::LayerComp(A),attachSystem::FixedOffset(A),
+  attachSystem::LayerComp(A),attachSystem::FixedOffsetUnit(A),
   attachSystem::CellMap(A),attachSystem::SurfMap(A),
   radius(A.radius),
   height(A.height),depth(A.depth),width(A.width),
@@ -175,7 +168,7 @@ DiskPreMod::populate(const FuncDataBase& Control,
 
   FixedOffset::populate(Control);
 
-  engActive=Control.EvalPair<int>(keyName,"","EngineeringActive");
+  engActive=Control.EvalTail<int>(keyName,"","EngineeringActive");
   flowGuideType=Control.EvalVar<std::string>(keyName+"FlowGuideType");
 
   outerRadius=outRadius;
@@ -550,7 +543,7 @@ DiskPreMod::createAll(Simulation& System,
   if (engActive)
     {
       if (flowGuideType.find("Onion")!=std::string::npos)
-          onion->createAll(System,*this);
+	onion->createAll(System,*this,0);
       else
         InnerComp->createAll(System,*this,7);
     }

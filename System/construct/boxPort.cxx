@@ -3,7 +3,7 @@
  
  * File:   construct/boxPort.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,30 +36,18 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -69,12 +57,12 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"  
 #include "FixedComp.h"
-#include "FixedGroup.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "boxPort.h"
 
@@ -181,40 +169,40 @@ boxPort::populate(const FuncDataBase& Control)
   if (!(populated & 1))
     {
       const size_t NB=
-	Control.EvalDefPair<size_t>(keyName,baseName,"NBolts",0);
+	Control.EvalDefTail<size_t>(keyName,baseName,"NBolts",0);
       const double BR=
-	Control.EvalDefPair<double>(keyName,baseName,"BoltRadius",0.0);
+	Control.EvalDefTail<double>(keyName,baseName,"BoltRadius",0.0);
 
-      const double IW=Control.EvalPair<double>(keyName,baseName,"InnerWidth");
-      const double OW=Control.EvalPair<double>(keyName,baseName,"OuterWidth");
-      const double IH=Control.EvalPair<double>(keyName,baseName,"InnerHeight");
-      const double OH=Control.EvalPair<double>(keyName,baseName,"OuterHeight");
+      const double IW=Control.EvalTail<double>(keyName,baseName,"InnerWidth");
+      const double OW=Control.EvalTail<double>(keyName,baseName,"OuterWidth");
+      const double IH=Control.EvalTail<double>(keyName,baseName,"InnerHeight");
+      const double OH=Control.EvalTail<double>(keyName,baseName,"OuterHeight");
 
       double TK(1.0);  // default value to ignore if active/front/back
       if (!backActive() || !frontActive())
-	TK=Control.EvalPair<double>(keyName,baseName,"Thickness");
+	TK=Control.EvalTail<double>(keyName,baseName,"Thickness");
       
       setDimensions(NB,IW,OW,IH,OH,TK,BR);
     }
   if (!(populated & 2))
     {
-      boltMat=ModelSupport::EvalDefMat<int>(Control,keyName+"BoltMat",
+      boltMat=ModelSupport::EvalDefMat(Control,keyName+"BoltMat",
 					    baseName+"BoltMat",0);
       mainMat=ModelSupport::EvalMat<int>(Control,
 					 keyName+"MainMat",
 					 baseName+"MainMat");
-      voidMat=ModelSupport::EvalDefMat<int>
+      voidMat=ModelSupport::EvalDefMat
 	(Control,keyName+"VoidMat",baseName+"VoidMat",0);
 
       populated |= 2;
     }
   if (!(populated & 4))
     {
-      sealRadius=Control.EvalDefPair<double>
+      sealRadius=Control.EvalDefTail<double>
 	(keyName,baseName,"SealRadius",0.0);
-      sealThick=Control.EvalDefPair<double>
+      sealThick=Control.EvalDefTail<double>
 	(keyName,baseName,"SealThick",0.2);
-      sealMat=ModelSupport::EvalDefMat<int>
+      sealMat=ModelSupport::EvalDefMat
 	(Control,keyName+"SealMat",baseName+"SealMat",0);
       populated |= 4;
     }

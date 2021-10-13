@@ -35,17 +35,10 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
@@ -64,7 +57,7 @@ QuadrupoleGenerator::QuadrupoleGenerator() :
   poleLength(6.0),poleRadius(1.2),
   poleZStep(0.5),poleYAngle(30.0),
   poleStep(1.5),poleWidth(1.5),
-  poleMat("Stainless304"),coreMat("Iron"),
+  poleMat("Iron"),coreMat("Iron"),
   coilMat("Copper"),frameMat("Aluminium")
   /*!
     Constructor and defaults

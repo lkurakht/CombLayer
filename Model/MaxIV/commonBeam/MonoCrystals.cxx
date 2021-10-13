@@ -33,40 +33,26 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "inputParam.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
 #include "FixedRotate.h"
 #include "BaseMap.h"
 #include "CellMap.h"
@@ -124,8 +110,15 @@ MonoCrystals::populate(const FuncDataBase& Control)
   thickB=Control.EvalPair<double>(keyName+"ThickB",keyName+"Thick");
   lengthB=Control.EvalPair<double>(keyName+"LengthB",keyName+"Length");
   
-  baseThick=Control.EvalVar<double>(keyName+"BaseThick");
-  baseExtra=Control.EvalVar<double>(keyName+"BaseExtra");
+  baseAGap=Control.EvalPair<double>(keyName+"BaseAGap",keyName+"BaseGap");
+  baseALength=Control.EvalPair<double>(keyName+"BaseALength",keyName+"BaseLength");
+  baseAThick=Control.EvalPair<double>(keyName+"BaseAThick",keyName+"BaseThick");
+  baseAExtra=Control.EvalPair<double>(keyName+"BaseAExtra",keyName+"BaseExtra");
+
+  baseBGap=Control.EvalPair<double>(keyName+"BaseBGap",keyName+"BaseGap");
+  baseBLength=Control.EvalPair<double>(keyName+"BaseBLength",keyName+"BaseLength");
+  baseBThick=Control.EvalPair<double>(keyName+"BaseBThick",keyName+"BaseThick");
+  baseBExtra=Control.EvalPair<double>(keyName+"BaseBExtra",keyName+"BaseExtra");
 
   xtalMat=ModelSupport::EvalMat<int>(Control,keyName+"Mat");
   baseMat=ModelSupport::EvalMat<int>(Control,keyName+"BaseMat");
@@ -145,7 +138,8 @@ MonoCrystals::createUnitVector(const attachSystem::FixedComp& FC,
 {
   ELog::RegMethod RegA("MonoCrystals","createUnitVector");
   attachSystem::FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();  
+  applyOffset();
+  
   return;
 }
 
@@ -175,6 +169,15 @@ MonoCrystals::createSurfaces()
   ModelSupport::buildPlane(SMap,buildIndex+105,Origin-PZ*thickA,PZ);
   ModelSupport::buildPlane(SMap,buildIndex+106,Origin,PZ);
 
+  // support:
+  ModelSupport::buildPlane(SMap,buildIndex+1001,Origin-PY*(baseALength/2.0),PY);
+  ModelSupport::buildPlane(SMap,buildIndex+1002,Origin+PY*(baseALength/2.0),PY);
+  ModelSupport::buildPlane(SMap,buildIndex+1003,Origin-PX*(baseAExtra+widthA/2.0),PX);
+  ModelSupport::buildPlane(SMap,buildIndex+1004,Origin+PX*(baseAExtra+widthA/2.0),PX);
+  ModelSupport::buildPlane(SMap,buildIndex+1005,Origin-PZ*(thickA+baseAGap+baseAThick),PZ);
+  ModelSupport::buildPlane(SMap,buildIndex+1006,Origin-PZ*(thickA+baseAGap),PZ);
+
+
   const Geometry::Vec3D BOrg=
     Origin+Y*(gap/tan(theta*2.0*M_PI/180.0))+Z*gap;
   
@@ -185,7 +188,14 @@ MonoCrystals::createSurfaces()
   ModelSupport::buildPlane(SMap,buildIndex+205,BOrg,PZ);
   ModelSupport::buildPlane(SMap,buildIndex+206,BOrg+PZ*thickB,PZ);
 
-  
+  // support:
+  ModelSupport::buildPlane(SMap,buildIndex+2001,BOrg-PY*(baseBLength/2.0),PY);
+  ModelSupport::buildPlane(SMap,buildIndex+2002,BOrg+PY*(baseBLength/2.0),PY);
+  ModelSupport::buildPlane(SMap,buildIndex+2003,BOrg-PX*(baseBExtra+widthB/2.0),PX);
+  ModelSupport::buildPlane(SMap,buildIndex+2004,BOrg+PX*(baseBExtra+widthB/2.0),PX);
+  ModelSupport::buildPlane(SMap,buildIndex+2005,BOrg+PZ*(thickB+baseBGap),PZ);
+  ModelSupport::buildPlane(SMap,buildIndex+2006,BOrg+PZ*(thickB+baseBGap+baseBThick),PZ);
+
   return; 
 }
 
@@ -202,10 +212,94 @@ MonoCrystals::createObjects(Simulation& System)
   // xstal A
   Out=ModelSupport::getComposite(SMap,buildIndex," 101 -102 103 -104 105 -106 ");
   makeCell("XtalA",System,cellIndex++,xtalMat,0.0,Out);
-  addOuterSurf(Out);
+
+  Out=ModelSupport::getComposite
+    (SMap,buildIndex," 1001 -1002 1003 -1004 1005 -106 (-1006:-103:104)");
+  makeCell("ABase",System,cellIndex++,baseMat,0.0,Out);
+
+  std::string frontBack;
+  if (baseALength-lengthA > Geometry::zeroTol)
+    {
+      // extra parts of void crystal:
+      Out=ModelSupport::getComposite
+	(SMap,buildIndex," 1001 -101  103 -104 105 -106 ");
+      makeCell("AFrontVoid",System,cellIndex++,0,0.0,Out);
+
+      Out=ModelSupport::getComposite
+	(SMap,buildIndex," 102 -1002 103 -104 105 -106  ");
+      makeCell("ABackVoid",System,cellIndex++,0,0.0,Out);
+
+      frontBack=ModelSupport::getComposite(SMap,buildIndex," 1001 -1002 ");
+    }
+  else if (baseALength-lengthA < -Geometry::zeroTol)
+    {
+      // extra void parts of base crystal:
+      Out=ModelSupport::getComposite
+	(SMap,buildIndex," 101 -1001  1003 -1004 -106 1005 (-1006:-103:104)");
+      makeCell("AFrontVoid",System,cellIndex++,0,0.0,Out);
+
+      Out=ModelSupport::getComposite
+	(SMap,buildIndex," -102 1002  1003 -1004 -106 1005 (-1006:-103:104)");
+      makeCell("ABackVoid",System,cellIndex++,0,0.0,Out);
+      frontBack=ModelSupport::getComposite(SMap,buildIndex," 101 -102 ");
+    }
+  
+  // air gap:
+  
+  Out=ModelSupport::getComposite
+    (SMap,buildIndex," 103 -104 -105 1006 ");
+  makeCell("ABaseVoid",System,cellIndex++,0,0.0,Out+frontBack);
+
+  Out=ModelSupport::getComposite(SMap,buildIndex," 1003 -1004 -106 1005 ");
+  addOuterSurf(Out+frontBack);
+
+  // Second crystal
+  
   Out=ModelSupport::getComposite(SMap,buildIndex," 201 -202 203 -204 205 -206 ");
   makeCell("XtalB",System,cellIndex++,xtalMat,0.0,Out);
-  addOuterUnionSurf(Out);
+
+  Out=ModelSupport::getComposite
+    (SMap,buildIndex," 2001 -2002 2003 -2004 -2006 205 (2005:-203:204)");
+  makeCell("BBase",System,cellIndex++,baseMat,0.0,Out);
+
+
+  if (baseBLength-lengthB > Geometry::zeroTol)
+    {
+      // extra parts of void crystal:
+      Out=ModelSupport::getComposite
+	(SMap,buildIndex," 2001 -201  203 -204 205 -206 ");
+      makeCell("bFrontVoid",System,cellIndex++,0,0.0,Out);
+
+      Out=ModelSupport::getComposite
+	(SMap,buildIndex," 202 -2002 203 -204 205 -206  ");
+      makeCell("BBackVoid",System,cellIndex++,0,0.0,Out);
+
+      frontBack=ModelSupport::getComposite(SMap,buildIndex," 2001 -2002 ");
+    }
+  else if (baseBLength-lengthB < -Geometry::zeroTol)
+    {
+      // extra void parts of base crystal:
+      Out=ModelSupport::getComposite
+	(SMap,buildIndex," 201 -2001  2003 -2004 205 -2006 (2005:-203:204)");
+      makeCell("BFrontVoid",System,cellIndex++,0,0.0,Out);
+
+      Out=ModelSupport::getComposite
+	(SMap,buildIndex," -202 2002  2003 -2004 205 -2006 (2005:-203:204)");
+      makeCell("BBackVoid",System,cellIndex++,0,0.0,Out);
+      frontBack=ModelSupport::getComposite(SMap,buildIndex," 201 -202 ");
+    }
+  
+  // air gap:
+  
+  Out=ModelSupport::getComposite
+    (SMap,buildIndex," 203 -204 206 -2005 ");
+  makeCell("BBaseVoid",System,cellIndex++,0,0.0,Out+frontBack);
+
+  Out=ModelSupport::getComposite(SMap,buildIndex," 2003 -2004 205 -2006 ");
+
+
+
+  addOuterUnionSurf(Out+frontBack);
   
   return; 
 }

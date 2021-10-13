@@ -3,7 +3,7 @@
 
  * File:   essBuild/makeESS.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell/Konstantin Batkov
+ * Copyright (c) 2004-2019 by Stuart Ansell/Konstantin Batkov
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,11 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
+<<<<<<< HEAD
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+=======
+ * along with this program.  If not, see Low<http://www.gnu.org/licenses/>. 
+>>>>>>> origin/master
  *
  ****************************************************************************/
 #include <fstream>
@@ -43,21 +47,13 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "support.h"
 #include "stringCombine.h"
 #include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -68,11 +64,14 @@
 #include "Object.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "LayerComp.h"
 #include "CopiedComp.h"
@@ -81,13 +80,13 @@
 #include "SurfMap.h"
 #include "World.h"
 #include "BasicFlightLine.h"
+<<<<<<< HEAD
 #include "WedgeFlightLine.h"
 #include "FlightLine.h"
+=======
+>>>>>>> origin/master
 #include "WedgeFlightLine.h"
 #include "AttachSupport.h"
-#include "LinkSupport.h"
-#include "pipeUnit.h"
-#include "PipeLine.h"
 
 #include "FocusPoints.h"
 #include "beamlineConstructor.h"
@@ -96,20 +95,25 @@
 #include "BilbaoWheel.h"
 #include "EmptyCyl.h"
 #include "BeRef.h"
-#include "TelescopicPipe.h"
 #include "ProtonTube.h"
 #include "PBIP.h"
 #include "ModBase.h"
 #include "EssModBase.h"
+<<<<<<< HEAD
 #include "ConicInfo.h"
 #include "CylMod.h"
+=======
+>>>>>>> origin/master
 #include "H2Wing.h"
 #include "ButterflyModerator.h"
 #include "PancakeModerator.h"
 #include "BoxModerator.h"
+<<<<<<< HEAD
 #include "BoxD2Moderator.h"
 #include "BlockAddition.h"
 #include "CylPreMod.h"
+=======
+>>>>>>> origin/master
 #include "PreModWing.h"
 #include "IradCylinder.h"
 //#include "BulkModule.h"
@@ -119,7 +123,10 @@
 #include "GuideBay.h"
 #include "FixedOffsetGroup.h"
 #include "GuideItem.h"
+<<<<<<< HEAD
 #include "GuideLine.h"
+=======
+>>>>>>> origin/master
 #include "DiskLayerMod.h"
 #include "Bunker.h"
 #include "pillarInfo.h"
@@ -219,9 +226,12 @@ makeESS::makeESS() :
   OR.addObject(ABunkerPillars);
   OR.addObject(BBunkerPillars);
   OR.addObject(TopCurtain);
+<<<<<<< HEAD
   OR.addObject(ABHighBay);
   OR.addObject(CDHighBay);
 
+=======
+>>>>>>> origin/master
 }
 
 
@@ -405,7 +415,7 @@ makeESS::buildIradComponent(Simulation& System,
       // is this possible?
       if (NItems<3)
         throw ColErr::SizeError<size_t>
-          (NItems,3,"IradComp["+StrFunc::makeString(j)+"]");
+          (NItems,3,"IradComp["+std::to_string(j)+"]");
 
       const std::string objectName=
         IParam.getValue<std::string>("iradObj",j,0);
@@ -624,11 +634,17 @@ makeESS::buildF5Collimator(Simulation& System,const size_t nF5)
 
   for (size_t i=0; i<nF5; i++)
     {
+<<<<<<< HEAD
       std::shared_ptr<F5Collimator>
         F5(new F5Collimator(StrFunc::makeString("F", i*10+5).c_str()));
       OR.addObject(F5);
       F5->addInsertCell(74123); // !!! 74123=voidCell // SA: how to exclude F5 from any cells?
       F5->createAll(System,World::masterOrigin());
+=======
+      std::shared_ptr<F5Collimator> F5(new F5Collimator("F"+std::to_string(i*10+5)));
+      F5->addInsertCell(74123);       // !!! 74123=voidCell // SA: how to exclude F5 from any cells?
+      F5->createAll(System,World::masterOrigin(),0);
+>>>>>>> origin/master
       attachSystem::addToInsertSurfCtrl(System,*ABunker,*F5);
       F5array.push_back(F5);
     }
@@ -820,9 +836,14 @@ makeESS::buildBunkerFeedThrough(Simulation& System,
 
           std::shared_ptr<BunkerFeed> BF
             (new BunkerFeed("BunkerFeed",j));
+<<<<<<< HEAD
           OR.addObject(BF);
           BF->createAll(System,*BPtr,segNumber,feedName);
 
+=======
+          BF->buildAll(System,*BPtr,segNumber,feedName);  
+          
+>>>>>>> origin/master
           bFeedArray.push_back(BF);
           //  attachSystem::addToInsertForced(System,*GB, Target->getCC("Wheel"));
 
@@ -850,7 +871,7 @@ makeESS::buildBunkerChicane(Simulation& System,
   ELog::EM<<"Calling bunker Chicane"<<ELog::endDiag;
   for(size_t j=0;j<NSet;j++)
     {
-      const std::string errMess="bunkerChicane "+StrFunc::makeString(j);
+      const std::string errMess="bunkerChicane "+std::to_string(j);
       const std::string bunkerName=
         IParam.getValueError<std::string>
         ("bunkerChicane",j,0,"BunkerName "+errMess);
@@ -870,8 +891,12 @@ makeESS::buildBunkerChicane(Simulation& System,
           (bunkerName,"bunkerName not know");
 
       std::shared_ptr<Chicane> CF
+<<<<<<< HEAD
         (new Chicane("BunkerChicane"+StrFunc::makeString(j)));
       OR.addObject(CF);
+=======
+        (new Chicane("BunkerChicane"+std::to_string(j)));
+>>>>>>> origin/master
       CF->addInsertCell(74123);
 
       // Positioned relative to segment:
@@ -944,7 +969,11 @@ makeESS::buildBunkerQuake(Simulation& System,
 
           std::shared_ptr<BunkerQuake> BF(new BunkerQuake(BPtr->getKeyName()));
           OR.addObject(BF);
+<<<<<<< HEAD
           BF->createAll(System,*BPtr,12,0);
+=======
+          BF->buildAll(System,*BPtr,12,0);  
+>>>>>>> origin/master
         }
     }
 
@@ -959,8 +988,22 @@ makeESS::buildPillars(Simulation& System)
    */
 {
   ELog::RegMethod RegA("makeESS","buildPillars");
+<<<<<<< HEAD
   //  ABunkerPillars->createAll(System,*ABunker);
   BBunkerPillars->createAll(System,*BBunker);
+=======
+
+  const std::vector<std::string> BP=
+    IParam.getAllItems("bunkerPillars");
+
+  for(const std::string& Item : BP)
+    {
+      if (Item=="ABunker")
+	ABunkerPillars->build(System,*ABunker);
+      if (Item=="BBunker")
+	BBunkerPillars->build(System,*BBunker);
+    }
+>>>>>>> origin/master
   return;
 }
 
@@ -1283,11 +1326,11 @@ makeESS::makeBunker(Simulation& System,
 
   ABunker->addInsertCell(voidCell);
   ABunker->setRotationCentre(ShutterBayObj->getCentre());
-  ABunker->createAll(System,*ShutterBayObj,4,false);
+  ABunker->createAll(System,*ShutterBayObj,4);
 
   BBunker->addInsertCell(voidCell);
   BBunker->setCutWall(0,1);
-  BBunker->createAll(System,*ShutterBayObj,4,false);
+  BBunker->createAll(System,*ShutterBayObj,4);
 
   ABunker->insertComponent(System,"rightWall",*BBunker);
   ABunker->insertComponent(System,"roofFarEdge",*BBunker);
@@ -1296,11 +1339,13 @@ makeESS::makeBunker(Simulation& System,
   // Other side if needed :
 
   CBunker->addInsertCell(voidCell);
-  CBunker->createAll(System,*ShutterBayObj,3,true);
+  CBunker->setReversed();
+  CBunker->createAll(System,*ShutterBayObj,3);
 
   DBunker->addInsertCell(voidCell);
   DBunker->setCutWall(0,1);
-  DBunker->createAll(System,*ShutterBayObj,3,true);
+  DBunker->setReversed();
+  DBunker->createAll(System,*ShutterBayObj,3);
 
   CBunker->insertComponent(System,"rightWall",*DBunker);
   CBunker->insertComponent(System,"roofFarEdge",*DBunker);
@@ -1319,14 +1364,14 @@ makeESS::makeBunker(Simulation& System,
       TopCurtain->createAll(System,*ShutterBayObj,6,4);
 
       ABHighBay->setCurtainCut
-	(TopCurtain->combine({"-OuterRadius","-OuterZStep"}));
+	(TopCurtain->combine("-OuterRadius -OuterZStep"));
       ABHighBay->addInsertCell(voidCell);
-      ABHighBay->createAll(System,*ABunker,*BBunker);
+      ABHighBay->buildAll(System,*ABunker,*BBunker);
 
       //      CDHighBay->setCurtainCut
       //	(TopCurtain->combine({"-OuterRadius","-OuterZStep"}));
       CDHighBay->addInsertCell(voidCell);
-      CDHighBay->createAll(System,*CBunker,*DBunker);
+      CDHighBay->buildAll(System,*CBunker,*DBunker);
     }
   if (bunkerType.find("help")!=std::string::npos)
     {
@@ -1666,14 +1711,15 @@ makeESS::build(Simulation& System,
 
   // lower moderator
   if (lowModType != "None")
-    LowPreMod->createAll(System,World::masterOrigin(),0,true,
-			 Target->wheelHeight()/2.0,
-			 Reflector->getRadius());
+    {
+      LowPreMod->setLayout(true,Target->wheelHeight()/2.0,
+			   Reflector->getRadius());
+      LowPreMod->createAll(System,World::masterOrigin(),0);
+    }
 
-  TopPreMod->createAll(System,World::masterOrigin(),0,false,
-		       Target->wheelHeight()/2.0,
+  TopPreMod->setLayout(false,Target->wheelHeight()/2.0,
 		       Reflector->getRadius());
-
+  TopPreMod->createAll(System,World::masterOrigin(),0);
 
   ELog::EM << "Constructing " << topModType << " for top moderator"
 	   << ELog::endDiag;
@@ -1703,12 +1749,14 @@ makeESS::build(Simulation& System,
 
 
   // Cap moderator DOES not span whole unit
-  TopCapMod->createAll(System,*TopMod,6,false,
-   		       0.0,Reflector->getRadius());
+  TopCapMod->setLayout(false,0.0,Reflector->getRadius());
+  TopCapMod->createAll(System,*TopMod,6);
 
   if (lowModType != "None")
-    LowCapMod->createAll(System,*LowMod,6,false,
-			 0.0,Reflector->getRadius());
+    {
+      LowCapMod->setLayout(false,0.0,Reflector->getRadius());
+      LowCapMod->createAll(System,*LowMod,6);
+    }
 
   buildPreWings(System);
 
@@ -1725,9 +1773,14 @@ makeESS::build(Simulation& System,
 
 
   Reflector->insertComponent(System,"targetVoid",*Target,1);
+<<<<<<< HEAD
   Reflector->deleteCell(System,"lowVoid");
   Reflector->deleteCell(System,"topVoid");
   Bulk->createAll(System,*Reflector,*Reflector);
+=======
+  Bulk->setCutSurf("Reflector",Reflector->getExclude());
+  Bulk->createAll(System,*Reflector,0);
+>>>>>>> origin/master
 
   // Build flightlines after bulk
   if((engActive)||(engTwisterActive))
@@ -1774,8 +1827,13 @@ makeESS::build(Simulation& System,
   buildIradComponent(System,IParam);
   // Full surround object
   ShutterBayObj->addInsertCell(voidCell);
+<<<<<<< HEAD
   ShutterBayObj->createAll(System,*Bulk,*Bulk);
     ELog::EM << "Forced insertions to ShutterBay" << ELog::endDiag;
+=======
+  ShutterBayObj->setCutSurf("Bulk",Bulk->getExclude());
+  ShutterBayObj->createAll(System,*Bulk,0);
+>>>>>>> origin/master
   attachSystem::addToInsertForced(System,*ShutterBayObj,
 				  Target->getCC("Wheel"));
   //  attachSystem::addToInsertForced(System,*ShutterBayObj,
@@ -2191,6 +2249,7 @@ makeESS::build(Simulation& System,
   // WARNING: THESE CALL MUST GO AFTER the main void (74123) has
   // been completed. Otherwize we can't find the pipe in the volume.
 
+<<<<<<< HEAD
   
 
   //if (lowModType != "None")
@@ -2199,6 +2258,11 @@ makeESS::build(Simulation& System,
 
    // Add feedthoughs/chicanes
 
+=======
+
+  ModPipes->buildTopPipes(System,topPipeType);
+  buildPillars(System,IParam);
+>>>>>>> origin/master
   if (IParam.flag("bunkerFeed"))
     buildBunkerFeedThrough(System,IParam);
   if (IParam.flag("bunkerQuake"))

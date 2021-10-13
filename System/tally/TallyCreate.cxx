@@ -3,7 +3,7 @@
  
  * File:   tally/TallyCreate.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,14 +38,9 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "localRotate.h"
 #include "masterRotate.h"
@@ -62,24 +57,17 @@
 #include "fissionTally.h"
 #include "surfaceTally.h"
 #include "sswTally.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "SurInter.h"
-#include "Rules.h"
 #include "Code.h"
-#include "FItem.h"
 #include "varList.h"
 #include "FuncDataBase.h"
 #include "ModeCard.h"
 #include "PhysCard.h"
 #include "LSwitchCard.h"
-#include "PhysImp.h"
 #include "PhysicsCards.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "SimMCNP.h"
-#include "SpecialSurf.h"
 #include "LineTrack.h"
 #include "ObjectTrackAct.h"
 #include "ObjectTrackPoint.h"
@@ -145,9 +133,7 @@ addFullHeatBlock(SimMCNP& System)
   ELog::RegMethod RegA("tallySystem","addFullHeatBlock");
 
   const std::vector<int> Units=System.getNonVoidCellVector();
-  const std::vector<int> CL=System.getCellVector();
-  System.getPC().setVolume(CL,1.0);
-  System.getPC().setVolume(1,0);
+
   tallySystem::heatTally TX(6);
   TX.setPlus(1);
   TX.setActive(1);                         /// Turn it on
@@ -199,8 +185,6 @@ addHeatBlock(SimMCNP& System,const std::vector<int>& CellList)
     }
   while(vc!=Tvalues.end());
   // Set volumes etx:
-  System.getPC().setVolume(CL,1.0);
-  System.getPC().setVolume(1,0);
   tallySystem::heatTally TX(6);
   TX.setPlus(1);
   TX.setActive(1);                         /// Turn it on
@@ -950,7 +934,7 @@ void
 mergeTally(SimMCNP& Sim,const int aNumber,
            const int bNumber)
   /*!
-    Merge the tallys together into one [if makes sence]
+    Merge the tallys together into one [if makes sense]
     \param Sim :: SimMCNP
     \param aNumber :: tally nubmer 
     \param bNumber :: tally nubmer [-ve for type / 0 for all]
@@ -974,7 +958,7 @@ mergeTally(SimMCNP& Sim,const int aNumber,
       const int tNum(bc->first);
       if ( tType==(tNum % 10) &&
            tNum!=bNumber &&
-           (bNumber==0 || tNum==bNumber ||
+           (bNumber==0  ||
             (bNumber<0 && (tNum % 10)== -bNumber)) )
         {
           if (bc->second->mergeTally(*ac->second))
@@ -1093,17 +1077,16 @@ changeParticleType(SimMCNP& Sim,const int tNumber,
 }
 
 void
-addPointPD(SimMCNP& ASim)
+addPointPD(SimMCNP& System)
   /*!
     Add point detector PD option to the tally
-    Assumed that calcAllVertex has been run on ASim
-    \param ASim :: SimMCNP value
+    Assumed that calcAllVertex has been run on System
+    \param System :: SimMCNP value
   */
 {
   ELog::RegMethod RegA("TallyCreate","addPointPD");
-
-
-  const SimMCNP::TallyTYPE& tmap=ASim.getTallyMap();
+  
+  const SimMCNP::TallyTYPE& tmap=System.getTallyMap();
   SimMCNP::TallyTYPE::const_iterator mc;
   for(mc=tmap.begin();mc!=tmap.end();mc++)
     {
@@ -1114,9 +1097,8 @@ addPointPD(SimMCNP& ASim)
 	  const masterRotate& MR=masterRotate::Instance();
 	  ModelSupport::pointDetOpt 
 	    PD(MR.reverseRotate(PTptr->getCentre()));
-	  PD.createObjAct(ASim);
-	  PD.addTallyOpt(PTptr->getKey(),ASim,
-			 ASim.getPC());
+	  PD.createObjAct(System);
+	  PD.addTallyOpt(System,PTptr->getKey());
 	}
     }
   

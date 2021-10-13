@@ -3,7 +3,7 @@
  
  * File:   construct/InnerPort.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,31 +34,19 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -70,6 +58,7 @@
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
+#include "ExternalCut.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 
@@ -80,7 +69,8 @@ namespace constructSystem
 
 InnerPort::InnerPort(const std::string& Key) : 
   attachSystem::FixedOffset(Key,6),
-  attachSystem::ContainedComp(),attachSystem::CellMap()
+  attachSystem::ContainedComp(),attachSystem::CellMap(),
+  attachSystem::ExternalCut()
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: KeyName
@@ -89,14 +79,13 @@ InnerPort::InnerPort(const std::string& Key) :
 
 InnerPort::InnerPort(const InnerPort& A) : 
   attachSystem::FixedOffset(A),attachSystem::ContainedComp(A),
-  attachSystem::CellMap(A),  
+  attachSystem::CellMap(A),attachSystem::ExternalCut(A),  
   width(A.width),height(A.height),length(A.length),
   nBolt(A.nBolt),boltStep(A.boltStep),
   boltRadius(A.boltRadius),boltMat(A.boltMat),
   sealStep(A.sealStep),sealThick(A.sealThick),
   sealMat(A.sealMat),window(A.window),windowMat(A.windowMat),
-  mat(A.mat),boundaryHR(A.boundaryHR),
-  activeCells(A.activeCells)
+  mat(A.mat),activeCells(A.activeCells)
   /*!
     Copy constructor
     \param A :: InnerPort to copy
@@ -129,7 +118,6 @@ InnerPort::operator=(const InnerPort& A)
       window=A.window;
       windowMat=A.windowMat;
       mat=A.mat;
-      boundaryHR=A.boundaryHR;
       activeCells=A.activeCells;
     }
   return *this;
@@ -162,35 +150,17 @@ InnerPort::populate(const FuncDataBase& Control)
   nBolt=Control.EvalDefVar<size_t>(keyName+"NBolt",0);
   boltStep=Control.EvalDefVar<double>(keyName+"BoltStep",0.0);
   boltRadius=Control.EvalDefVar<double>(keyName+"BoltRadius",0.0);
-  boltMat=ModelSupport::EvalDefMat<int>(Control,keyName+"BoltMat",0);
+  boltMat=ModelSupport::EvalDefMat(Control,keyName+"BoltMat",0);
   
   sealStep=Control.EvalDefVar<double>(keyName+"SealStep",0.0);
   sealThick=Control.EvalDefVar<double>(keyName+"SealThick",0.0);
-  sealMat=ModelSupport::EvalDefMat<int>(Control,keyName+"SealMat",0);
+  sealMat=ModelSupport::EvalDefMat(Control,keyName+"SealMat",0);
     
   mat=ModelSupport::EvalMat<int>(Control,keyName+"Mat");
 
   return;
 }
 
-void
-InnerPort::createUnitVector(const attachSystem::FixedComp& FC,
-				 const long int sideIndex)
-  /*!
-    Create the unit vectors
-    \param FC :: Fixed component to link to
-    \param sideIndex :: Link point and direction [0 for origin]
-  */
-{
-  ELog::RegMethod RegA("InnerPort","createUnitVector");
-
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
-
-
-  return;
-}
 
 
 void
@@ -256,6 +226,7 @@ InnerPort::createObjects(Simulation& System)
   ELog::RegMethod RegA("InnerPort","createObjects");
   
   std::string Out;
+  const std::string boundaryStr=getRuleStr("Boundary");
 
   if (windowMat)
     {
@@ -318,7 +289,7 @@ InnerPort::createObjects(Simulation& System)
       Out=ModelSupport::getComposite(SMap,buildIndex,boltIndex,
                                      " 1 -2 (-3M:4M:-5M:6M) " );
       System.addCell(MonteCarlo::Object(cellIndex++,mat,0.0,
-                                       Out+boundaryHR.display()));
+                                       Out+boundaryStr));
       addCell("Outer",cellIndex-1);
     }
   else // No seal
@@ -327,7 +298,7 @@ InnerPort::createObjects(Simulation& System)
       Out=ModelSupport::getComposite(SMap,buildIndex,boltIndex,
                                      " 1 -2 (-3M:4M:-5M:6M) " );
       System.addCell(MonteCarlo::Object(cellIndex++,mat,0.0,
-                                       Out+boundaryHR.display()));
+                                       Out+boundaryStr));
       addCell("Outer",cellIndex-1);
     }
 
@@ -347,7 +318,8 @@ InnerPort::createBolts(Simulation& System)
 {
   ELog::RegMethod RegA("InnerPort","createBolts");
   if (!nBolt) return;
-  
+  const std::string boundaryStr=getRuleStr("Boundary");
+    
   std::string Out,OutComp,OutSide;
 
   const double NBDbl((nBolt>1) ? static_cast<double>(nBolt) : 1.0);
@@ -447,7 +419,7 @@ InnerPort::createBolts(Simulation& System)
           leftIndex=rightIndex;
           OutComp=ModelSupport::getComposite(SMap,buildIndex,BI," 1 -2 7M ");
           if (cornerCut[sideI])
-            OutComp+= boundaryHR.display();
+            OutComp+= boundaryStr;
           
           System.addCell(MonteCarlo::Object(cellIndex++,mat,0.0,
                                            Out+OutComp+OutSide));
@@ -469,6 +441,8 @@ InnerPort::calcIntersect(const Geometry::Vec3D& Pt) const
     \return true if outside the boundary
   */
 {
+  const HeadRule& boundaryHR=
+    ExternalCut::getRule("Boundary");
   return (!boundaryHR.isValid(Pt));
 }
   
@@ -530,8 +504,7 @@ InnerPort::createLinks()
 void
 InnerPort::createAll(Simulation& System,
                      const attachSystem::FixedComp& beamFC,
-                     const long int FIndex,
-                     const std::string& boundary)
+                     const long int FIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation item
@@ -547,9 +520,6 @@ InnerPort::createAll(Simulation& System,
   createUnitVector(beamFC,FIndex);
   generateInsert();       // Done here so that cells not invalid
   createSurfaces();
-
-  boundaryHR.procString(boundary);
-  boundaryHR.populateSurf();
   
   createObjects(System);
   createBolts(System);

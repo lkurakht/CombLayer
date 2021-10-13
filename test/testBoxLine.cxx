@@ -3,7 +3,7 @@
  
  * File:   test/testBoxLine.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,22 +35,17 @@
 #include <functional>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Surface.h"
 #include "surfIndex.h"
 #include "surfRegister.h"
-#include "Rules.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "varList.h"
 #include "Code.h"
@@ -62,7 +57,10 @@
 #include "ModelSupport.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 #include "ContainedComp.h"
+#include "BaseMap.h"
+#include "CellMap.h"
 #include "boxValues.h"
 #include "boxUnit.h"
 #include "BoxLine.h"
@@ -76,9 +74,7 @@ testBoxLine::testBoxLine()
   /*!
     Constructor
   */
-{
-  initSim();
-}
+{}
 
 testBoxLine::~testBoxLine() 
   /*!
@@ -112,20 +108,20 @@ testBoxLine::createSurfaces()
   ModelSupport::surfIndex& SurI=ModelSupport::surfIndex::Instance();
   
   // First box :
-  SurI.createSurface(1,"px -1");
-  SurI.createSurface(2,"px 1");
-  SurI.createSurface(3,"py -1");
-  SurI.createSurface(4,"py 1");
-  SurI.createSurface(5,"pz -1");
-  SurI.createSurface(6,"pz 1");
+  SurI.createSurface(11,"px -1");
+  SurI.createSurface(12,"px 1");
+  SurI.createSurface(13,"py -1");
+  SurI.createSurface(14,"py 1");
+  SurI.createSurface(15,"pz -1");
+  SurI.createSurface(16,"pz 1");
 
   // Second box :
-  SurI.createSurface(11,"px -3");
-  SurI.createSurface(12,"px 3");
-  SurI.createSurface(13,"py -3");
-  SurI.createSurface(14,"py 3");
-  SurI.createSurface(15,"pz -3");
-  SurI.createSurface(16,"pz 3");
+  SurI.createSurface(21,"px -3");
+  SurI.createSurface(22,"px 3");
+  SurI.createSurface(23,"py -3");
+  SurI.createSurface(24,"py 3");
+  SurI.createSurface(25,"pz -3");
+  SurI.createSurface(26,"pz 3");
 
   // Sphere :
   SurI.createSurface(100,"so 25");
@@ -143,22 +139,22 @@ testBoxLine::createObjects()
   ELog::RegMethod RegA("testBoxLine","createObjects");
 
   std::string Out;
-  int cellIndex(1);
+  int cellIndex(2);
   const int surIndex(0);
 
   Out=ModelSupport::getComposite(surIndex,"100");
   ASim.addCell(MonteCarlo::Object(cellIndex++,0,0.0,Out));      // Outside void Void
   // Inner box
-  Out=ModelSupport::getComposite(surIndex,"1 -2 3 -4 5 -6");
+  Out=ModelSupport::getComposite(surIndex,"11 -12 13 -14 15 -16");
   ASim.addCell(MonteCarlo::Object(cellIndex++,3,0.0,Out));
   
 
   // Container box:
-  Out=ModelSupport::getComposite(surIndex,"11 -12 13 -14 15 -16"
-				 " (-1:2:-3:4:-5:6) ");
+  Out=ModelSupport::getComposite(surIndex,"21 -22 23 -24 25 -26"
+				 " (-11:12:-13:14:-15:16) ");
   ASim.addCell(MonteCarlo::Object(cellIndex++,5,0.0,Out));      // Al container
 
-  Out=ModelSupport::getComposite(surIndex,"-100 (-11:12:-13:14:-15:16)");
+  Out=ModelSupport::getComposite(surIndex,"-100 (-21:22:-23:24:-25:26)");
   ASim.addCell(MonteCarlo::Object(cellIndex++,0,0.0,Out));      // Outside void Void
   return;
 }
@@ -201,6 +197,7 @@ testBoxLine::applyTest(const int extra)
     }
   for(int i=0;i<TSize;i++)
     {
+      initSim();
       if (extra<0 || extra==i+1)
         {
 	  TestFunc::regTest(TestName[i]);
@@ -226,7 +223,7 @@ testBoxLine::testBasic()
   AP.addPoint(Geometry::Vec3D(0,0,10));
   AP.addSection(1.0,3.0,0,0.0);
   AP.setInitZAxis(Geometry::Vec3D(1,0,0));
-  AP.createAll(ASim);
+  AP.build(ASim);
 
   ASim.renumberAll();
   ASim.write("testBasic.x");
@@ -253,7 +250,7 @@ testBoxLine::testJoin()
   AP.addSection(0.3,0.7,0,0.0);
   AP.addSection(0.3,0.7,5,0.0);
   AP.setInitZAxis(Geometry::Vec3D(1,0,0));
-  AP.createAll(ASim);
+  AP.build(ASim);
 
   ASim.write("testJoinA.x");
   ASim.renumberAll();
@@ -283,7 +280,7 @@ testBoxLine::testZigZag()
 
   AP.addSection(0.3,0.7,0,0.0);
   AP.setInitZAxis(Geometry::Vec3D(1,0,0));
-  AP.createAll(ASim);
+  AP.build(ASim);
 
   ASim.write("testJoinA.x");
   ASim.renumberAll();

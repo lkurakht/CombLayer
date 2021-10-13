@@ -3,7 +3,7 @@
  
  * File:   source/LensSource.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,34 +33,20 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "doubleErr.h"
-#include "varList.h"
-#include "Code.h"
-#include "FuncDataBase.h"
 #include "Source.h"
-#include "SrcItem.h"
 #include "SrcData.h"
 #include "DSTerm.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "ModelSupport.h"
-#include "WorkData.h"
 #include "HeadRule.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedOffsetUnit.h"
 #include "inputSupport.h"
 #include "SourceBase.h"
 #include "particleConv.h"
@@ -70,7 +56,7 @@ namespace SDef
 {
 
 LensSource::LensSource(const std::string& Key) : 
-  attachSystem::FixedOffset(Key,0),SourceBase(),
+  attachSystem::FixedOffsetUnit(Key,0),SourceBase(),
   radialArea(0.0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
@@ -79,7 +65,7 @@ LensSource::LensSource(const std::string& Key) :
 {}
 
 LensSource::LensSource(const LensSource& A) : 
-  attachSystem::FixedOffset(A),SourceBase(A),
+  attachSystem::FixedOffsetUnit(A),SourceBase(A),
   radialArea(A.radialArea)
   /*!
     Copy constructor
@@ -545,7 +531,7 @@ LensSource::write(std::ostream& OX) const
 }
 
 void
-LensSource::writePHITS(std::ostream& OX) const
+LensSource::writePHITS(std::ostream&) const
   /*!
     Write out as a PHITS source system
     \param OX :: Output stream
@@ -558,7 +544,7 @@ LensSource::writePHITS(std::ostream& OX) const
 }
 
 void
-LensSource::writeFLUKA(std::ostream& OX) const
+LensSource::writeFLUKA(std::ostream&) const
   /*!
     Write out as a FLUKA source system
     \param OX :: Output stream

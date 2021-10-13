@@ -3,7 +3,7 @@
  
  * File:   ESSBeam/loki/LOKI.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,25 +35,13 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "stringCombine.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -65,15 +53,17 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "World.h"
 #include "AttachSupport.h"
@@ -82,7 +72,6 @@
 #include "insertObject.h"
 #include "insertPlate.h"
 
-#include "Jaws.h"
 #include "GuideLine.h"
 #include "DiskChopper.h"
 #include "VacuumPipe.h"
@@ -94,12 +83,7 @@
 #include "HoleShape.h"
 #include "PipeCollimator.h"
 
-#include "BunkerInsert.h"
 #include "CompBInsert.h"
-#include "Hut.h"
-#include "RotaryCollimator.h"
-#include "PinHole.h"
-#include "RentrantBS.h"
 #include "LokiHut.h"
 #include "VacTank.h"
 
@@ -110,7 +94,7 @@ namespace essSystem
 
 LOKI::LOKI(const std::string& keyN) :
   attachSystem::CopiedComp("loki",keyN),startPoint(0),stopPoint(0),
-  lokiAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  lokiAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
   BendA(new beamlineSystem::GuideLine(newName+"BA")),
 
   ShutterA(new insertSystem::insertPlate(newName+"BlockShutter")),  
@@ -181,8 +165,6 @@ LOKI::registerObjects()
   ModelSupport::objectRegister& OR=
     ModelSupport::objectRegister::Instance();
   
-  // This necessary:
-  // OR.cell(newName+"Axis");
   OR.addObject(lokiAxis);
 
   OR.addObject(BendA);
@@ -244,7 +226,7 @@ LOKI::buildBunkerUnits(Simulation& System,
   ELog::RegMethod RegA("LOKI","buildBunkerUnits");
   const Geometry::Vec3D& ZVert(World::masterOrigin().getZ());  
 
-  VPipeB->addInsertCell(bunkerVoid);
+  VPipeB->addAllInsertCell(bunkerVoid);
   VPipeB->createAll(System,FA,startIndex);
   BendB->addInsertCell(VPipeB->getCells("Void"));
   BendB->createAll(System,*VPipeB,0,*VPipeB,0);
@@ -257,7 +239,7 @@ LOKI::buildBunkerUnits(Simulation& System,
   ShutterA->insertComponent(System,"Main",*VPipeB);
 
   // Link as gamma shield must move up and down
-  VPipeBLink->addInsertCell(bunkerVoid);
+  VPipeBLink->addAllInsertCell(bunkerVoid);
   VPipeBLink->createAll(System,BendB->getKey("Guide0"),2);
 
   BendBLink->addInsertCell(VPipeBLink->getCells("Void"));
@@ -275,7 +257,7 @@ LOKI::buildBunkerUnits(Simulation& System,
   DDiskA->createAll(System,ChopperA->getKey("Main"),0);
   ChopperA->insertAxle(System,*DDiskA);
 
-  VPipeC->addInsertCell(bunkerVoid);
+  VPipeC->addAllInsertCell(bunkerVoid);
   VPipeC->createAll(System,ChopperA->getKey("Beam"),2);
 
   FocusC->addInsertCell(VPipeC->getCells("Void"));
@@ -328,9 +310,9 @@ LOKI::buildOutGuide(Simulation& System,
   ShieldA->setFront(OutPitA->getKey("Mid"),2);
   ShieldA->createAll(System,OutPitA->getKey("Mid"),2);
 
-  VPipeOutA->addInsertCell(ShieldA->getCell("Void"));
-  VPipeOutA->addInsertCell(OutPitA->getCell("Void"));
-  VPipeOutA->addInsertCell(PitACut->getCell("Void")); 
+  VPipeOutA->addAllInsertCell(ShieldA->getCell("Void"));
+  VPipeOutA->addAllInsertCell(OutPitA->getCell("Void"));
+  VPipeOutA->addAllInsertCell(PitACut->getCell("Void")); 
   VPipeOutA->createAll(System,ChopperOutA->getKey("Beam"),2);
 
   FocusOutA->addInsertCell(VPipeOutA->getCell("Void"));
@@ -356,8 +338,8 @@ LOKI::buildOutGuide(Simulation& System,
   ShieldB->createAll(System,*ShieldA,2);
 
   //Vacuum pipe and guide
-  VPipeOutB->addInsertCell(ShieldA->getCell("Void"));
-  VPipeOutB->addInsertCell(ShieldB->getCell("Void"));
+  VPipeOutB->addAllInsertCell(ShieldA->getCell("Void"));
+  VPipeOutB->addAllInsertCell(ShieldB->getCell("Void"));
   VPipeOutB->createAll(System,*AppA,2);
   FocusOutB->addInsertCell(VPipeOutB->getCell("Void"));
   FocusOutB->createAll(System,*VPipeOutB,0,*VPipeOutB,0);
@@ -405,7 +387,7 @@ LOKI::buildIsolated(Simulation& System,const int voidCell)
 
   if (startPoint<2)
     {
-      VPipeWall->addInsertCell(voidCell);
+      VPipeWall->addAllInsertCell(voidCell);
       VPipeWall->createAll(System,*FStart,startIndex);
       
       FocusWall->addInsertCell(VPipeWall->getCell("Void"));
@@ -474,7 +456,7 @@ LOKI::build(Simulation& System,
   BInsert->addInsertCell(bunkerObj.getCell("MainVoid"));
   BInsert->setFront(bunkerObj,-1);
   BInsert->setBack(bunkerObj,-2);
-  BInsert->createAll(System,FocusC->getKey("Guide0"),2,bunkerObj);
+  BInsert->createAll(System,FocusC->getKey("Guide0"),2);
   attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsert);  
 
   FocusWall->addInsertCell(BInsert->getCells("Item"));
@@ -493,9 +475,9 @@ LOKI::build(Simulation& System,
   ShieldB->addInsertCell(Cave->getCells("FrontWall"));
   ShieldB->insertObjects(System);
 
-  VPipeOutC->addInsertCell(ShieldB->getCell("Void"));
-  VPipeOutC->addInsertCell(Cave->getCells("FrontWall"));
-  VPipeOutC->addInsertCell(Cave->getCells("Void"));
+  VPipeOutC->addAllInsertCell(ShieldB->getCell("Void"));
+  VPipeOutC->addAllInsertCell(Cave->getCells("FrontWall"));
+  VPipeOutC->addAllInsertCell(Cave->getCells("Void"));
   VPipeOutC->createAll(System,*AppB,2);
   FocusOutC->addInsertCell(VPipeOutC->getCell("Void"));
   FocusOutC->createAll(System,*VPipeOutC,0,*VPipeOutC,0);

@@ -3,7 +3,7 @@
  
  * File:   construct/JawFlange
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,31 +36,18 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
 #include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -69,16 +56,14 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"  
 #include "FixedComp.h"
-#include "FixedOffset.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "SurfMap.h"
-#include "SurInter.h"
 
 #include "JawFlange.h" 
 
@@ -124,7 +109,7 @@ JawFlange::populate(const FuncDataBase& Control)
   jHeight=Control.EvalVar<double>(keyName+"JHeight");
   jWidth=Control.EvalVar<double>(keyName+"JWidth");
 
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   jawMat=ModelSupport::EvalMat<int>(Control,keyName+"JawMat");
   
   return;
@@ -132,25 +117,22 @@ JawFlange::populate(const FuncDataBase& Control)
 
 void
 JawFlange::setFillRadius(const attachSystem::FixedComp& portFC,
-			 const long int radiusIndex,
+			 const std::string& radiusSide,
 			 const int cellNumber)
   /*!
     Give a cylindical (or contained) link surface and the 
     cell that will be completely removed. 
     \param portFC :: Port FixedComp
-    \param radiusIndex :: link point to a radial surface 
+    \param radiusSide :: link point to a radial surface 
     \param cellNubmer :: cell to remove
   */
 {
   ELog::RegMethod Rega("JawFlange","setFillRadius");
 
-  cylRule=portFC.getMainRule(radiusIndex);
+  cylRule=portFC.getMainRule(radiusSide);
   cutCell=cellNumber;
   return;
 }
-
-
-  
 
 void
 JawFlange::createUnitVector(const attachSystem::FixedComp& mFC,
@@ -340,7 +322,48 @@ JawFlange::createLinks()
 
   return;
 }
-  
+
+void
+JawFlange::createAll(Simulation& ,
+		     const attachSystem::FixedComp&,
+		     const long int)
+ /*!
+    Generic function to create everything
+    \param System :: Simulation item
+    \param portFC :: FixedComp
+    \param portIndex :: Fixed Index
+  */
+{
+  ELog::RegMethod RegA("JawFlange","createAll(FC)");
+
+  throw ColErr::AbsObjMethod("Single value createAll");
+  return;
+}
+
+void
+JawFlange::createAll(Simulation& System,
+		     const attachSystem::FixedComp& portFC,
+		     const std::string& portName,
+		     const attachSystem::FixedComp& beamFC,
+		     const std::string& beamName)
+ /*!
+    Generic function to create everything
+    Note that portFC and beamFC and often without orthogonal
+    axis sets. (e.g X' is not || to any of X,Y or Z)
+
+    \param System :: Simulation item
+    \param portFC :: FixedComp
+    \param portName :: Fixed Name for main axis
+    \param beamFC :: FixedComp for beam point (and beam axis)
+    \param beamName :: Fixed Index link point
+  */
+{
+  ELog::RegMethod RegA("JawFlange","createAll(FC,string,FC,string)");
+  createAll(System,portFC,portFC.getSideIndex(portName),
+	    beamFC,beamFC.getSideIndex(beamName));
+  return;
+}
+
 void
 JawFlange::createAll(Simulation& System,
 		     const attachSystem::FixedComp& portFC,

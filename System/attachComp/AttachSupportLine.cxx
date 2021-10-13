@@ -3,7 +3,7 @@
  
  * File:   attachComp/AttachSupportLine.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,26 +34,18 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "support.h"
 #include "Surface.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Rules.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 
 #include "varList.h"
 #include "Code.h"
@@ -62,22 +54,16 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
-#include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "objectRegister.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "SurInter.h"
 #include "Line.h"
 #include "LineIntersectVisit.h"
 #include "LineTrack.h"
 #include "AttachSupport.h"
 
-#include "Debug.h"
-#include "debugMethod.h"
 
 ///\file AttachSupportLine.cxx
 
@@ -316,7 +302,7 @@ lineIntersect(Simulation& System,
     \param OMap :: Object map to add extra units to
   */
 {
-  ELog::RegMethod RegA("","lineIntersect(Vec3D)");
+  ELog::RegMethod RegA("AttachSupportLine[F]","lineIntersect(Vec3D)");
 
   // construct lines 
 

@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   build/targetOuter.cxx
+ * File: snsBuild/targetOuter.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,33 +33,20 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfDivide.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Sphere.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -71,7 +58,9 @@
 #include "FixedComp.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
-#include "BeamWindow.h"
+#include "ExternalCut.h"
+#include "BaseMap.h"
+#include "CellMap.h"
 #include "ProtonVoid.h"
 #include "TargetBase.h"
 #include "targetOuter.h"
@@ -80,19 +69,35 @@ namespace snsSystem
 {
 
 targetOuter::targetOuter(const std::string& Key) :
-  constructSystem::TargetBase(Key,3)
+  TMRSystem::TargetBase(Key,3)
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Name for item in search
   */
 {}
 
-
 targetOuter::targetOuter(const targetOuter& A) : 
-  constructSystem::TargetBase(A),
-  mainLength(A.mainLength),mainHeight(A.mainHeight),
-  mainWidth(A.mainWidth),mercuryMat(A.mercuryMat),
-  mercuryTemp(A.mercuryTemp),mainCell(A.mainCell)
+  TMRSystem::TargetBase(A),
+  totalLength(A.totalLength),mainLength(A.mainLength),
+  mainJoin(A.mainJoin),mainHeight(A.mainHeight),
+  mainWidth(A.mainWidth),innerWall(A.innerWall),
+  heliumLength(A.heliumLength),heliumJoin(A.heliumJoin),
+  heliumStep(A.heliumStep),heliumXStep(A.heliumXStep),
+  heliumThick(A.heliumThick),pressLength(A.pressLength),
+  pressJoin(A.pressJoin),pressStep(A.pressStep),
+  pressXStep(A.pressXStep),pressThick(A.pressThick),
+  waterLength(A.waterLength),waterJoin(A.waterJoin),
+  waterStep(A.waterStep),waterXStep(A.waterXStep),
+  waterThick(A.waterThick),outerLength(A.outerLength),
+  outerJoin(A.outerJoin),outerLift(A.outerLift),
+  outerStep(A.outerStep),outerXStep(A.outerXStep),
+  outerThick(A.outerThick),hgCutAngle(A.hgCutAngle),
+  innerCutAngle(A.innerCutAngle),heCutAngle(A.heCutAngle),
+  pressCutAngle(A.pressCutAngle),waterCutAngle(A.waterCutAngle),
+  outerCutAngle(A.outerCutAngle),mercuryMat(A.mercuryMat),
+  innerWallMat(A.innerWallMat),heMat(A.heMat),pressMat(A.pressMat),
+  waterMat(A.waterMat),outerMat(A.outerMat),mercuryTemp(A.mercuryTemp),
+  mainCell(A.mainCell)
   /*!
     Copy constructor
     \param A :: targetOuter to copy
@@ -109,11 +114,46 @@ targetOuter::operator=(const targetOuter& A)
 {
   if (this!=&A)
     {
-      constructSystem::TargetBase::operator=(A);
+      TMRSystem::TargetBase::operator=(A);
+      totalLength=A.totalLength;
       mainLength=A.mainLength;
+      mainJoin=A.mainJoin;
       mainHeight=A.mainHeight;
       mainWidth=A.mainWidth;
+      innerWall=A.innerWall;
+      heliumLength=A.heliumLength;
+      heliumJoin=A.heliumJoin;
+      heliumStep=A.heliumStep;
+      heliumXStep=A.heliumXStep;
+      heliumThick=A.heliumThick;
+      pressLength=A.pressLength;
+      pressJoin=A.pressJoin;
+      pressStep=A.pressStep;
+      pressXStep=A.pressXStep;
+      pressThick=A.pressThick;
+      waterLength=A.waterLength;
+      waterJoin=A.waterJoin;
+      waterStep=A.waterStep;
+      waterXStep=A.waterXStep;
+      waterThick=A.waterThick;
+      outerLength=A.outerLength;
+      outerJoin=A.outerJoin;
+      outerLift=A.outerLift;
+      outerStep=A.outerStep;
+      outerXStep=A.outerXStep;
+      outerThick=A.outerThick;
+      hgCutAngle=A.hgCutAngle;
+      innerCutAngle=A.innerCutAngle;
+      heCutAngle=A.heCutAngle;
+      pressCutAngle=A.pressCutAngle;
+      waterCutAngle=A.waterCutAngle;
+      outerCutAngle=A.outerCutAngle;
       mercuryMat=A.mercuryMat;
+      innerWallMat=A.innerWallMat;
+      heMat=A.heMat;
+      pressMat=A.pressMat;
+      waterMat=A.waterMat;
+      outerMat=A.outerMat;
       mercuryTemp=A.mercuryTemp;
       mainCell=A.mainCell;
     }
@@ -198,20 +238,6 @@ void
   return;
 }
 
-void
-targetOuter::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    \param FC :: Fixed unit for origin + xyz
-  */
-{
-  ELog::RegMethod RegA("targetOuter","createUnitVector");
-
-  FixedComp::createUnitVector(FC);
-  applyOffset();
-  
-  return;
-}
 
 void
 targetOuter::createSurfaces()
@@ -478,7 +504,8 @@ targetOuter::addProtonLine(Simulation& System,
 {
   ELog::RegMethod RegA("SNStarget","addProtonLine");
 
-  PLine->createAll(System,*this,2,refFC,index);
+  PLine->setCutSurf("RefBoundary",refFC.getLinkString(index));
+  PLine->createAll(System,*this,2);
   createBeamWindow(System,1);
 
   return;
@@ -486,7 +513,9 @@ targetOuter::addProtonLine(Simulation& System,
 
   
 void
-targetOuter::createAll(Simulation& System,const attachSystem::FixedComp& FC)
+targetOuter::createAll(Simulation& System,
+		       const attachSystem::FixedComp& FC,
+		       const long int sideIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation item
@@ -496,7 +525,7 @@ targetOuter::createAll(Simulation& System,const attachSystem::FixedComp& FC)
   ELog::RegMethod RegA("targetOuter","createAll");
 
   populate(System.getDataBase());
-  createUnitVector(FC);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System);
   createLinks();

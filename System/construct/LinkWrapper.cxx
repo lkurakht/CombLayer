@@ -3,7 +3,7 @@
  
  * File:   construct/LinkWrapper.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,44 +36,21 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "localRotate.h"
-#include "masterRotate.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDivide.h"
-#include "surfDIter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
-#include "generateSurf.h"
-#include "surfExpand.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "ContainedComp.h"
@@ -156,29 +133,15 @@ LinkWrapper::populate(const FuncDataBase& Control)
       std::string kItem=keyName+"LayThick";
       std::string kMat=keyName+"LayMat";
       layerThick.push_back(Control.EvalVar<double>
-			   (StrFunc::makeString(kItem,i+1)));
+			   (kItem+std::to_string(i+1)));
       layerMat.push_back(ModelSupport::EvalMat<int>
-			 (Control,StrFunc::makeString(kMat,i+1)));
+			 (Control,kMat+std::to_string(i+1)));
     }
   // Material
   defMat=ModelSupport::EvalMat<int>(Control,keyName+"DefMat");
   return;
 }
   
-void
-LinkWrapper::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    - Y Down the beamline
-    \param FC :: Linked object
-  */
-{
-  ELog::RegMethod RegA("LinkWrapper","createUnitVector");
-  attachSystem::FixedComp::createUnitVector(FC);
-
-  return;
-}
-
 void
 LinkWrapper::addSurface(const attachSystem::FixedComp& FC,
 			std::string LList)
@@ -368,7 +331,8 @@ LinkWrapper::maskSection(std::string sectList)
 
 void
 LinkWrapper::createAll(Simulation& System,
-		  const attachSystem::FixedComp& FC)
+		       const attachSystem::FixedComp& FC,
+		       const long int sideIndex)
   /*!
     Global creation of the hutch
     \param System :: Simulation to add vessel to
@@ -380,7 +344,7 @@ LinkWrapper::createAll(Simulation& System,
   populate(System.getDataBase());
   processMask();
 
-  createUnitVector(FC);
+  FixedComp::createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System);
   insertObjects(System);       

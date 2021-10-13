@@ -33,32 +33,19 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Sphere.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "LineIntersectVisit.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "SimProcess.h"
 #include "groupRange.h"
@@ -70,21 +57,25 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "ContainedComp.h"
-#include "siModerator.h"
+#include "ExternalCut.h"
 #include "candleStick.h"
 
 namespace lensSystem
 {
 
 candleStick::candleStick(const std::string& Key) :
-  attachSystem::ContainedComp(),attachSystem::FixedComp(Key,2)
+  attachSystem::ContainedComp(),
+  attachSystem::FixedComp(Key,2),
+  attachSystem::ExternalCut()
   /*!
     Constructor
   */
 {}
 
 candleStick::candleStick(const candleStick& A) : 
-  attachSystem::ContainedComp(A),attachSystem::FixedComp(A),
+  attachSystem::ContainedComp(A),
+  attachSystem::FixedComp(A),
+  attachSystem::ExternalCut(A),
   TopBoundary(A.TopBoundary),BaseCent(A.BaseCent),
   StickCent(A.StickCent),CylCent(A.CylCent),baseThick(A.baseThick),
   baseWidth(A.baseWidth),baseLength(A.baseLength),baseXoffset(A.baseXoffset),
@@ -120,6 +111,7 @@ candleStick::operator=(const candleStick& A)
     {
       attachSystem::ContainedComp::operator=(A);
       attachSystem::FixedComp::operator=(A);
+      attachSystem::ExternalCut::operator=(A);
       cellIndex=A.cellIndex;
       TopBoundary=A.TopBoundary;
       BaseCent=A.BaseCent;
@@ -169,7 +161,8 @@ candleStick::operator=(const candleStick& A)
 }
 
 void
-candleStick::createUnitVector(const attachSystem::FixedComp& FC)
+candleStick::createUnitVector(const attachSystem::FixedComp& FC,
+			      const long int sideIndex)
   /*!
     Create the unit vectors
     - Y towards the normal of the target
@@ -180,18 +173,18 @@ candleStick::createUnitVector(const attachSystem::FixedComp& FC)
 {
   ELog::RegMethod RegA("candleStick","createUnitVector");
 
-  FixedComp::createUnitVector(FC);  
+  FixedComp::createUnitVector(FC,sideIndex);  
 
   // Centre Base centre to be half way into bar:
-  BaseCent=FC.getLinkPt(5)+X*baseXoffset+Y*baseYoffset-
+  BaseCent=basePoint+X*baseXoffset+Y*baseYoffset-
     Z*baseThick/2.0;
 
   // Set stick vector
-  StickCent=X*vsXoffset+Y*vsYoffset+
+  StickCent=Origin+X*vsXoffset+Y*vsYoffset+
     Z*(BaseCent.Z()+baseThick/2.0);
 
-  CylCent=FC.getLinkPt(5)+Geometry::Vec3D(-xCyl,yCyl,0);
-
+  CylCent=Origin+basePoint+Geometry::Vec3D(-xCyl,yCyl,0);
+  BaseCent+=Origin;
   return;
 }
 
@@ -368,16 +361,15 @@ candleStick::createSurfaces()
 }
 
 void 
-candleStick::createObjects(Simulation& System,
-			   const attachSystem::ContainedComp& CC)
+candleStick::createObjects(Simulation& System)
   /*!
     Construct the base and create item
     \param System :: simulation for objects
-    \param CC :: Contained Component (siModerator)
   */
 {
   ELog::RegMethod RegA("candleStick","createObjects");
 
+  const std::string siModExclude=ExternalCut::getRuleStr("Moderator");
   // Base system:
   std::string Out=
     ModelSupport::getComposite(SMap,buildIndex,"1 -2 3 -4 5 -6");  
@@ -397,7 +389,7 @@ candleStick::createObjects(Simulation& System,
   Out+=ModelSupport::getComposite(SMap,buildIndex,"(-11:12:-13:14:-15:16)");
   Out+=ModelSupport::getComposite(SMap,buildIndex,"(12:-22:-23:24:-25:26)");
   // And si moderator 
-  Out+=CC.getExclude();
+  Out+=siModExclude;
   System.addCell(MonteCarlo::Object(cellIndex++,0,0.0,Out));
 
   // TOP VACUUM
@@ -505,7 +497,8 @@ candleStick::createLinks()
   
 void
 candleStick::createAll(Simulation& System,
-		       const siModerator& SMod)
+		       const attachSystem::FixedComp& SMod,
+		       const long int sideIndex)
   /*!
     Extrenal build everything
     \param System :: Simulation
@@ -515,9 +508,9 @@ candleStick::createAll(Simulation& System,
   ELog::RegMethod RegA("candleStick","createAll");
 
   populate(System.getDataBase());
-  createUnitVector(SMod);
+  createUnitVector(SMod,sideIndex);
   createSurfaces();
-  createObjects(System,SMod);
+  createObjects(System);
   createLinks();
   return;
 }

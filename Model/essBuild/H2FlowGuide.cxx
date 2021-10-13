@@ -3,7 +3,11 @@
 
  * File:   essBuild/H2FlowGuide.cxx
  *
+<<<<<<< HEAD
  * Copyright (c) 2004-2017 by Konstantin Batkov
+=======
+ * Copyright (c) 2004-2019 by Stuart Ansell
+>>>>>>> origin/master
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,21 +39,14 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
+<<<<<<< HEAD
 #include "objectRegister.h"
 #include "surfEqual.h"
 #include "surfDivide.h"
@@ -60,31 +57,32 @@
 #include "Cylinder.h"
 #include "Line.h"
 #include "Rules.h"
+=======
+>>>>>>> origin/master
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "RuleSupport.h"
+#include "Importance.h"
 #include "Object.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "Vert2D.h"
-#include "Convex2D.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "ContainedComp.h"
-#include "LayerComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
+<<<<<<< HEAD
 #include "AttachSupport.h"
 #include "geomSupport.h"
 #include "SurInter.h"
 #include "H2Wing.h"
+=======
+>>>>>>> origin/master
 #include "H2FlowGuide.h"
 
 namespace essSystem
@@ -197,7 +195,13 @@ H2FlowGuide::populate(const FuncDataBase& Control)
 {
   ELog::RegMethod RegA("H2FlowGuide","populate");
 
+  const std::string flowName(baseName+endName);
+  baseThick=Control.EvalTail<double>(keyName,flowName,"BaseThick");
+  baseLen=Control.EvalTail<double>(keyName,flowName,"BaseLen");
+  baseArmSep=Control.EvalTail<double>(keyName,flowName,"BaseArmSep");
+  baseOffset=Control.EvalTail<Geometry::Vec3D>(keyName,flowName,"BaseOffset");
 
+<<<<<<< HEAD
   wallThick=Control.EvalPair<double>(keyName,baseName+endName,"WallThick");
   len1L=Control.EvalPair<double>(keyName,baseName+endName,"Len1L");
   len1R=Control.EvalPair<double>(keyName,baseName+endName,"Len1R");
@@ -335,6 +339,20 @@ H2FlowGuide::createStraightBladeSurf(const int SOffset,const double& dy,
     ModelSupport::buildShiftedPlane(SMap,SOffset+4,p3,lenL+lenR);
 }
 
+=======
+  armThick=Control.EvalTail<double>(keyName,flowName,"ArmThick");
+  armLen=Control.EvalTail<double>(keyName,flowName,"ArmLen");
+  armOffset=Control.EvalTail<Geometry::Vec3D>(keyName,flowName,"ArmOffset");
+
+  wallMat=ModelSupport::EvalMat<int>(Control,keyName+"WallMat",
+				     flowName+"WallMat");
+  wallTemp=Control.EvalTail<double>(keyName,flowName,"WallTemp");
+  
+  return;
+}
+  
+  
+>>>>>>> origin/master
 void
 H2FlowGuide::createSurfaces()
   /*!
@@ -442,7 +460,8 @@ H2FlowGuide::createObjects(Simulation& System,
 
 void
 H2FlowGuide::createAll(Simulation& System,
-		       const attachSystem::FixedComp& FC)
+		       const attachSystem::FixedComp& FC,
+		       const long int sideIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation item
@@ -452,7 +471,7 @@ H2FlowGuide::createAll(Simulation& System,
   ELog::RegMethod RegA("H2FlowGuide","createAll");
 
   populate(System.getDataBase());
-  createUnitVector(FC);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System,FC);
 

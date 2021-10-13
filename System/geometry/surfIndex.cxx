@@ -3,7 +3,7 @@
  
  * File:   geometry/surfIndex.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,37 +33,26 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Triple.h"
-#include "Quaternion.h"
 #include "support.h"
 #include "regexBuild.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
 #include "Surface.h"
 #include "Quadratic.h"
-#include "ArbPoly.h"
-#include "CylCan.h"
 #include "Cylinder.h"
 #include "Cone.h"
 #include "EllipticCyl.h"
 #include "General.h"
-#include "MBrect.h"
 #include "Plane.h"
 #include "Sphere.h"
-#include "Torus.h"
 #include "surfEqual.h"
 #include "surfaceFactory.h"
-#include "surfRegister.h"
 #include "surfIndex.h"
 
-#include "Debug.h"
 
 namespace ModelSupport
 {
@@ -420,6 +409,19 @@ surfIndex::getSurf(const int Index) const
   return (mc==SMap.end()) ? 0 : mc->second;
 }
 
+template<typename T>
+T*
+surfIndex::realSurf(const int Index) const
+  /*!
+    Get a surface based on the index
+    \param Index :: Index varaible
+    \return Surface Ptr as type T [0 on fail]
+   */
+{
+  STYPE::const_iterator mc=SMap.find(Index);
+  return (mc==SMap.end()) ? 0 : dynamic_cast<T*>(mc->second);
+}
+
 void 
 surfIndex::renumber(const int origNum,const int newNum)
   /*!
@@ -755,7 +757,7 @@ surfIndex::processSurfaces(const std::string& InputLine)
 {
   ELog::RegMethod RegItem("SurfData","processSurface");
 
-  std::string Line=StrFunc::fullBlock(InputLine);
+  std::string Line=StrFunc::removeOuterSpace(InputLine);
   StrFunc::stripComment(Line);
   if (Line.size()<1 ||               // comments blank line, ^c or ^c<spc> 
       (tolower(Line[0])=='c' && 
@@ -855,6 +857,10 @@ template Geometry::Plane*
 surfIndex::addTypeSurface(Geometry::Plane*);
 template Geometry::Cylinder*
 surfIndex::addTypeSurface(Geometry::Cylinder*);
+
+
+template Geometry::Plane*
+surfIndex::realSurf(const int) const;
 
 ///\endcond TEMPLATE
 

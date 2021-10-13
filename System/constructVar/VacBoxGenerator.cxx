@@ -3,7 +3,7 @@
  
  * File:   constructVar/VacBoxGenerator.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,17 +35,10 @@
 #include <numeric>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
@@ -58,12 +51,13 @@ namespace setVariable
 {
 
 VacBoxGenerator::VacBoxGenerator() :
-  wallThick(0.5),
+  wallThick(0.5),feHeight(0.5),feDepth(0.5),
+  feWidth(0.5),feFront(0.5),feBack(0.5),
   portAXStep(0.0),portAZStep(0.0),
   portAWallThick(0.5),portATubeLength(5.0),portATubeRadius(4.0),
-  portBXStep(0.0),portBZStep(0.0),
+  portBXStep(0.0),portBZStep(0.0),portBXAngle(0.0),portBZAngle(0.0),
   portBWallThick(0.5),portBTubeLength(5.0),portBTubeRadius(4.0),
-  flangeALen(1.0),flangeARadius(1.0),flangeBLen(1.0),flangeBRadius(1.0),
+  flangeALen(1.0),flangeARadius(6.0),flangeBLen(1.0),flangeBRadius(6.0),
   voidMat("Void"),wallMat("Stainless304")
   /*!
     Constructor and defaults
@@ -257,6 +251,19 @@ VacBoxGenerator::setBPortOffset(const double XS,const double ZS)
   portBZStep=ZS;
   return;
 }
+
+void
+VacBoxGenerator::setBPortAngle(const double XA,const double ZA)
+  /*!
+    Set the port offset relative to the origin line
+    \param XA :: X Angle [deg]
+    \param ZA :: Z Angle [deg]
+   */
+{
+  portBXAngle=XA;
+  portBZAngle=ZA;
+  return;
+}
   
 void
 VacBoxGenerator::setFlange(const double R,const double L)
@@ -298,15 +305,36 @@ VacBoxGenerator::setBFlange(const double R,const double L)
 }
 
 void
+VacBoxGenerator::setAllThick(const double WH,const double WD,
+			     const double WW,const double WF,
+			     const double WB)
+  /*!
+    Set all the wall thicknessesx
+    \param WH :: Wall height
+    \param WD :: Wall depth
+    \param WW :: Wall width
+    \param WF :: Wall front
+    \param WB :: Wall back
+   */
+{
+  feHeight=WH;
+  feDepth=WD;
+  feWidth=WW;
+  feFront=WF;
+  feBack=WB;
+  wallThick=-1.0;
+  
+  return;
+}
+
+void
 VacBoxGenerator::generateBox(FuncDataBase& Control,const std::string& keyName,
-			     const double yStep,const double width,const
-			     double height,const double depth,
-			     const double length) const
+			     const double width,const double height,
+			     const double depth,const double length) const
   /*!
     Primary funciton for setting the variables
     \param Control :: Database to add variables 
     \param keyName :: head name for variable
-    \param yStep :: y-offset 
     \param height :: height of box
     \param depth :: depth of box
     \param width :: width of box (full)
@@ -315,15 +343,22 @@ VacBoxGenerator::generateBox(FuncDataBase& Control,const std::string& keyName,
 {
   ELog::RegMethod RegA("VacBoxGenerator","generatorBox");
   
-  Control.addVariable(keyName+"YStep",yStep);   // step + flange
-
   Control.addVariable(keyName+"VoidHeight",height);
   Control.addVariable(keyName+"VoidDepth",depth);
   Control.addVariable(keyName+"VoidWidth",width);
   Control.addVariable(keyName+"VoidLength",length);
 
-  Control.addVariable(keyName+"WallThick",wallThick);
-	
+  if (wallThick > -Geometry::zeroTol)
+    Control.addVariable(keyName+"WallThick",wallThick);
+  else
+    {
+      Control.addVariable(keyName+"FeHeight",feHeight);
+      Control.addVariable(keyName+"FeDepth",feDepth);
+      Control.addVariable(keyName+"FeWidth",feWidth);
+      Control.addVariable(keyName+"FeFront",feFront);
+      Control.addVariable(keyName+"FeBack",feBack);
+    }
+  
   Control.addVariable(keyName+"PortAXStep",portAXStep);
   Control.addVariable(keyName+"PortAZStep",portAZStep);
   Control.addVariable(keyName+"PortAWallThick",portAWallThick);
@@ -332,6 +367,8 @@ VacBoxGenerator::generateBox(FuncDataBase& Control,const std::string& keyName,
 
   Control.addVariable(keyName+"PortBXStep",portBXStep);
   Control.addVariable(keyName+"PortBZStep",portBZStep);
+  Control.addVariable(keyName+"PortBXAngle",portBXAngle);
+  Control.addVariable(keyName+"PortBZAngle",portBZAngle);
   Control.addVariable(keyName+"PortBWallThick",portBWallThick);
   Control.addVariable(keyName+"PortBTubeRadius",portBTubeRadius);
   Control.addVariable(keyName+"PortBTubeLength",portBTubeLength);

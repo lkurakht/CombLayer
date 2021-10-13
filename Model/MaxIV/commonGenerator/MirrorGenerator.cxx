@@ -3,7 +3,7 @@
  
  * File:   commonBeam/MirrorGenerator.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,27 +37,21 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 
-#include "CFFlanges.h"
 #include "MirrorGenerator.h"
 
 namespace setVariable
 {
 
 MirrorGenerator::MirrorGenerator() :
+  xAngle(0.0),yAngle(0.0),zAngle(0.0),
   radius(0.0),length(80.0),thick(1.0),width(5.0),
   baseTop(0.1),baseDepth(2.0),baseGap(0.5),baseOutWidth(1.0),
   mirrMat("Silicon300K"),baseMat("Copper")
@@ -66,7 +60,8 @@ MirrorGenerator::MirrorGenerator() :
   */
 {}
 
-MirrorGenerator::MirrorGenerator(const MirrorGenerator& A) : 
+MirrorGenerator::MirrorGenerator(const MirrorGenerator& A) :
+  xAngle(A.xAngle),yAngle(A.yAngle),zAngle(A.zAngle),
   radius(A.radius),length(A.length),thick(A.thick),
   width(A.width),baseTop(A.baseTop),baseDepth(A.baseDepth),
   baseGap(A.baseGap),baseOutWidth(A.baseOutWidth),
@@ -87,6 +82,9 @@ MirrorGenerator::operator=(const MirrorGenerator& A)
 {
   if (this!=&A)
     {
+      xAngle=A.xAngle;
+      yAngle=A.yAngle;
+      zAngle=A.zAngle;
       radius=A.radius;
       length=A.length;
       thick=A.thick;
@@ -171,10 +169,29 @@ MirrorGenerator::setMaterial(const std::string& MMat,
   return;
 }
 
-				  
+void
+MirrorGenerator::setPrimaryAngle(const double XA,
+				 const double YA,
+				 const double ZA)
+  /*!
+    Set the primary rotation angles
+    \param XA :: X axis angle
+    \param YA :: Y axis angle
+    \param ZA :: Z axis angle
+   */
+{
+  xAngle=XA;
+  yAngle=YA;
+  zAngle=ZA;
+  return;
+}
+
+
+  
 void
 MirrorGenerator::generateMirror(FuncDataBase& Control,
 				const std::string& keyName,
+				const double xStep,
 				const double yStep,
 				const double zStep,
 				const double theta,
@@ -184,6 +201,7 @@ MirrorGenerator::generateMirror(FuncDataBase& Control,
     Primary funciton for setting the variables
     \param Control :: Database to add variables 
     \param keyName :: head name for variable
+    \param xStep :: Cross step
     \param yStep :: Step along beam centre
     \param zStep :: Vertical lift from beamCentre
     \param theta :: theta angle
@@ -193,8 +211,13 @@ MirrorGenerator::generateMirror(FuncDataBase& Control,
 {
   ELog::RegMethod RegA("MirrorGenerator","generatorMount");
   
+  Control.addVariable(keyName+"PreXAngle",xAngle);
+  Control.addVariable(keyName+"PreYAngle",yAngle);
+  Control.addVariable(keyName+"PreZAngle",zAngle);
+  Control.addVariable(keyName+"XStep",xStep);
   Control.addVariable(keyName+"YStep",yStep);
   Control.addVariable(keyName+"ZStep",zStep);
+
   Control.addVariable(keyName+"Theta",theta);
   Control.addVariable(keyName+"Phi",phi);
 

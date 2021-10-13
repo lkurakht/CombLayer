@@ -3,7 +3,7 @@
  
  * File:   constructVarInc/RingDoorGenerator.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ namespace setVariable
   \class RingDoorGenerator
   \version 1.0
   \author S. Ansell
-  \date May 2016
+  \date May 2018
   \brief RingDoorGenerator for variables
 */
 
@@ -41,22 +41,34 @@ class RingDoorGenerator
 
   double innerHeight;           ///< height of inner door
   double innerWidth;            ///< width of inner door
-  double innerThick;            ///< thikness of first door
+  double innerThick;            ///< thickness of first door
   
   double outerHeight;           ///< height of outer door 
   double outerWidth;            ///< width of outer door
 
-  double gapSpace;            ///< clearance gaps
-  double innerTopGap;         ///< clearance gap top linal
-  double outerTopGap;         ///< clearance gaps
+  double gapSpace;              ///< clearance gaps
+  double innerTopGap;           ///< clearance gap top linal
+  double outerTopGap;           ///< clearance gaps
 
+  double tubeRadius;            ///< Radius of top tubes
+  double tubeXStep;             ///< X of top tubes
+  double tubeZStep;             ///< Z of top tubes
 
-  std::string doorMat;         ///< base material
+  double underStepHeight;       ///< height of gap
+  double underStepWidth;        ///< Width of under gap
+  double underStepXSep;         ///< X separation of steps
+
+  
+  std::string underAMat;        ///< material for lift point (left)
+  std::string underBMat;        ///< material for lift point (right)
+  std::string tubeMat;          ///< base material
+  std::string doorMat;          ///< door material
     
 
  public:
 
   RingDoorGenerator();
+  explicit RingDoorGenerator(const bool);
   RingDoorGenerator(const RingDoorGenerator&);
   RingDoorGenerator& operator=(const RingDoorGenerator&);
   ~RingDoorGenerator();

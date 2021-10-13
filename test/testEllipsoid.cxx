@@ -31,15 +31,12 @@
 #include <algorithm>
 #include <tuple>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
 #include "MatrixBase.h"
 #include "Matrix.h"
 #include "Vec3D.h"
@@ -307,7 +304,7 @@ testEllipsoid::testSet()
 		     std::get<3>(tc),std::get<4>(tc),std::get<5>(tc));
       A.normalizeGEQ(9);
       
-      if ((G!=A) && (C.Quadratic::operator!=(A)))  //StrFunc::fullBlock(cx.str())!=std::get<5>(tc))
+      if ((G!=A) && (C.Quadratic::operator!=(A)))  //StrFunc::removeOuterSpace(cx.str())!=std::get<5>(tc))
 	{
 	  ELog::EM<<"Cylinder        == "<<C;
 	  ELog::EM<<"General         == "<<G;

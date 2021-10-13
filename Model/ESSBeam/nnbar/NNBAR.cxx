@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   nnBar/NNBAR.cxx
+ * File:   ESSBeam/nnBar/NNBAR.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell/Rodion Kolevatov
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,24 +35,13 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -64,25 +53,24 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "World.h"
 #include "AttachSupport.h"
 #include "beamlineSupport.h"
 #include "GuideItem.h"
 #include "HoleShape.h"
-#include "Jaws.h"
 #include "GuideLine.h"
-#include "DiskChopper.h"
-#include "VacuumBox.h"
 #include "VacuumPipe.h"
 #include "Bunker.h"
 #include "BunkerInsert.h"
@@ -105,9 +93,9 @@ namespace essSystem
 NNBAR::NNBAR(const std::string& keyName) :
   attachSystem::CopiedComp("nnbar",keyName),
   startPoint(0),stopPoint(0),
-  nnbarAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
-  //  BulkFlightTop(new essSystem::WedgeFlightLine("TopNNBARFlight")),
-  // BulkFlightLow(new essSystem::WedgeFlightLine("LowNNBARFlight")),
+
+  nnbarAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
+  
   FocusA(new beamlineSystem::GuideLine(newName+"FA")),
   VPipeB(new constructSystem::VacuumPipe(newName+"PipeB")),
   FocusB(new beamlineSystem::GuideLine(newName+"FB")),
@@ -132,11 +120,7 @@ NNBAR::NNBAR(const std::string& keyName) :
     ModelSupport::objectRegister::Instance();
 
   // This is necessary as not directly constructed:
-  // OR.cell(newName+"Axis");
   OR.addObject(nnbarAxis);
-
-  //  OR.addObject(BulkFlightLow);
-  //  OR.addObject(BulkFlightTop);
 
   OR.addObject(FocusA);
 
@@ -183,21 +167,21 @@ NNBAR::buildBunkerUnits(Simulation& System,
 {
   ELog::RegMethod RegA("NNBAR","buildBunkerUnits");
   
-  VPipeB->addInsertCell(bunkerVoid);
+  VPipeB->addAllInsertCell(bunkerVoid);
   VPipeB->createAll(System,FA,startIndex);
 
   FocusB->addInsertCell(VPipeB->getCells("Void"));
   FocusB->createAll(System,*VPipeB,0,*VPipeB,0);
 
   // pipe from gamma shield to 10m
-  VPipeC->addInsertCell(bunkerVoid);
+  VPipeC->addAllInsertCell(bunkerVoid);
   VPipeC->createAll(System,FocusB->getKey("Guide0"),2);
 
   FocusC->addInsertCell(VPipeC->getCells("Void"));
   FocusC->createAll(System,*VPipeC,0,*VPipeC,0);
 
   // pipe to 30m
-  VPipeD->addInsertCell(bunkerVoid);
+  VPipeD->addAllInsertCell(bunkerVoid);
   VPipeD->createAll(System,FocusC->getKey("Guide0"),2);
 
   FocusD->addInsertCell(VPipeD->getCells("Void"));
@@ -225,10 +209,10 @@ NNBAR::buildOutGuide(Simulation& System,
   ShieldA->addInsertCell(voidCell);
   ShieldA->createAll(System,FW,startIndex);
 
-  VPipeD->addInsertCell(ShieldA->getCell("Void"));
+  VPipeD->addAllInsertCell(ShieldA->getCell("Void"));
   VPipeD->insertObjects(System);   
 
-  VPipeOutA->addInsertCell(ShieldA->getCell("Void"));
+  VPipeOutA->addAllInsertCell(ShieldA->getCell("Void"));
   VPipeOutA->createAll(System,FW,startIndex);
 
   FocusOutA->addInsertCell(VPipeOutA->getCells("Void"));
@@ -355,11 +339,12 @@ NNBAR::build(Simulation& System,
 
   // IN WALL
   // Make bunker insert
-  BInsert->createAll(System,FocusC->getKey("Guide0"),2,bunkerObj);
+  BInsert->setBunkerObject(bunkerObj);
+  BInsert->createAll(System,FocusC->getKey("Guide0"),2);
   attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsert);  
 
 
-  VPipeD->addInsertCell(BInsert->getCell("Void"));
+  VPipeD->addAllInsertCell(BInsert->getCell("Void"));
   VPipeD->insertObjects(System);   
 
   ShieldA->setFront(bunkerObj,2);

@@ -3,7 +3,7 @@
  
  * File:   constructInc/VacuumBox.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ class VacuumBox :
 {
  private:
 
-  const bool centreOrigin;      ///< Construct on the centre line
+  const bool centreOrigin;      ///< Construct on the first port 
 
   double voidHeight;            ///< void height [top only]
   double voidWidth;             ///< void width [total]
@@ -64,6 +64,8 @@ class VacuumBox :
 
   double portBXStep;          ///< XStep of port
   double portBZStep;          ///< ZStep of port
+  double portBXAngle;          ///< XAngle of port
+  double portBZAngle;          ///< ZAngle of port
   double portBWallThick;      ///< Flange wall thickness
   double portBTubeLength;     ///< Port tube
   double portBTubeRadius;     ///< Port tube length
@@ -89,6 +91,7 @@ class VacuumBox :
   VacuumBox& operator=(const VacuumBox&);
   virtual ~VacuumBox();
 
+  using FixedComp::createAll;
   void createAll(Simulation&,const attachSystem::FixedComp&,
 		 const long int);
 

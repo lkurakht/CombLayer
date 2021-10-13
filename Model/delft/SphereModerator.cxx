@@ -3,7 +3,7 @@
  
  * File:   delft/SphereModerator.cxx
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,35 +33,19 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDivide.h"
-#include "surfDIter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -71,8 +55,11 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
 #include "FixedOffset.h"
 #include "ContainedComp.h"
+#include "BaseMap.h"
+#include "CellMap.h"
 #include "pipeUnit.h"
 #include "PipeLine.h"
 #include "virtualMod.h"
@@ -176,25 +163,7 @@ SphereModerator::populate(const FuncDataBase& Control)
 
   return;
 }
-  
-
-void
-SphereModerator::createUnitVector(const attachSystem::FixedComp& CUnit,
-				  const long int sideIndex)
-  /*!
-    Create the unit vectors
-    \param CUnit :: Fixed unit that it is connected to 
-    \param sideIndex :: Link point
-  */
-{
-  ELog::RegMethod RegA("SphereModerator","createUnitVector");
-
-  FixedComp::createUnitVector(CUnit,sideIndex);
-  applyOffset();
-
-  return;
-}
-  
+    
 void
 SphereModerator::createSurfaces()
   /*!
@@ -357,14 +326,14 @@ SphereModerator::postCreateWork(Simulation& System)
   InnerA.addPoint(APt+Y*pipeLen);
   InnerA.addRadius(pipeRadius,modMat,modTemp);
   InnerA.addRadius(pipeAlRadius,alMat,modTemp); 
-  InnerA.createAll(System);
+  InnerA.build(System);
 
   // Outer Points
   InnerB.addPoint(BPt);
   InnerB.addPoint(BPt+Y*pipeLen);
   InnerB.addRadius(pipeRadius,modMat,modTemp);
   InnerB.addRadius(pipeAlRadius,alMat,modTemp); 
-  InnerB.createAll(System);
+  InnerB.build(System);
 
   return;
 }

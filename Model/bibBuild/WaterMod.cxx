@@ -33,28 +33,19 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "HeadRule.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -62,11 +53,10 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
-#include "stringCombine.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "ExternalCut.h"
 #include "ContainedComp.h"
 
 #include "WaterMod.h"
@@ -76,7 +66,9 @@ namespace bibSystem
 {
 
 WaterMod::WaterMod(const std::string& Key) :
-  attachSystem::ContainedComp(),attachSystem::FixedOffset(Key,6)
+  attachSystem::ContainedComp(),
+  attachSystem::FixedOffset(Key,6),
+  attachSystem::ExternalCut()
   /*!
     Constructor
     \param Key :: Name of construction key
@@ -84,7 +76,9 @@ WaterMod::WaterMod(const std::string& Key) :
 {}
 
 WaterMod::WaterMod(const WaterMod& A) : 
-  attachSystem::ContainedComp(A),attachSystem::FixedOffset(A),
+  attachSystem::ContainedComp(A),
+  attachSystem::FixedOffset(A),
+  attachSystem::ExternalCut(A),
   width(A.width),height(A.height),
   depth(A.depth),wallThick(A.wallThick),waterMat(A.waterMat),
   wallMat(A.wallMat)
@@ -106,6 +100,7 @@ WaterMod::operator=(const WaterMod& A)
     {
       attachSystem::ContainedComp::operator=(A);
       attachSystem::FixedOffset::operator=(A);
+      attachSystem::ExternalCut::operator=(A);
       width=A.width;
       height=A.height;
       depth=A.depth;
@@ -152,23 +147,6 @@ WaterMod::populate(const FuncDataBase& Control)
   return;
 }
 
-
-void
-WaterMod::createUnitVector(const attachSystem::FixedComp& FC,
-			   const long int sideIndex)
-  /*!
-    Create the unit vectors
-    \param FC :: Fixed Component
-    \param sideIndex :: link point
-  */
-{
-  ELog::RegMethod RegA("WaterMod","createUnitVector");
-  attachSystem::FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
-  
-  return;
-}
-
 void
 WaterMod::createSurfaces()
   /*!
@@ -208,8 +186,7 @@ WaterMod::createSurfaces()
 }
 
 void
-WaterMod::createObjects(Simulation& System,
-			const attachSystem::ContainedComp& CC)
+WaterMod::createObjects(Simulation& System)
   /*!
     Create the simple moderator
     \param System :: Simulation to add results
@@ -219,6 +196,10 @@ WaterMod::createObjects(Simulation& System,
   
   std::string Out;
 
+  // if this exists
+  const std::string preStr=
+    ExternalCut::getRuleStr("External");
+  
   // Water
   Out=ModelSupport::getComposite(SMap,buildIndex,"1 -2 3 -4 5 -6");	
   System.addCell(MonteCarlo::Object(cellIndex++,waterMat,waterTemp,Out));
@@ -231,7 +212,8 @@ WaterMod::createObjects(Simulation& System,
   // Wall of water moderator
   Out=ModelSupport::getComposite(SMap,buildIndex,
 	     	 "21 -22 23 -24 25 -26 (-11:12:-13:14:-15:16)");
-  Out+=CC.getExclude();
+
+  Out+=preStr;
   System.addCell(MonteCarlo::Object(cellIndex++,0,0.0,Out));
 
   Out=ModelSupport::getComposite(SMap,buildIndex,"21 -22 23 -24 25 -26" );
@@ -272,8 +254,7 @@ WaterMod::createLinks()
 void
 WaterMod::createAll(Simulation& System,
 		    const attachSystem::FixedComp& FC,
-		    const long int sideIndex,
-		    const attachSystem::ContainedComp& CC)
+		    const long int sideIndex)
   /*!
     Extrenal build everything
     \param System :: Simulation
@@ -287,7 +268,7 @@ WaterMod::createAll(Simulation& System,
 
   createUnitVector(FC,sideIndex);
   createSurfaces();
-  createObjects(System,CC);
+  createObjects(System);
 
   createLinks();
   insertObjects(System);       

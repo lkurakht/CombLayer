@@ -230,9 +230,9 @@ D03SteelSpacing::populate(const FuncDataBase& Control)
   voidHeight=Control.EvalDefVar<double>(keyName+"VoidHeight",36.5);
   voidDepth=Control.EvalDefVar<double>(keyName+"VoidDepth",8.5);
   
-  defMat=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMat",60);
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",60);
-  spacingMat=ModelSupport::EvalDefMat<int>(Control,keyName+"SpacingMat",60);
+  defMat=ModelSupport::EvalDefMat(Control,keyName+"DefMat",60);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",60);
+  spacingMat=ModelSupport::EvalDefMat(Control,keyName+"SpacingMat",60);
   //  int B4CMat;
 
   nSeg=Control.EvalDefVar<size_t>(keyName+"NSeg",1);
@@ -255,7 +255,7 @@ D03SteelSpacing::populate(const FuncDataBase& Control)
   OuterB4CThick=
         Control.EvalPair<double>(keyName+"OuterB4CLayerThick","DefaultTileThick");
   */
-  B4CMat=ModelSupport::EvalDefMat<int>(Control,keyName+"B4CTileMat",0);
+  B4CMat=ModelSupport::EvalDefMat(Control,keyName+"B4CTileMat",0);
 
   iSplitVoid=Control.EvalDefVar<int>(keyName+"SplitVoid",0);
   

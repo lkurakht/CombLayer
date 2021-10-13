@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   balderInc/MonoCrystals.h
+ * File:   commonBeamInc/MonoCrystals.h
 *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,8 +57,15 @@ class MonoCrystals :
   double thickB;            ///< Radius of detector
   double lengthB;           ///< Outer wall thickness
 
-  double baseThick;        ///< Base thickness
-  double baseExtra;        ///< Extra width/lenght of base
+  double baseAGap;          ///< Base thickness
+  double baseALength;       ///< Base length
+  double baseAThick;        ///< Base thickness
+  double baseAExtra;        ///< Extra width/lenght of base
+
+  double baseBGap;          ///< Base thickness
+  double baseBLength;       ///< Base length
+  double baseBThick;        ///< Base thickness
+  double baseBExtra;        ///< Extra width/lenght of base
 
   int xtalMat;             ///< XStal material
   int baseMat;             ///< Base material

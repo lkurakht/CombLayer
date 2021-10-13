@@ -3,7 +3,7 @@
  
  * File:   attachCompInc/AttachSupport.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ namespace attachSystem
 class FixedComp;
 class CellMap;
 class ContainedComp;
+ class ContainedGroup;
 
 long int getLinkNumber(const std::string&);
  
@@ -84,8 +85,12 @@ void addToInsertOuterSurfCtrl(Simulation&,
 // Brutal forced option!!
 void addToInsertForced(Simulation&,const FixedComp&,
 			ContainedComp&);
+void addToInsertForced(Simulation&,const FixedComp&,
+			ContainedGroup&);
 void addToInsertForced(Simulation&,const std::vector<int>&,
 		       ContainedComp&);
+void addToInsertForced(Simulation&,const std::vector<int>&,
+		       ContainedGroup&);
 
 // External check system
 bool checkIntersect(const ContainedComp&,const MonteCarlo::Object&,

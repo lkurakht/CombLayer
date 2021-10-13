@@ -3,7 +3,7 @@
  
  * File:   physics/ExtConstructor.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,47 +38,24 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "MapRange.h"
 #include "Triple.h"
 #include "support.h"
 #include "stringCombine.h"
-#include "NList.h"
-#include "NRange.h"
-#include "Tally.h"
-#include "TallyCreate.h"
-#include "Transform.h"
-#include "Quaternion.h"
-#include "localRotate.h"
-#include "masterRotate.h"
-#include "Surface.h"
-#include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Line.h"
-#include "Rules.h"
-#include "HeadRule.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "MainProcess.h"
-#include "LinkUnit.h"
-#include "FixedComp.h"
 #include "LinkSupport.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
+#include "SimMCNP.h"
 #include "inputParam.h"
 #include "ModeCard.h"
 
-#include "PhysImp.h"
 #include "PhysCard.h"
 #include "LSwitchCard.h"
 #include "NList.h"
@@ -125,7 +102,7 @@ ExtConstructor::procType(const objectGroups& OGrp,
   Geometry::Vec3D Pt;
   double scalar;
 
-  if (NS>=1 && (StrItem[0]=="simple"))
+  if (StrItem[0]=="simple")
     {
       for(const MapSupport::Range<int>& RUnit : ZUnits.Zones)
 	EX.addUnit(RUnit,minus+"S");
@@ -166,8 +143,7 @@ ExtConstructor::procType(const objectGroups& OGrp,
 
 
 void
-ExtConstructor::processUnit(const objectGroups& OGrp,
-			    PhysicsCards& PC,
+ExtConstructor::processUnit(SimMCNP& System,
 			    const mainSystem::inputParam& IParam,
 			    const size_t Index) 
 /*!
@@ -179,6 +155,8 @@ ExtConstructor::processUnit(const objectGroups& OGrp,
 {
   ELog::RegMethod RegA("ExtConstructor","processPoint");
 
+
+  
   const size_t NParam=IParam.itemCnt("wExt",Index);
   if (NParam<1)
     throw ColErr::IndexError<size_t>(NParam,2,"Insufficient items wExt");
@@ -196,14 +174,16 @@ ExtConstructor::processUnit(const objectGroups& OGrp,
       return;
     }
   
-  if (!ZUnits.procZone(OGrp,StrItem))
+  if (!ZUnits.procZone(System,StrItem))
     throw ColErr::InvalidLine
       ("procZone ==> StrItems","-wExt "+IParam.getFull("wExt",Index),0);	
 
   ZUnits.sortZone();
+
+  physicsSystem::PhysicsCards& PC=System.getPC();
   ExtControl& EC=PC.getExtCard();
     
-  if (!procType(OGrp,StrItem,EC))
+  if (!procType(System,StrItem,EC))
     throw ColErr::InvalidLine
       ("procType ==> StrItems","-wExt "+IParam.getFull("wExt",Index),0);	
 

@@ -3,7 +3,7 @@
  
  * File:   monte/objectSupport.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,22 +38,15 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "support.h"
-#include "stringCombine.h"
-#include "objectRegister.h"
-#include "Rules.h"
 #include "HeadRule.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "LinkSupport.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -61,8 +54,8 @@
 #include "MXcards.h"
 #include "Material.h"
 #include "DBMaterial.h"
+#include "Importance.h"
 #include "Object.h"
-#include "inputParam.h"
 #include "objectSupport.h" 
 
 
@@ -137,7 +130,7 @@ cellSelection(const Simulation& System,
       const MonteCarlo::Object* OPtr=System.findObject(CN);
       if (OPtr)
 	{
-	  const int matN=OPtr->getMat();
+	  const int matN=OPtr->getMatID();
 	  const MonteCarlo::Material& cellMat=DB.getMaterial(matN);
 	  switch (matFlag)
 	    {
@@ -160,8 +153,7 @@ cellSelection(const Simulation& System,
 
 std::vector<int>
 getCellSelection(const Simulation& System,
-		 const int matN,
-		 const std::string& keyName) 
+		 const int matN,const std::string& keyName) 
   /*!
     Extract all the cells with a material based on matN and keyName
     \param System :: Simulation for build [needed for nonVoidcells ] 
@@ -196,7 +188,7 @@ getCellSelection(const Simulation& System,
 
   if (!cells.size())
     throw ColErr::InContainerError<std::string>
-      (keyName,"cell emepty for mat:"+StrFunc::makeString(matN));
+      (keyName,"cell emepty for mat:"+std::to_string(matN));
 
   std::set_intersection(cells.begin(),cells.end(),
                         matCell.begin(),matCell.end(),

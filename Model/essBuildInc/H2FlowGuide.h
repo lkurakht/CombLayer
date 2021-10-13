@@ -3,7 +3,11 @@
 
  * File:   essBuildInc/H2FlowGuide.h
  *
+<<<<<<< HEAD
  * Copyright (c) 2004-2017 by Konstantin Batkov
+=======
+ * Copyright (c) 2004-2019 by Stuart Ansell
+>>>>>>> origin/master
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -80,8 +84,6 @@ class H2FlowGuide :
 			       const double&,const double&);
 
   void populate(const FuncDataBase&);
-  void createUnitVector(const attachSystem::FixedComp&);
-
   void createSurfaces();
   void createObjects(Simulation&,const attachSystem::FixedComp&);
 
@@ -93,7 +95,8 @@ class H2FlowGuide :
   virtual H2FlowGuide* clone() const;
   virtual ~H2FlowGuide();
 
-  void createAll(Simulation&,const attachSystem::FixedComp&);
+  void createAll(Simulation&,const attachSystem::FixedComp&,
+		 const long int);
 };
 
 }

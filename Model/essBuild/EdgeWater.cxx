@@ -3,7 +3,7 @@
  
  * File:   essBuild/EdgeWater.cxx 
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,55 +35,32 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDivide.h"
-#include "surfDIter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "RuleSupport.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "Vert2D.h"
-#include "Convex2D.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
 #include "ContainedComp.h"
 #include "LayerComp.h"
+#include "ExternalCut.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "AttachSupport.h"
-#include "geomSupport.h"
-#include "ModBase.h"
-#include "H2Wing.h"
 #include "EdgeWater.h"
 
 namespace essSystem
@@ -93,7 +70,8 @@ EdgeWater::EdgeWater(const std::string& key) :
   attachSystem::ContainedComp(),
   attachSystem::LayerComp(0,0),
   attachSystem::FixedComp(key,6),
-  attachSystem::CellMap()
+  attachSystem::CellMap(),
+  attachSystem::ExternalCut()
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param key :: Name for item in search
@@ -103,6 +81,7 @@ EdgeWater::EdgeWater(const std::string& key) :
 EdgeWater::EdgeWater(const EdgeWater& A) : 
   attachSystem::ContainedComp(A),attachSystem::LayerComp(A),
   attachSystem::FixedComp(A),attachSystem::CellMap(A),
+  attachSystem::ExternalCut(A),
   width(A.width),wallThick(A.wallThick),modMat(A.modMat),
   wallMat(A.wallMat),modTemp(A.modTemp)
   /*!
@@ -125,6 +104,7 @@ EdgeWater::operator=(const EdgeWater& A)
       attachSystem::LayerComp::operator=(A);
       attachSystem::FixedComp::operator=(A);
       attachSystem::CellMap::operator=(A);
+      attachSystem::ExternalCut::operator=(A);
       cellIndex=A.cellIndex;
       width=A.width;
       wallThick=A.wallThick;
@@ -174,25 +154,6 @@ EdgeWater::populate(const FuncDataBase& Control)
 }
   
 void
-EdgeWater::createUnitVector(const attachSystem::FixedComp& FC,
-			    const long int sideIndex)
-  /*!
-    Create the unit vectors
-    - Y Points down the EdgeWater direction
-    - X Across the EdgeWater
-    - Z up (towards the target)
-    \param FC :: fixed Comp [and link comp]
-    \param sideIndex :: Link direction
-  */
-{
-  ELog::RegMethod RegA("EdgeWater","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  return;
-}
-
-
-void
 EdgeWater::createSurfaces()
   /*!
     Create All the surfaces
@@ -228,8 +189,7 @@ EdgeWater::createSurfaces()
  
 void
 EdgeWater::createObjects(Simulation& System,
-			 const std::string& divider,
-			 const std::string& container)
+			 const std::string& divider)
   /*!
     Adds the main components
     \param System :: Simulation to create objects in
@@ -240,6 +200,7 @@ EdgeWater::createObjects(Simulation& System,
   ELog::RegMethod RegA("EdgeWater","createObjects");
 
   std::string Out;
+  const std::string container=ExternalCut::getRuleStr("Container");
   
   Out=ModelSupport::getComposite(SMap,buildIndex," 1 -2 103 -104");
   System.addCell(MonteCarlo::Object(cellIndex++,modMat,
@@ -347,14 +308,12 @@ EdgeWater::getLayerString(const size_t,
 void
 EdgeWater::createAll(Simulation& System,
 		     const attachSystem::FixedComp& FC,
-		     const long int sideIndex,
-		     const std::string& container)
+		     const long int sideIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation item
     \param FC :: Fixed object just for origin/axis
     \param sideIndex :: link point to create on
-    \param container :: bounding edge -- replace with headrule.
   */
 {
   ELog::RegMethod RegA("EdgeWater","createAll");
@@ -363,7 +322,7 @@ EdgeWater::createAll(Simulation& System,
   createUnitVector(FC,sideIndex);
   createSurfaces();
   const std::string divider=FC.getLinkString(sideIndex);
-  createObjects(System,divider,container);
+  createObjects(System,divider);
 
   createLinks();
   insertObjects(System);       

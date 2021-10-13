@@ -3,7 +3,7 @@
  
  * File:   essBuild/makeSingleLine.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,74 +35,38 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "support.h"
-#include "stringCombine.h"
 #include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Rules.h"
-#include "Code.h"
-#include "varList.h"
-#include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "groupRange.h"
-#include "objectGroups.h"
-#include "Simulation.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "CopiedComp.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
-#include "ContainedGroup.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
 #include "FixedOffset.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
-#include "FixedOffsetGroup.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
-#include "ShapeUnit.h"
 #include "Bunker.h"
 #include "GuideLine.h"
-#include "GuideItem.h"
-#include "essVariables.h"
-#include "AttachSupport.h"
 
 #include "BEER.h"
 #include "BIFROST.h"
-#include "CSPEC.h"
-#include "DREAM.h"
-#include "ESTIA.h"
 #include "FREIA.h"
 #include "HEIMDAL.h"
 #include "LOKI.h"
 #include "MAGIC.h"
 #include "MIRACLES.h"
-#include "NMX.h"
-#include "ODIN.h"
 #include "TESTBEAM.h"
-#include "TREX.h"
 #include "VESPA.h"
-#include "VOR.h"
-
-
-#include "shortDREAM.h"
-#include "shortNMX.h"
-#include "shortODIN.h"
-#include "simpleITEM.h"
 
 #include "makeSingleLine.h"
 

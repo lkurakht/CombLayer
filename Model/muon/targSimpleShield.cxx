@@ -34,34 +34,20 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
-#include "SimProcess.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -71,13 +57,15 @@
 #include "ContainedComp.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedRotate.h"
 #include "targSimpleShield.h"
 
 namespace muSystem
 {
 
 targSimpleShield::targSimpleShield(const std::string& Key)  : 
-  attachSystem::FixedComp(Key,6),attachSystem::ContainedComp()
+  attachSystem::FixedRotate(Key,6),
+  attachSystem::ContainedComp()
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Key to use
@@ -85,9 +73,7 @@ targSimpleShield::targSimpleShield(const std::string& Key)  :
 {}
 
 targSimpleShield::targSimpleShield(const targSimpleShield& A) : 
-  attachSystem::FixedComp(A),attachSystem::ContainedComp(A),
-  xStep(A.xStep),yStep(A.yStep),zStep(A.zStep),
-  xAngle(A.xAngle),yAngle(A.yAngle),zAngle(A.zAngle),
+  attachSystem::FixedRotate(A),attachSystem::ContainedComp(A),
   height(A.height),depth(A.depth),width(A.width),
   backThick(A.backThick),forwThick(A.forwThick),
   leftThick(A.leftThick),rightThick(A.rightThick),
@@ -108,14 +94,8 @@ targSimpleShield::operator=(const targSimpleShield& A)
 {
   if (this!=&A)
     {
-      attachSystem::FixedComp::operator=(A);
+      attachSystem::FixedRotate::operator=(A);
       attachSystem::ContainedComp::operator=(A);
-      xStep=A.xStep;
-      yStep=A.yStep;
-      zStep=A.zStep;
-      xAngle=A.xAngle;
-      yAngle=A.yAngle;
-      zAngle=A.zAngle;
       height=A.height;
       depth=A.depth;
       width=A.width;
@@ -145,12 +125,7 @@ targSimpleShield::populate(const FuncDataBase& Control)
 {
   ELog::RegMethod RegA("targSimpleShield","populate");
 
-  xStep=Control.EvalVar<double>(keyName+"XStep");
-  yStep=Control.EvalVar<double>(keyName+"YStep");
-  zStep=Control.EvalVar<double>(keyName+"ZStep");
-  xAngle=Control.EvalVar<double>(keyName+"Xangle");
-  yAngle=Control.EvalVar<double>(keyName+"Yangle");  
-  zAngle=Control.EvalVar<double>(keyName+"Zangle");
+  FixedRotate::populate(Control);
 
   height=Control.EvalVar<double>(keyName+"Height");
   depth=Control.EvalVar<double>(keyName+"Depth");
@@ -165,23 +140,6 @@ targSimpleShield::populate(const FuncDataBase& Control)
        
   mat=ModelSupport::EvalMat<int>(Control,keyName+"Mat");    
        
-  return;
-}
-
-void
-targSimpleShield::createUnitVector(const attachSystem::FixedComp& FC)
-  /*!
-    Create the unit vectors
-    \param FC :: Origin 
-  */
-{
-  ELog::RegMethod RegA("targSimpleShield","createUnitVector");
-
-  attachSystem::FixedComp::createUnitVector(FC);
-  applyShift(xStep,yStep,zStep);
-  applyAngleRotate(0,0,zAngle);  
-  applyAngleRotate(0,yAngle,0);
-  
   return;
 }
 
@@ -274,7 +232,8 @@ targSimpleShield::createLinks()
 
 void
 targSimpleShield::createAll(Simulation& System,
-			    const attachSystem::FixedComp& FC)
+			    const attachSystem::FixedComp& FC,
+			    const long int sideIndex)
 
   /*!
     Global creation of the hutch
@@ -284,7 +243,7 @@ targSimpleShield::createAll(Simulation& System,
 {
   ELog::RegMethod RegA("targSimpleShield","createAll");
   populate(System.getDataBase());
-  createUnitVector(FC);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System);
   createLinks();

@@ -1,9 +1,9 @@
-/********************************************************************* 
+/*********************************************************************
   CombLayer : MCNP(X) Input builder
- 
+
  * File:   construct/SplitFlangePipe.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  ****************************************************************************/
 #include <fstream>
@@ -34,47 +34,31 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "LinkUnit.h"  
+#include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
+#include "FixedRotate.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "SurfMap.h"
 
@@ -84,8 +68,8 @@ namespace constructSystem
 {
 
 SplitFlangePipe::SplitFlangePipe(const std::string& Key,
-				 const bool IF) : 
-  attachSystem::FixedOffset(Key,12),
+				 const bool IF) :
+  attachSystem::FixedRotate(Key,10),
   attachSystem::ContainedComp(),attachSystem::CellMap(),
   attachSystem::SurfMap(),attachSystem::FrontBackCut(),
   innerLayer(IF),frontJoin(0),backJoin(0)
@@ -97,12 +81,12 @@ SplitFlangePipe::SplitFlangePipe(const std::string& Key,
   FixedComp::nameSideIndex(0,"front");
   FixedComp::nameSideIndex(1,"back");
   FixedComp::nameSideIndex(2,"innerPipe");
-  FixedComp::nameSideIndex(7,"outerPipe");
-  FixedComp::nameSideIndex(9,"pipeWall");  
+  FixedComp::nameSideIndex(6,"outerPipe");
+  FixedComp::nameSideIndex(8,"pipeWall");
 }
 
-SplitFlangePipe::SplitFlangePipe(const SplitFlangePipe& A) : 
-  attachSystem::FixedOffset(A),attachSystem::ContainedComp(A),
+SplitFlangePipe::SplitFlangePipe(const SplitFlangePipe& A) :
+  attachSystem::FixedRotate(A),attachSystem::ContainedComp(A),
   attachSystem::CellMap(A),attachSystem::SurfMap(A),
   attachSystem::FrontBackCut(A),
   innerLayer(A.innerLayer),frontJoin(A.frontJoin),
@@ -129,7 +113,7 @@ SplitFlangePipe::operator=(const SplitFlangePipe& A)
 {
   if (this!=&A)
     {
-      attachSystem::FixedOffset::operator=(A);
+      attachSystem::FixedRotate::operator=(A);
       attachSystem::ContainedComp::operator=(A);
       attachSystem::CellMap::operator=(A);
       attachSystem::SurfMap::operator=(A);
@@ -156,7 +140,7 @@ SplitFlangePipe::operator=(const SplitFlangePipe& A)
   return *this;
 }
 
-SplitFlangePipe::~SplitFlangePipe() 
+SplitFlangePipe::~SplitFlangePipe()
   /*!
     Destructor
   */
@@ -170,11 +154,11 @@ SplitFlangePipe::populate(const FuncDataBase& Control)
   */
 {
   ELog::RegMethod RegA("SplitFlangePipe","populate");
-  
-  FixedOffset::populate(Control);
+
+  FixedRotate::populate(Control);
 
   // Void + Fe special:
-  radius=Control.EvalVar<double>(keyName+"Radius");  
+  radius=Control.EvalVar<double>(keyName+"Radius");
   length=Control.EvalVar<double>(keyName+"Length");
 
   feThick=Control.EvalVar<double>(keyName+"FeThick");
@@ -200,14 +184,14 @@ SplitFlangePipe::populate(const FuncDataBase& Control)
   flangeBLength=Control.EvalPair<double>(keyName+"FlangeBackLength",
 					 keyName+"FlangeLength");
 
-  
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   feMat=ModelSupport::EvalMat<int>(Control,keyName+"FeMat");
   if (!innerLayer)
-    bellowMat=ModelSupport::EvalDefMat<int>(Control,keyName+"BellowMat",feMat);
+    bellowMat=ModelSupport::EvalDefMat(Control,keyName+"BellowMat",feMat);
   else
-    bellowMat=ModelSupport::EvalDefMat<int>(Control,keyName+"CladMat",feMat);
-  
+    bellowMat=ModelSupport::EvalDefMat(Control,keyName+"CladMat",feMat);
+
   return;
 }
 
@@ -226,7 +210,6 @@ SplitFlangePipe::createUnitVector(const attachSystem::FixedComp& FC,
   applyOffset();
   // after rotation
   applyActiveFrontBack();
-
   return;
 }
 
@@ -264,7 +247,7 @@ SplitFlangePipe::applyActiveFrontBack()
     }
   return;
 }
-  
+
 
 void
 SplitFlangePipe::createSurfaces()
@@ -273,26 +256,25 @@ SplitFlangePipe::createSurfaces()
   */
 {
   ELog::RegMethod RegA("SplitFlangePipe","createSurfaces");
-  
+
   // Inner void
   if (!frontActive())
     {
-      ModelSupport::buildPlane(SMap,buildIndex+1,Origin-Y*(length/2.0),Y);    
+      ModelSupport::buildPlane(SMap,buildIndex+1,Origin-Y*(length/2.0),Y);
       FrontBackCut::setFront(SMap.realSurf(buildIndex+1));
     }
-  getShiftedFront(SMap,buildIndex+11,1,Y,flangeALength);
-  getShiftedFront(SMap,buildIndex+21,1,Y,flangeALength+bellowStep);
-  
+  getShiftedFront(SMap,buildIndex+11,Y,flangeALength);
+  getShiftedFront(SMap,buildIndex+21,Y,(flangeALength+bellowStep));
   if (!backActive())
     {
       ModelSupport::buildPlane(SMap,buildIndex+2,Origin+Y*(length/2.0),Y);
       FrontBackCut::setBack(-SMap.realSurf(buildIndex+2));
     }
 
-  FrontBackCut::getShiftedBack(SMap,buildIndex+12,-1,Y,flangeBLength);
-  FrontBackCut::getShiftedBack(SMap,buildIndex+22,-1,Y,
-			       flangeBLength+bellowStep);
-  
+  FrontBackCut::getShiftedBack(SMap,buildIndex+12,Y,-flangeBLength);
+  FrontBackCut::getShiftedBack(SMap,buildIndex+22,Y,
+			       -(flangeBLength+bellowStep));
+
   ModelSupport::buildCylinder(SMap,buildIndex+7,Origin,Y,radius);
   ModelSupport::buildCylinder(SMap,buildIndex+17,Origin,Y,radius+feThick);
   ModelSupport::buildCylinder(SMap,buildIndex+27,Origin,Y,radius+feThick+bellowThick);
@@ -300,7 +282,7 @@ SplitFlangePipe::createSurfaces()
   // FLANGE SURFACES FRONT/BACK:
   ModelSupport::buildCylinder(SMap,buildIndex+107,Origin,Y,flangeARadius);
   ModelSupport::buildCylinder(SMap,buildIndex+207,Origin,Y,flangeBRadius);
-  
+
   return;
 }
 
@@ -314,19 +296,19 @@ SplitFlangePipe::createObjects(Simulation& System)
   ELog::RegMethod RegA("SplitFlangePipe","createObjects");
 
   std::string Out;
-  
+
   const std::string frontStr=frontRule();
   const std::string backStr=backRule();
-  
+
   // Void
   Out=ModelSupport::getComposite(SMap,buildIndex," -7 ");
   makeCell("Void",System,cellIndex++,voidMat,0.0,Out+frontStr+backStr);
 
-  // FLANGE Front: 
+  // FLANGE Front:
   Out=ModelSupport::getComposite(SMap,buildIndex," -11 -107 7 ");
   makeCell("FrontFlange",System,cellIndex++,feMat,0.0,Out+frontStr);
 
-  // FLANGE Back: 
+  // FLANGE Back:
   Out=ModelSupport::getComposite(SMap,buildIndex," 12 -207 7 ");
   makeCell("BackFlange",System,cellIndex++,feMat,0.0,Out+backStr);
 
@@ -345,14 +327,14 @@ SplitFlangePipe::createObjects(Simulation& System)
 	{
 	  Out=ModelSupport::getComposite(SMap,buildIndex," 11 -21 -17 7 ");
 	  makeCell("FrontClip",System,cellIndex++,feMat,0.0,Out);
-	  
+
 	  Out=ModelSupport::getComposite(SMap,buildIndex," -12 22 -17 7 ");
 	  makeCell("BackClip",System,cellIndex++,feMat,0.0,Out);
-	  
+
 	  Out=ModelSupport::getComposite(SMap,buildIndex," 21 -22 -27 7");
 	  makeCell("Bellow",System,cellIndex++,bellowMat,0.0,Out);
 	}
- 
+
       Out=ModelSupport::getComposite(SMap,buildIndex," 11 -21 -27 17");
       makeCell("FrontSpaceVoid",System,cellIndex++,0,0.0,Out);
 
@@ -364,24 +346,35 @@ SplitFlangePipe::createObjects(Simulation& System)
       Out=ModelSupport::getComposite(SMap,buildIndex," 11 -22 -27 7 ");
       makeCell("Bellow",System,cellIndex++,bellowMat,0.0,Out);
     }
-  
-  
-  // outer boundary [flange front]
-  Out=ModelSupport::getSetComposite(SMap,buildIndex," -11 -107 ");
-  addOuterSurf(Out+frontStr);
-  Out=ModelSupport::getSetComposite(SMap,buildIndex," 12 -207 ");
-  addOuterUnionSurf(Out+backStr);
 
-  
-  // outer boundary mid tube
-  Out=ModelSupport::getSetComposite(SMap,buildIndex," 11 -12 -27");
-  addOuterUnionSurf(Out);
+  // we can simplify outer void if the flanges have the same radii
+  if (std::abs(flangeARadius-flangeBRadius)<Geometry::zeroTol)
+    {
+      Out=ModelSupport::getComposite(SMap,buildIndex," 11 -12 27 -107 ");
+      makeCell("OuterVoid",System,cellIndex++,0,0.0,Out);
+
+      Out=ModelSupport::getSetComposite(SMap,buildIndex," -107");
+      addOuterUnionSurf(Out+frontStr+backStr);
+    }
+  else
+    {
+      // outer boundary [flange front]
+      Out=ModelSupport::getSetComposite(SMap,buildIndex," -11 -107 ");
+      addOuterSurf(Out+frontStr);
+      Out=ModelSupport::getSetComposite(SMap,buildIndex," 12 -207 ");
+      addOuterUnionSurf(Out+backStr);
+
+
+      // outer boundary mid tube
+      Out=ModelSupport::getSetComposite(SMap,buildIndex," 11 -12 -27");
+      addOuterUnionSurf(Out);
+    }
 
   return;
 }
 
 
-  
+
 void
 SplitFlangePipe::createLinks()
   /*!
@@ -402,69 +395,60 @@ SplitFlangePipe::createLinks()
   FixedComp::setLinkSurf(3,SMap.realSurf(buildIndex+7));
   FixedComp::setLinkSurf(4,SMap.realSurf(buildIndex+7));
   FixedComp::setLinkSurf(5,SMap.realSurf(buildIndex+7));
-  
-  FixedComp::setConnect(7,Origin-Z*(radius+bellowThick),-Z);
-  FixedComp::setConnect(8,Origin+Z*(radius+bellowThick),Z);
+
+  FixedComp::setConnect(6,Origin-Z*(radius+bellowThick),-Z);
+  FixedComp::setConnect(7,Origin+Z*(radius+bellowThick),Z);
+  FixedComp::setLinkSurf(6,SMap.realSurf(buildIndex+27));
   FixedComp::setLinkSurf(7,SMap.realSurf(buildIndex+27));
-  FixedComp::setLinkSurf(8,SMap.realSurf(buildIndex+27));
 
   // pipe wall
-  FixedComp::setConnect(9,Origin-Z*(radius+feThick),-Z);
-  FixedComp::setConnect(10,Origin+Z*(radius+feThick),Z);
+  FixedComp::setConnect(8,Origin-Z*(radius+feThick),-Z);
+  FixedComp::setConnect(9,Origin+Z*(radius+feThick),Z);
+  FixedComp::setLinkSurf(8,SMap.realSurf(buildIndex+17));
   FixedComp::setLinkSurf(9,SMap.realSurf(buildIndex+17));
-  FixedComp::setLinkSurf(10,SMap.realSurf(buildIndex+17));
-  
+
 
   return;
 }
-  
+
 void
-SplitFlangePipe::setFront(const attachSystem::FixedComp& FC,
-			  const long int sideIndex,
-			  const bool joinFlag)
+SplitFlangePipe::setJoinFront(const attachSystem::FixedComp& FC,
+			      const long int sideIndex)
   /*!
     Set front surface
-    \param FC :: FixedComponent 
+    \param FC :: FixedComponent
     \param sideIndex ::  Direction to link
-    \param joinFlag :: joint front to link object 
    */
 {
-  ELog::RegMethod RegA("SplitFlangePipe","setFront");
-  
+  ELog::RegMethod RegA("SplitFlangePipe","setJoinFront");
+
   FrontBackCut::setFront(FC,sideIndex);
-  if (joinFlag)
-    {
-      frontJoin=1;
-      FPt=FC.getLinkPt(sideIndex);
-      FAxis=FC.getLinkAxis(sideIndex);
-    }
-    
+  frontJoin=1;
+  FPt=FC.getLinkPt(sideIndex);
+  FAxis=FC.getLinkAxis(sideIndex);
+
   return;
 }
-  
+
 void
-SplitFlangePipe::setBack(const attachSystem::FixedComp& FC,
-		    const long int sideIndex,
-		    const bool joinFlag)
+SplitFlangePipe::setJoinBack(const attachSystem::FixedComp& FC,
+			     const long int sideIndex)
   /*!
     Set Back surface
-    \param FC :: FixedComponent 
+    \param FC :: FixedComponent
     \param sideIndex ::  Direction to link
-    \param joinFlag :: joint front to link object 
    */
 {
-  ELog::RegMethod RegA("SplitFlangePipe","setBack");
-  
+  ELog::RegMethod RegA("SplitFlangePipe","setJoinBack");
+
   FrontBackCut::setBack(FC,sideIndex);
-  if (joinFlag)
-    {
-      backJoin=1;
-      BPt=FC.getLinkPt(sideIndex);
-      BAxis=FC.getLinkAxis(sideIndex);
-    }
+  backJoin=1;
+  BPt=FC.getLinkPt(sideIndex);
+  BAxis=FC.getLinkAxis(sideIndex);
+
   return;
 }
-  
+
 void
 SplitFlangePipe::createAll(Simulation& System,
 		      const attachSystem::FixedComp& FC,
@@ -480,12 +464,12 @@ SplitFlangePipe::createAll(Simulation& System,
 
   populate(System.getDataBase());
   createUnitVector(FC,FIndex);
-  createSurfaces();    
+  createSurfaces();
   createObjects(System);
   createLinks();
-  insertObjects(System);   
-  
+  insertObjects(System);
+
   return;
 }
-  
+
 }  // NAMESPACE constructSystem

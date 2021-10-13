@@ -213,9 +213,9 @@ E02BaseBlock::populate(const FuncDataBase& Control)
   hup=Control.EvalDefVar<double>(keyName+"HeightUp",100);
   hlow=Control.EvalDefVar<double>(keyName+"HeightLow",50);
   
-  defMatf=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMatF",144);
-  defMatb=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMatB",144);
-  gapMat=ModelSupport::EvalDefMat<int>(Control,keyName+"GapMat",60);
+  defMatf=ModelSupport::EvalDefMat(Control,keyName+"DefMatF","LimestoneConcrete");
+  defMatb=ModelSupport::EvalDefMat(Control,keyName+"DefMatB","LimestoneConcrete");
+  gapMat=ModelSupport::EvalDefMat(Control,keyName+"GapMat",60);
  
   //  int B4CMat;
 

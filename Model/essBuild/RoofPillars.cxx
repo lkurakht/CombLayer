@@ -3,7 +3,7 @@
  
  * File:   essBuild/RoofPillars.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,43 +36,33 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
 #include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
 #include "Quadratic.h"
 #include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "inputParam.h"
 #include "HeadRule.h"
 #include "SurInter.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ReadFunctions.h"
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
+#include "FixedUnit.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
 #include "ContainedComp.h"
 #include "BaseMap.h"
@@ -80,7 +70,6 @@
 #include "SurfMap.h"
 #include "AttachSupport.h"
 
-#include "World.h"
 #include "Bunker.h"
 #include "BunkerRoof.h"
 #include "pillarInfo.h"
@@ -91,7 +80,7 @@ namespace essSystem
 {
 
 RoofPillars::RoofPillars(const std::string& Key)  :
-  attachSystem::FixedComp(Key,0,30000),
+  attachSystem::FixedUnit(Key,0,30000),
   attachSystem::CellMap(),
   attachSystem::FrontBackCut()
   /*!
@@ -231,7 +220,7 @@ RoofPillars::insertRoofCells(Simulation& System,
 	  for(const OTYPE::value_type Vunit : OMap)
 	    {
 	      const int cellN(Vunit.second->getName());
-	      if (roofCells->hasCell(cellN))
+	      if (roofCells->hasUnit(cellN))
 		cellName.insert(cellN);
 	    }
 
@@ -446,28 +435,28 @@ RoofPillars::createSurfaces()
               // top plate
               // Full height
 	      buildSignedShiftedPlane(SMap,-SNum,footIndex+6,
-				      PPtr,topFootHeight-topFootThick);
+				      SNum,topFootHeight-topFootThick);
               topFootPlate.addIntersection(SMap.realSurf(footIndex+6));
               // Full height
 	      buildSignedShiftedPlane(SMap,-SNum,footIndex+16,
-				      PPtr,topFootHeight);	      
+				      SNum,topFootHeight);	      
               topFoot.addIntersection(SMap.realSurf(footIndex+16));
               // Beam inner meta; 
 	      buildSignedShiftedPlane(SMap,-SNum,footIndex+26,
-				      PPtr,beamWallThick);	      
+				      SNum,beamWallThick);	      
               baseBeam.addIntersection(SMap.realSurf(footIndex+26));
 	      // Beam Top inner metal [down -wallThick]
 	      buildSignedShiftedPlane(SMap,-SNum,footIndex+36,
-				      PPtr,topFootHeight-beamRoofThick); 
+				      SNum,topFootHeight-beamRoofThick); 
               topBeam.addIntersection(SMap.realSurf(footIndex+36));
 
               // Beam inner meta; 
 	      buildSignedShiftedPlane(SMap,-SNum,footIndex+46,
-				      PPtr,longWallThick);	      
+				      SNum,longWallThick);	      
               baseLong.addIntersection(SMap.realSurf(footIndex+46));
 	      // Beam Top inner metal [down -wallThick]
 	      buildSignedShiftedPlane(SMap,-SNum,footIndex+56,
-				      PPtr,topFootHeight-longRoofThick); 
+				      SNum,topFootHeight-longRoofThick); 
               topLong.addIntersection(SMap.realSurf(footIndex+56));
 	      
 	      footIndex++;
@@ -923,7 +912,7 @@ RoofPillars::createLinks()
 }
   
 void
-RoofPillars::createAll(Simulation& System,
+RoofPillars::build(Simulation& System,
                        const Bunker& bunkerObj)
   /*!
     Generic function to create everything

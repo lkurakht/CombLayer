@@ -3,7 +3,7 @@
  
  * File:   essBuildInc/Bunker.h
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -105,7 +105,8 @@ class Bunker : public attachSystem::ContainedComp,
   int roofMat;                   ///< roof material
 
   double midZ;                   ///< Mid z point
-
+  bool revFlag;                  ///< Coordinate reveresed
+  
   // Bunker Material distribution:
   std::string loadFile;            ///< Bunker input file
   std::string outFile;             ///< Bunker output file
@@ -115,9 +116,9 @@ class Bunker : public attachSystem::ContainedComp,
   
   void populate(const FuncDataBase&);
   void createUnitVector(const attachSystem::FixedComp&,
-			const long int,const bool);
+			const long int);
 
-  void createSurfaces(const bool);
+  void createSurfaces();
   void createLinks(const attachSystem::FixedComp&,const long int);
   void createObjects(Simulation&,const attachSystem::FixedComp&,
 		     const long int);
@@ -151,10 +152,12 @@ class Bunker : public attachSystem::ContainedComp,
   void setRotationCentre(const Geometry::Vec3D& RC)
     { rotCentre=RC; }
   void setCutWall(const bool,const bool);
-
+  /// Reverse coordinate set [\todo replace with FixedRotate]
+  void setReversed() { revFlag=1; }
+  
   void cutInsert(Simulation&,const BunkerInsert&) const;
   void createAll(Simulation&,const attachSystem::FixedComp&,
-		 const long int,const bool);
+		 const long int);
 
 
   

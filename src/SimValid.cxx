@@ -3,7 +3,7 @@
  
  * File:   src/SimValid.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +32,6 @@
 #include <vector>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
@@ -40,24 +39,18 @@
 #include "MersenneTwister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "mathSupport.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
-#include "SimProcess.h"
-#include "SurInter.h"
 #include "ObjSurfMap.h"
-#include "neutron.h"
-#include "objectRegister.h"
+#include "particle.h"
+#include "eTrack.h"
 #include "surfRegister.h"
+#include "LineTrack.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "groupRange.h"
@@ -122,18 +115,15 @@ SimValid::diagnostics(const Simulation& System,
 	      <<Pts[j].objN<<" Surf:"<<Pts[j].surfN<<ELog::endDiag;
     }
   
-
   if (Pts.size()>=3)
     {
       double aDist;
       const Geometry::Surface* SPtr;          // Output surface
       const size_t index(Pts.size()-3);
-      MonteCarlo::neutron TNeut(1,Pts[index].Pt,Pts[index].Dir);
+      MonteCarlo::eTrack TNeut(Pts[index].Pt,Pts[index].Dir);
                                       
-      ELog::EM<<"Base Obj == "<<*Pts[index].OPtr
-	      <<ELog::endDiag;
-      ELog::EM<<"Next Obj == "<<*Pts[index+1].OPtr
-	      <<ELog::endDiag;
+      ELog::EM<<"Base Obj == "<<*Pts[index].OPtr<<ELog::endDiag;
+      ELog::EM<<"Next Obj == "<<*Pts[index+1].OPtr<<ELog::endDiag;
       // RESET:
       TNeut.Pos=Pts[index].Pt;  // Reset point
       const MonteCarlo::Object* OPtr=Pts[index].OPtr;
@@ -159,24 +149,23 @@ SimValid::diagnostics(const Simulation& System,
       MonteCarlo::Object* NOPtr=System.findCell(TNeut.Pos,0);
       if (NOPtr)
 	{
-	  ELog::EM<<"Neutron == "<<TNeut<<ELog::endDiag;
+	  ELog::EM<<"ETrack == "<<TNeut<<ELog::endDiag;
 	  ELog::EM<<"Actual object == "<<*NOPtr<<ELog::endDiag;
-	  ELog::EM<<" IMP == "<<NOPtr->getImp()<<ELog::endDiag;
+	  ELog::EM<<" IMP == "<<NOPtr->isZeroImp()<<ELog::endDiag;
 	}
       ELog::EM<<"TRACK to NEXT"<<ELog::endDiag;
       ELog::EM<<"--------------"<<ELog::endDiag;
       
-      OPtr->trackOutCell(TNeut,aDist,SPtr,abs(SN));
+      OPtr->trackCell(TNeut,aDist,SPtr,abs(SN));
     }
 
   return;
 }
-
   
 int
 SimValid::runPoint(const Simulation& System,
 		   const Geometry::Vec3D& CP,
-		   const size_t  nAngle) const
+		   const size_t nAngle) const
   /*!
     Calculate the tracking
     \param System :: Simulation to use
@@ -185,7 +174,7 @@ SimValid::runPoint(const Simulation& System,
     \return true if valid
   */
 {
-  ELog::RegMethod RegA("SimValid","run");
+  ELog::RegMethod RegA("SimValid","runPoint");
   ELog::debugMethod DebA;
   
   const ModelSupport::ObjSurfMap* OSMPtr =System.getOSM();
@@ -199,39 +188,51 @@ SimValid::runPoint(const Simulation& System,
 
   // Find Initial cell [Store for next time]
   //  Centre+=Geometry::Vec3D(0.001,0.001,0.001);
-  InitObj=System.findCell(CP,InitObj);  
-  const int initSurfNum=InitObj->isOnSide(CP);
-
+  int initSurfNum(0);
+  Geometry::Vec3D Pt(CP);
+  do
+    {
+      if (initSurfNum)
+	{
+	  ELog::EM<<"Adjusting the initial point as on surface"<<ELog::endDiag;
+	  Pt+=Geometry::Vec3D(RNG.rand()*0.01,RNG.rand()*0.01,RNG.rand()*0.01);
+	}
+      InitObj=System.findCell(Pt,InitObj);
+      initSurfNum=InitObj->isOnSurface(Pt);
+    }
+  while(initSurfNum);
+      
   // check surfaces
+  ELog::EM<<"NAngle == "<<nAngle<<" :: "<<CP<<ELog::endDiag;
   for(size_t i=0;i<nAngle;i++)
     {
+      if (nAngle>10000 && i*10==nAngle)
+	ELog::EM<<"ValidPoint == "<<i<<ELog::endDiag;
       std::vector<simPoint> Pts;
       // Get random starting point on edge of volume
       phi=RNG.rand()*M_PI;
       theta=2.0*RNG.rand()*M_PI;
-      Geometry::Vec3D uVec(cos(theta)*sin(phi),
+      const Geometry::Vec3D uVec(cos(theta)*sin(phi),
 			     sin(theta)*sin(phi),
 			     cos(phi));
-      MonteCarlo::neutron TNeut(1,CP,uVec);
-
+      MonteCarlo::eTrack TNeut(Pt,uVec);
       MonteCarlo::Object* OPtr=InitObj;
       int SN(-initSurfNum);
 
       Pts.push_back(simPoint(TNeut.Pos,TNeut.uVec,OPtr->getName(),SN,OPtr));
-      while(OPtr && OPtr->getImp())
+      while(OPtr && !OPtr->isZeroImp())
 	{
 	  // Note: Need OPPOSITE Sign on exiting surface
-	  SN= OPtr->trackOutCell(TNeut,aDist,SPtr,abs(SN));
+	  SN= OPtr->trackCell(TNeut,aDist,SPtr,SN);
 	  if (aDist>1e30 && Pts.size()<=1)
 	    {
 	      ELog::EM<<"Fail on Pts==1 and aDist INF"<<ELog::endDiag;
-	      ELog::EM<<"Index == "<<Pts.size()-2<<ELog::endDiag;
-	      ELog::EM<<"Pts[0] == "<<Pts[0].Pt<<ELog::endDiag;
-	      ELog::EM<<"Pts[0] == "<<Pts[0].Dir<<ELog::endDiag;
+	      ELog::EM<<"Index == "<<Pts.size()<<ELog::endDiag;
+	      ELog::EM<<"Pts[0].pos == "<<Pts[0].Pt<<ELog::endDiag;
+	      ELog::EM<<"Pts[0].dir == "<<Pts[0].Dir<<ELog::endDiag;
 	      ELog::EM<<"SN == "<<SN<<ELog::endDiag;
 	      aDist=1e-5;
 	    }
-
 	  TNeut.moveForward(aDist);
 	  Pts.push_back(simPoint(TNeut.Pos,TNeut.uVec,OPtr->getName(),SN,OPtr));
 	  OPtr=(SN) ?
@@ -240,9 +241,17 @@ SimValid::runPoint(const Simulation& System,
 
       if (!OPtr)
 	{
-	  ELog::EM<<"Failed to calculate cell correctly: "<<i<<ELog::endCrit;
+	  ELog::EM<<"OPtr not found["<<i<<"] at : "<<Pt<<ELog::endCrit;
+	  ELog::EM<<"Line SEARCH == "<<ELog::endCrit;
+	  ModelSupport::LineTrack LT(Pt,uVec,10000.0);
+	  LT.calculate(System);
+	  ELog::EM<<"LT == "<<LT<<ELog::endDiag;
+	  ELog::EM<<"END Line SEARCH == "<<ELog::endCrit;
+	  
 	  if (!InitObj)
 	    ELog::EM<<"Failed to calculate INITIAL cell correctly: "<<ELog::endCrit;
+	  else
+	    ELog::EM<<"Initial Cell ="<<*InitObj<<ELog::endDiag;
 	  diagnostics(System,Pts);
 	  return 0;
 	}

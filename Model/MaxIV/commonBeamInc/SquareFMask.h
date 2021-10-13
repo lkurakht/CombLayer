@@ -31,14 +31,18 @@ namespace xraySystem
     \version 1.0
     \author S. Ansell
     \date June 2015
-    \brief Variable detemine hole type
+    \brief Build a square FM mask 
+
+    Note that this object is CENTRE orientated.
+    It is designed to exact placment. 
   */
   
 class SquareFMask :
   public attachSystem::ContainedComp,
-  public attachSystem::FixedOffset,
+  public attachSystem::FixedRotate,
   public attachSystem::CellMap,
-  public attachSystem::SurfMap
+  public attachSystem::SurfMap,
+  public attachSystem::FrontBackCut
 {
  private:
 
@@ -53,8 +57,8 @@ class SquareFMask :
   double innerMinWidth;           ///< min width at closure
   double innerMinHeight;          ///< min height at closure
 
-  double innerBWidth;           ///< back width
-  double innerBHeight;          ///< back height 
+  double innerBWidth;            ///< back width
+  double innerBHeight;           ///< back height 
 
   double flangeAInRadius;        ///< Joining Flange inner radius
   double flangeAOutRadius;       ///< Joining Flange outer radius 
@@ -75,8 +79,6 @@ class SquareFMask :
   
   int voidMat;                  ///< inner material
   
-  void createUnitVector(const attachSystem::FixedComp&,
-			const long int);
   void createSurfaces();
   void createObjects(Simulation&);
   void createLinks();

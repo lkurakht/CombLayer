@@ -3,7 +3,7 @@
  
  * File:   flukaProcess/flukaDefPhysics.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,48 +35,18 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "inputParam.h"
-#include "Triple.h"
-#include "NRange.h"
-#include "NList.h"
-#include "Tally.h"
-#include "Quaternion.h"
-#include "localRotate.h"
-#include "masterRotate.h"
-#include "Surface.h"
-#include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
-#include "HeadRule.h"
-#include "LinkUnit.h"
-#include "FixedComp.h"
-#include "AttachSupport.h"
-#include "LinkSupport.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "SimMCNP.h"
 #include "SimFLUKA.h"
 
 #include "flukaImpConstructor.h"
@@ -86,56 +56,57 @@
 #include "flukaPhysics.h"
 #include "flukaDefPhysics.h"
 
+
 namespace flukaSystem
 {  
 
-void
-setMagneticPhysics(SimFLUKA& System,
-		   const mainSystem::inputParam& IParam)
+void 
+setDefaultPhysics(SimFLUKA& System,
+		  const mainSystem::inputParam& IParam)
   /*!
-    Currently very simple but expect to get complex.
+    Set the default Physics
+    \param System :: Simulation
+    \param IParam :: Input parameter
+  */
+{
+  ELog::RegMethod RegA("DefPhysics[F]","setDefaultPhysics(fluka)");
+
+  // trick to allow 1e8 entries etc.
+  System.setNPS(static_cast<size_t>(IParam.getValue<double>("nps")));
+  System.setRND(IParam.getValue<long int>("random"));
+  if (IParam.flag("basicGeom"))
+    System.setBasicGeom();
+  if (IParam.flag("geomPrecision"))
+    System.setGeomPrecision(IParam.getValue<double>("geomPrecision"));
+  return;
+}
+  
+void
+setUserFlags(SimFLUKA& System,
+	      const mainSystem::inputParam& IParam)
+   /*!
+    Currently very simple system to get additional flag
     \param System :: Simulation
     \param IParam :: Input parameters
   */
 {
-  ELog::RegMethod Rega("flukaDefPhysics","setMagneticPhysics");
+  ELog::RegMethod RegA("flukaDefPhysics[F]","setUserFlags");
 
-  if (IParam.flag("MAG"))
-    {
-      const Geometry::Vec3D MF=
-	IParam.getValue<Geometry::Vec3D>("MAG",0);  
-      System.setMagField(MF);
-    }
 
-  const size_t nSet=IParam.setCnt("MagField");
-  for(size_t setIndex=0;setIndex<nSet;setIndex++)
+  if (IParam.flag("userWeight"))  // only one
     {
-      const size_t NIndex=IParam.itemCnt("MagField",setIndex);
-      
-      for(size_t index=0;index<NIndex;index++)
-	{
-	  const std::string objName=
-	    IParam.getValueError<std::string>
-	    ("MagField",setIndex,index,"No objName for MagField");
-	  const std::vector<int> Cells=System.getObjectRange(objName);
-	  if (Cells.empty())
-	    throw ColErr::InContainerError<std::string>
-	      (objName,"Empty cell");
-	  
-	  Simulation::OTYPE& CellObjects=System.getCells();
-	  // Special to set cells in OBJECT  [REMOVE]
-	  for(const int CN : Cells)
-	    {
-	      Simulation::OTYPE::iterator mc=
-		CellObjects.find(CN);
-	      if (mc!=CellObjects.end())
-		mc->second->setMagFlag();
-	    }
-	}
+      //      const size_t NIndex=IParam.itemCnt("userWeight");
+
+      const std::string extra =
+	IParam.getDefValue<std::string>("3","userWeight");
+
+      System.addUserFlags("userWeight",extra);
     }
   return;
 }
 
+
+  
   
 void
 setModelPhysics(SimFLUKA& System,
@@ -149,7 +120,7 @@ setModelPhysics(SimFLUKA& System,
   ELog::RegMethod RegA("flukaDefPhysics","setModelPhysics");
   
   setXrayPhysics(System,IParam);
-  setMagneticPhysics(System,IParam);
+  setUserFlags(System,IParam);
   
   size_t nSet=IParam.setCnt("wMAT");
   if (nSet)
@@ -159,12 +130,12 @@ setModelPhysics(SimFLUKA& System,
 	A.processMAT(System,IParam,index);
     }
 
-  nSet=IParam.setCnt("wIMP");
+  nSet=IParam.setCnt("wBIAS");
   if (nSet)
     {
       flukaSystem::flukaImpConstructor A;
       for(size_t index=0;index<nSet;index++)
-	A.processUnit(System,IParam,index);
+	A.processBIAS(System,IParam,index);
     }
   
   nSet=IParam.setCnt("wCUT");    
@@ -198,7 +169,14 @@ setModelPhysics(SimFLUKA& System,
       for(size_t index=0;index<nSet;index++)
 	A.processLAM(System,IParam,index);
     }
-  
+
+  nSet=IParam.setCnt("wBIAS");
+  if (nSet)
+    {
+      flukaSystem::flukaImpConstructor A;
+      for(size_t index=0;index<nSet;index++)
+	A.processBIAS(System,IParam,index);
+    }
   return; 
 }
 
@@ -242,7 +220,7 @@ setXrayPhysics(SimFLUKA& System,
       // Turn off multiple scattering [not a good idea]
       //      PC.setTHR("mulsopt",MN,"0","0","3");
 
-      // Production Cut for e/e+ photon 
+      // Production Cut for e/e+ and photon 
       PC.setEMF("prodcut",MN,"1","1e-3");
       // Rayleigh photonuc-iteratcion
       PC.setEMF("pho2thr",MN,"1e-3","1");
@@ -251,11 +229,10 @@ setXrayPhysics(SimFLUKA& System,
       PC.setEMF("pairbrem",MN,"0.0","0.1");
     }
   //  const std::set<int> activeMat=getActiveUnit(1,"all");
-  
+
   for(const int CN : activeCell)
-    {
-      // Electrons are stopped in the EMFCut disk
-      PC.setEMF("emfcut",CN,"0.035","0.015");
+    { 
+      PC.setEMF("emfcut",CN,"0.035","0.005");
     }
   // SPECIAL:
   PC.setIMP("partthr","neutron","1e-9");

@@ -3,7 +3,7 @@
  
  * File:   attachComp/BaseMap.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,15 +35,10 @@
 
 #include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "surfRegister.h"
 #include "HeadRule.h"
@@ -124,6 +119,7 @@ BaseMap::hasItem(const std::string& Key,const size_t index) const
 
   return (!index || mc->second.size()>index) ? 1 : 0;
 }
+
   
 void
 BaseMap::setItem(const std::string& Key,const int CN)
@@ -220,6 +216,32 @@ BaseMap::setItems(const std::string& Key,
 }
 
 void
+BaseMap::copyAllItems(const BaseMap& A)
+  /*!
+    Simple copy of all items from A to this
+    \param A :: BaseMap to copy
+  */
+{
+  for(const auto& [name,vec] : A.Items)
+    addItems(name,vec);
+  return;
+}
+
+void
+BaseMap::copyItems(const BaseMap& A,const std::string& Key)
+  /*!
+    Simple copy of all items of name K from A to this
+    \param A :: BaseMap to copy
+    \param Key :: NAme of items to copy
+  */
+{
+  LCTYPE::const_iterator mc=A.Items.find(Key);
+  if (mc==A.Items.end()) return;
+  addItems(Key,mc->second);
+  return;
+}
+  
+void
 BaseMap::addItem(const std::string& Key,const int CN)
   /*!
     Insert a cell 
@@ -304,6 +326,24 @@ BaseMap::getItem(const std::string& Key,const size_t Index) const
   return mc->second[Index];
 }
 
+int
+BaseMap::getLastItem(const std::string& Key) const
+  /*!
+    Get the last cell number in vector
+    \param Key :: Keyname
+    \return cell number
+  */
+{
+  ELog::RegMethod RegA("BaseMap","getLastItem");
+
+  LCTYPE::const_iterator mc=Items.find(Key);
+  if (mc==Items.end() || mc->second.empty())
+    throw ColErr::InContainerError<std::string>
+      (Key,"Object:"+getFCKeyName()+":Key not present");
+  
+  return mc->second.back();
+}
+
 std::vector<std::string>
 BaseMap::getNames() const
   /*!
@@ -327,7 +367,7 @@ BaseMap::getNItems(const std::string& Key) const
     \return size of items
    */
 {
-  ELog::RegMethod RegA("BaseMap","getItems(Key)");
+  ELog::RegMethod RegA("BaseMap","getNItems");
 
   if (Key=="All" || Key=="all")
     return getItems().size();
@@ -351,7 +391,7 @@ BaseMap::getItems(const std::string& Key) const
   ELog::RegMethod RegA("BaseMap","getItems(Key)");
 
   if (Key=="All" || Key=="all") return getItems(); 
-  std::vector<int> Out;  
+
   LCTYPE::const_iterator mc=Items.find(Key);
   if (mc==Items.end())
     throw ColErr::InContainerError<std::string>(Key,"Key");
@@ -419,11 +459,10 @@ BaseMap::registerExtra(const int prevCN,const int extraCN)
     \return true if insert possible
    */
 {
-  ELog::RegMethod RegA("CellMap","registerExtra");
+  ELog::RegMethod RegA("BaseMap","registerExtra");
 
   const std::string Unit=findCell(prevCN);
   if (Unit.empty()) return 0;
-
   BaseMap::addItem(Unit,extraCN);
   return 1;
 }
@@ -448,14 +487,14 @@ BaseMap::findCell(const int cellN) const
 }
 
 bool
-BaseMap::hasCell(const int cellN) const
+BaseMap::hasUnit(const int cellN) const
   /*!
     Determine if cellN exists in set
     \param cellN :: Cell to test
     \return true if found
   */
 {
-  ELog::RegMethod RegA("BaseMap","hasCell");
+  ELog::RegMethod RegA("BaseMap","hasUnit");
   
   for(const LCTYPE::value_type& IUnit : Items)
     {
@@ -468,7 +507,7 @@ BaseMap::hasCell(const int cellN) const
 
 
 bool
-BaseMap::hasCell(const std::string& kName,const int cellN) const
+BaseMap::hasUnit(const std::string& kName,const int cellN) const
   /*!
     Determine if cellN exists in set
     \param kName :: unit to search

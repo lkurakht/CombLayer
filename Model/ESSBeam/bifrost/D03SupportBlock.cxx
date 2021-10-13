@@ -218,11 +218,11 @@ D03SupportBlock::populate(const FuncDataBase& Control)
   hup=Control.EvalDefVar<double>(keyName+"HeightUp",50);
   hlow=Control.EvalDefVar<double>(keyName+"HeightLow",50);
   
-  defMat=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMat",144);
- defMatF=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMatF",defMat);
- defMatB=ModelSupport::EvalDefMat<int>(Control,keyName+"DefMatB",defMat);
-  gapMat=ModelSupport::EvalDefMat<int>(Control,keyName+"GapMat",60);
-  tubeMat=ModelSupport::EvalDefMat<int>(Control,keyName+"TubeMat",148); // 148=PVC
+  defMat=ModelSupport::EvalDefMat(Control,keyName+"DefMat","LimestoneConcrete");
+ defMatF=ModelSupport::EvalDefMat(Control,keyName+"DefMatF",defMat);
+ defMatB=ModelSupport::EvalDefMat(Control,keyName+"DefMatB",defMat);
+  gapMat=ModelSupport::EvalDefMat(Control,keyName+"GapMat",60);
+  tubeMat=ModelSupport::EvalDefMat(Control,keyName+"TubeMat",148); // 148=PVC
  
   //  int B4CMat;
 

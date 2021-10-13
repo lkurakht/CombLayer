@@ -2,8 +2,8 @@
   CombLayer : MCNP(X) Input builder
  
  * File:   commonBeamInc/Mirror.h
-*
- * Copyright (c) 2004-2018 by Stuart Ansell
+ *
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ namespace xraySystem
   \author S. Ansell
   \version 1.0
   \date January 2018
-  \brief Focasable mirror in mount
+  \brief Focusable mirror in mount
 */
 
 class Mirror :
@@ -50,7 +50,6 @@ class Mirror :
   double width;            ///< width accross beam
   double thick;            ///< Thickness in normal direction to reflection
   double length;           ///< length along beam
-
   
   double baseTop;          ///< Base distance above mirror
   double baseDepth;        ///< Base distance below mirror 
@@ -63,9 +62,6 @@ class Mirror :
   // Functions:
 
   void populate(const FuncDataBase&);
-  void createUnitVector(const attachSystem::FixedComp&,
-			const long int);
-
   void createSurfaces();
   void createObjects(Simulation&);
   void createLinks();
@@ -77,6 +73,7 @@ class Mirror :
   Mirror& operator=(const Mirror&);
   virtual ~Mirror();
 
+  using FixedComp::createAll;
   void createAll(Simulation&,
 		 const attachSystem::FixedComp&,
 		 const long int);

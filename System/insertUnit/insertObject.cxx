@@ -3,7 +3,7 @@
  
  * File:   insertUnit/insertObject.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,45 +33,20 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Line.h"
-#include "LineIntersectVisit.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "ModelSupport.h"
 #include "MaterialSupport.h"
-#include "Zaid.h"
-#include "MXcards.h"
-#include "Material.h"
-#include "DBMaterial.h"
-#include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
@@ -79,8 +54,8 @@
 #include "SurfMap.h"
 #include "CellMap.h"
 #include "ContainedComp.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
-#include "SurInter.h"
 #include "AttachSupport.h"
 #include "insertObject.h"
 
@@ -88,10 +63,24 @@ namespace insertSystem
 {
 
 insertObject::insertObject(const std::string& Key)  :
-  attachSystem::ContainedComp(),attachSystem::FixedOffset(Key,6),
+  attachSystem::ContainedComp(),
+  attachSystem::FixedOffset(Key,6),
   attachSystem::CellMap(),attachSystem::SurfMap(),
   attachSystem::FrontBackCut(),
   populated(0),defMat(0),delayInsert(0)
+  /*!
+    Constructor BUT ALL variable are left unpopulated.
+    \param Key :: Name for item in search
+  */
+{}
+
+insertObject::insertObject(const std::string& baseKey,
+			   const std::string& Key)  :
+  attachSystem::ContainedComp(),
+  attachSystem::FixedOffset(Key,6),
+  attachSystem::CellMap(),attachSystem::SurfMap(),
+  attachSystem::FrontBackCut(),
+  baseName(baseKey),populated(0),defMat(0),delayInsert(0)
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Name for item in search
@@ -102,8 +91,8 @@ insertObject::insertObject(const insertObject& A) :
   attachSystem::ContainedComp(A),attachSystem::FixedOffset(A),
   attachSystem::CellMap(A),attachSystem::SurfMap(A),
   attachSystem::FrontBackCut(A),
-  populated(A.populated),defMat(A.defMat),
-  delayInsert(A.delayInsert)
+  baseName(A.baseName),populated(A.populated),
+  defMat(A.defMat),delayInsert(A.delayInsert)
   /*!
     Copy constructor
     \param A :: insertObject to copy
@@ -149,9 +138,9 @@ insertObject::populate(const FuncDataBase& Control)
   
   if (!populated)
     {
-      FixedOffset::populate(Control);      
+      FixedOffset::populate(baseName,Control);      
       defMat=ModelSupport::EvalMat<int>
-	(Control,keyName+"DefMat",keyName+"Mat");
+	(Control,keyName+"DefMat",baseName+"DefMat");
       populated=1;
     }
   return;
@@ -167,7 +156,6 @@ insertObject::createUnitVector(const attachSystem::FixedComp& FC,
   */
 {
   ELog::RegMethod RegA("insertObject","createUnitVector(FC,index)");
-
 
   FixedComp::createUnitVector(FC,lIndex);
   applyOffset();
@@ -252,9 +240,10 @@ insertObject::findObjects(Simulation& System)
   System.populateCells();
   System.validateObjSurfMap();
 
+
   MTYPE OMap;
   attachSystem::lineIntersect(System,*this,OMap);
-
+  
   // Add exclude string
   MTYPE::const_iterator ac;
   for(ac=OMap.begin();ac!=OMap.end();ac++)

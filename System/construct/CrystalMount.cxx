@@ -3,7 +3,7 @@
  
  * File:   construct/CrystalMount.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2019 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,28 +33,19 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
-#include "Quadratic.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -62,9 +53,7 @@
 #include "ModelSupport.h"
 #include "MaterialSupport.h"
 #include "generateSurf.h"
-#include "support.h"
 #include "stringCombine.h"
-#include "inputParam.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
@@ -154,22 +143,22 @@ CrystalMount::populate(const FuncDataBase& Control)
 
   FixedOffset::populate(Control);
 
-  active=Control.EvalDefPair<int>(keyName,baseName,"Active",1);
-  width=Control.EvalPair<double>(keyName,baseName,"Width");
-  thick=Control.EvalPair<double>(keyName,baseName,"Thick");
-  length=Control.EvalPair<double>(keyName,baseName,"Length");
+  active=Control.EvalDefTail<int>(keyName,baseName,"Active",1);
+  width=Control.EvalTail<double>(keyName,baseName,"Width");
+  thick=Control.EvalTail<double>(keyName,baseName,"Thick");
+  length=Control.EvalTail<double>(keyName,baseName,"Length");
 
-  gap=Control.EvalPair<double>(keyName,baseName,"Gap");
-  wallThick=Control.EvalPair<double>(keyName,baseName,"WallThick");
-  baseThick=Control.EvalDefPair<double>(keyName,baseName,"BaseThick",wallThick);
+  gap=Control.EvalTail<double>(keyName,baseName,"Gap");
+  wallThick=Control.EvalTail<double>(keyName,baseName,"WallThick");
+  baseThick=Control.EvalDefTail<double>(keyName,baseName,"BaseThick",wallThick);
 
   xtalMat=ModelSupport::EvalMat<int>(Control,keyName+"XtalMat",
                                      baseName+"XtalMat");
   wallMat=ModelSupport::EvalMat<int>(Control,keyName+"WallMat",
                                      baseName+"WallMat");
 
-  yRotation=Control.EvalPair<double>(keyName,baseName,"YRotation");
-  zRotation=Control.EvalPair<double>(keyName,baseName,"ZRotation");
+  yRotation=Control.EvalTail<double>(keyName,baseName,"YRotation");
+  zRotation=Control.EvalTail<double>(keyName,baseName,"ZRotation");
   return;
 }
 

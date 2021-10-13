@@ -3,7 +3,7 @@
  
  * File:   weights/WCellControl.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,25 +38,18 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Surface.h"
 #include "Quadratic.h"
 #include "Plane.h"
-#include "Cone.h"
-#include "support.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "BaseMap.h"
-#include "CellMap.h"
+#include "Importance.h"
 #include "Object.h"
 #include "weightManager.h"
 #include "WForm.h"
@@ -68,17 +61,14 @@
 #include "Simulation.h"
 #include "SimMCNP.h"
 #include "vertexCalc.h"
-#include "objectRegister.h"
 #include "inputParam.h"
-#include "PositionSupport.h"
-#include "TallyCreate.h"
 #include "ImportControl.h"
+#include "support.h"
 
 #include "LineTrack.h"
 #include "ObjectTrackAct.h"
 #include "ObjectTrackPoint.h"
 #include "ObjectTrackPlane.h"
-#include "Mesh3D.h"
 #include "TempWeights.h"
 #include "WeightControl.h"
 #include "WCellControl.h"
@@ -155,6 +145,67 @@ WCellControl::procRebase(const Simulation& System,
   return;
 }
 
+void
+WCellControl::processPtString(std::string ptStr,
+			      std::string& ptType,
+			      size_t& ptIndex,
+			      bool& adjointFlag) const
+/*!
+    Process a point with PtStr 
+    -- Note that this is a check of the string.
+    \todo Note that this is currently a copy of WWGControl. BOTH
+    should diverge
+
+    The input string is of the form
+    [TS]{P}Index
+    - T/S designated source / tally
+    - P [optional] indicates that a plane is used not a point
+    - [index] : number of source/plane/tally point
+
+    Example TS2 --> Adjoint type : Source 2 
+    \param ptStr :: String to process
+    \param ptType :: Source/Plane/Cone
+    \param ptIndex :: Index to SPC vector unit
+    \param adjointFlag :: use Adjoint source
+  */
+{
+  ELog::RegMethod RegA("WCellControl","processPtString");
+
+  const static std::map<char,std::string> TypeMap
+    ({ { 'S',"Source" }, {'P',"Plane"}, {'C',"Cone"} });
+
+  if (ptStr.size()<2)
+    throw ColErr::InvalidLine
+      (ptStr,"PtStr[0] expected:: [ST] [SPC] number");  
+  
+  const std::string Input(ptStr);
+  const char SP=static_cast<char>(std::toupper(ptStr[0]));
+  const char TP=static_cast<char>(std::toupper(ptStr[1]));
+  if (SP!='T' && SP!='S')  // fail
+    throw ColErr::InvalidLine(Input,"PtStr[0] expected:: [ST] [SPC] number");
+  
+  std::map<char,std::string>::const_iterator mc=TypeMap.find(TP);
+  if (mc==TypeMap.end())
+    throw ColErr::InvalidLine
+      (Input,"PtStr[1] expected:: [ST] [SPC] number");
+  
+  adjointFlag= (SP=='T') ? 1 : 0;  
+  ptType=mc->second;
+  
+  ptStr[0]=' ';
+  ptStr[1]=' ';
+  if (!StrFunc::sectPartNum(ptStr,ptIndex))
+    throw ColErr::InvalidLine(Input,"PtStr Index not found");
+
+  if (ptType=="Plane" && ptIndex>=planePt.size())
+    throw ColErr::IndexError<size_t>(ptIndex,planePt.size(),
+				     "planePt.size() < ptIndex");
+  else if (ptType=="Source" && ptIndex>=sourcePt.size())
+    throw ColErr::IndexError<size_t>(ptIndex,sourcePt.size(),
+				     "sourcePt.size() < ptIndex");
+
+  return;
+}
 
 void
 WCellControl::procObject(const Simulation& System,
@@ -281,7 +332,7 @@ WCellControl::scaleObject(const Simulation& System,
   for(const int cellN : cellVec)
     {
       const MonteCarlo::Object* CellPtr=System.findObject(cellN);
-      if (CellPtr && CellPtr->getMat())
+      if (CellPtr && !CellPtr->isVoid())
         WF->scaleWeights(cellN,WEng);
     }
   return;
@@ -341,7 +392,7 @@ WCellControl::findMax(const Simulation& System,
   for(const int CN : cellRange)
     {
       const MonteCarlo::Object* CellPtr=System.findObject(CN);
-      if (CellPtr && CellPtr->getMat())
+      if (CellPtr && !CellPtr->isVoid())
 	{
           foundCellCnt++;
 	  const std::vector<double> WVec=WF->getWeights(CN);
@@ -451,7 +502,7 @@ WCellControl::calcCellTrack(const Simulation& System,
   for(const int cellN : cellVec)
     {
       const MonteCarlo::Object* CellPtr=System.findObject(cellN);
-      if (CellPtr && CellPtr->getMat())
+      if (CellPtr && !CellPtr->isVoid())
 	{
 	  index.push_back(CellPtr->getName());  // this should be cellN ??
 	  Pts.push_back(ModelSupport::calcCOFM(*CellPtr));
@@ -483,7 +534,7 @@ WCellControl::calcCellTrack(const Simulation& System,
   for(const int cellN : cellVec)
     {
       const MonteCarlo::Object* CellPtr=System.findObject(cellN);
-      if (CellPtr && CellPtr->getMat())
+      if (CellPtr && !CellPtr->isVoid())
         {
           index.push_back(CellPtr->getName());  // this should be cellN ??
 	  Pts.push_back(ModelSupport::calcCOFM(*CellPtr));
@@ -515,7 +566,7 @@ WCellControl::calcCellTrack(const Simulation& System,
   for(const int cellN : cellVec)
     {
       const MonteCarlo::Object* CellPtr=System.findObject(cellN);
-      if (CellPtr && CellPtr->getMat())
+      if (CellPtr && !CellPtr->isVoid())
         {
           index.push_back(CellPtr->getName());  // this should be cellN ??
 	  //          Pts.push_back(CellPtr->getCofM());

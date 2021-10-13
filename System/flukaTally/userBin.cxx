@@ -3,7 +3,7 @@
  
  * File:   flukaTally/userBin.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,16 +38,9 @@
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
 #include "writeSupport.h"
 #include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Mesh3D.h"
 
 #include "flukaTally.h"
 #include "userBin.h"
@@ -55,9 +48,20 @@
 namespace flukaSystem
 {
 
-userBin::userBin(const int outID) :
-  flukaTally("mesh"+std::to_string(outID),outID),
-  meshType(10),particle("208")
+
+userBin::userBin(const int ID,const int outID) :
+  userBin("mesh",ID,outID)
+  /*!
+    Constructor
+    \param outID :: Identity number of tally [fortranOut]
+  */
+{}
+
+userBin::userBin(const std::string& tallyName,
+		   const int ID,const int outID) :
+  flukaTally(tallyName,ID,outID),
+  meshType(10),particle("208"),
+  Pts({0,0,0})
   /*!
     Constructor
     \param outID :: Identity number of tally [fortranOut]
@@ -212,7 +216,8 @@ userBin::write(std::ostream& OX) const
    */
 {
   std::ostringstream cx;
-  
+
+  const int outputUnit(getOutUnit());
   cx<<"USRBIN "<<meshType<<" "<<particle<<" "
     <<outputUnit<<" "<<maxCoord;  
   cx<<" mesh"<<std::to_string(std::abs(outputUnit));
@@ -226,6 +231,8 @@ userBin::write(std::ostream& OX) const
   cx<<"  & ";
   StrFunc::writeFLUKA(cx.str(),OX);  
   writeAuxScore(OX);
+
+  flukaTally::write(OX);
   return;
 }
 

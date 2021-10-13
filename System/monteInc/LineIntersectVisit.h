@@ -3,7 +3,7 @@
  
  * File:   monteInc/LineIntersectVisit.h
  *
- * Copyright (c) 2004-2017 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,10 +22,11 @@
 #ifndef LineIntersectVisit_h
 #define LineIntersectVisit_h
 
+class HeadRule;
 
 namespace MonteCarlo
 {
-  class neutron;
+  class particle;
 
 /*!
   \class LineIntersectVisit
@@ -41,11 +42,12 @@ class LineIntersectVisit : public Global::BaseVisit
   {
   private:
 
-    Geometry::Line ATrack;                ///< Line 
-    std::vector<Geometry::Vec3D> PtOut;   ///< Output point 
-    std::vector<double> DOut;             ///< Output distances
-    std::vector<const Geometry::Surface*> SurfIndex;           ///< SurfNames
-    int neutIndex;                        ///< Neutron number
+    Geometry::Line ATrack;                             ///< Line 
+    std::vector<Geometry::Vec3D> PtVec;                ///< Output point 
+    std::vector<double> distVec;                       ///< Output distances
+    std::vector<int> surfNumber;                       ///< SurfIndexes [signed]
+    std::vector<const Geometry::Surface*> surfVec;     ///< Surfaces
+    long int neutIndex;                                ///< Particle number
 
     void procTrack(const Geometry::Surface*);
     ///\cond PRIVATE
@@ -55,9 +57,9 @@ class LineIntersectVisit : public Global::BaseVisit
 
   public:
     
-    LineIntersectVisit(const Geometry::Vec3D&,
-		       const Geometry::Vec3D&);
-    LineIntersectVisit(const MonteCarlo::neutron&);
+    LineIntersectVisit(const Geometry::Vec3D&,const Geometry::Vec3D&);
+    LineIntersectVisit(const Geometry::Line&);
+    LineIntersectVisit(const MonteCarlo::particle&);
 
     /// Destructor
     virtual ~LineIntersectVisit() {};
@@ -75,21 +77,24 @@ class LineIntersectVisit : public Global::BaseVisit
     void Accept(const Geometry::Sphere&);
     void Accept(const Geometry::Torus&);
 
+    void Accept(const HeadRule&);
+
     /// Clear track
     void clearTrack() 
-      { PtOut.clear(); DOut.clear(); SurfIndex.clear(); } 
+      { PtVec.clear(); distVec.clear(); surfVec.clear(); } 
 
     /// Distance Accessor
     const std::vector<double>& getDistance() const 
-      { return DOut; }
+      { return distVec; }
 
     /// Point Accessor
-    const std::vector<Geometry::Vec3D>& getPoints() const { return PtOut; }
+    const std::vector<Geometry::Vec3D>& getPoints() const { return PtVec; }
     /// Index Accessor
     const std::vector<const Geometry::Surface*>& getSurfIndex() const 
-      { return SurfIndex; }
+      { return surfVec; }
 
     const std::vector<Geometry::Vec3D>& getPoints(const Geometry::Surface*);
+    const std::vector<Geometry::Vec3D>& getPoints(const HeadRule&);
     const std::vector<Geometry::Vec3D>& getPoints(const Geometry::Surface*,
 		  const Geometry::Surface*,const int);
 
@@ -100,17 +105,21 @@ class LineIntersectVisit : public Global::BaseVisit
 			     const Geometry::Vec3D&);
     Geometry::Vec3D getPoint(const std::string&,
 			     const Geometry::Vec3D&);
+    Geometry::Vec3D getPoint(HeadRule&,
+			     const Geometry::Vec3D&);
     /// Get number in intersection
-    int getNPoints() const { return static_cast<int>(PtOut.size()); }
+    size_t getNPoints() const { return PtVec.size(); }
 
     // Re-set the line
     void setLine(const Geometry::Vec3D&,const Geometry::Vec3D&);
-    void setLine(const neutron&);
+    void setLine(const particle&);
 
     // Accessors:
     double getDist(const Geometry::Surface*);
     double getForwardDist(const Geometry::Surface*);
-    const Geometry::Line& getTrack() const { return ATrack; } ///< Access Line
+
+    /// Access Line
+    const Geometry::Line& getTrack() const { return ATrack; } 
 
     void write(std::ostream&) const;
   };

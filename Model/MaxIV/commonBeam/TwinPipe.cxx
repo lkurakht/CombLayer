@@ -1,9 +1,9 @@
 /********************************************************************* 
   CombLayer : MCNP(X) Input builder
  
- * File:   maxpeem/TwinPipe.cxx
+ * File:   commonBeam/TwinPipe.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,32 +34,18 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -68,14 +54,12 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"  
 #include "FixedComp.h"
-#include "FixedOffset.h"
+#include "FixedRotate.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "ExternalCut.h"
 #include "BaseMap.h"
 #include "CellMap.h"
-#include "SurfMap.h"
 #include "SurfMap.h"
 
 #include "TwinPipe.h"
@@ -84,7 +68,7 @@ namespace xraySystem
 {
 
 TwinPipe::TwinPipe(const std::string& Key) :
-  attachSystem::FixedOffset(Key,12),
+  attachSystem::FixedRotate(Key,12),
   attachSystem::ContainedGroup("Flange","PipeA","PipeB"),
   attachSystem::CellMap(),
   attachSystem::SurfMap(),
@@ -110,7 +94,7 @@ TwinPipe::populate(const FuncDataBase& Control)
 {
   ELog::RegMethod RegA("TwinPipe","populate");
   
-  FixedOffset::populate(Control);
+  FixedRotate::populate(Control);
 
   pipeARadius=Control.EvalVar<double>(keyName+"PipeARadius");
   pipeALength=Control.EvalVar<double>(keyName+"PipeALength");
@@ -143,29 +127,11 @@ TwinPipe::populate(const FuncDataBase& Control)
 					 keyName+"FlangeLength");
 
   
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   feMat=ModelSupport::EvalMat<int>(Control,keyName+"FeMat");
   
   return;
 }
-
-void
-TwinPipe::createUnitVector(const attachSystem::FixedComp& FC,
-                             const long int sideIndex)
-  /*!
-    Create the unit vectors
-    \param FC :: Fixed component to link to
-    \param sideIndex :: Link point and direction [0 for origin]
-  */
-{
-  ELog::RegMethod RegA("TwinPipe","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
-  return;
-}
-
-
 
 void
 TwinPipe::createSurfaces()
@@ -174,7 +140,6 @@ TwinPipe::createSurfaces()
   */
 {
   ELog::RegMethod RegA("TwinPipe","createSurfaces");
-  
 
   // Get A Pipe Vector:
   const Geometry::Quaternion QAxy=
@@ -189,6 +154,7 @@ TwinPipe::createSurfaces()
   AYAxis=Y;
   BYAxis=Y;
   QAz.rotate(AYAxis);
+
   QAxy.rotate(AYAxis);
 
   QBz.rotate(BYAxis);
@@ -201,7 +167,7 @@ TwinPipe::createSurfaces()
       ExternalCut::setCutSurf("front",SMap.realSurf(buildIndex+1));
     }
 
-  makeShiftedSurf(SMap,"front",buildIndex+11,1,Y,flangeCJLength);
+  makeShiftedSurf(SMap,"front",buildIndex+11,Y,flangeCJLength);
   ModelSupport::buildCylinder(SMap,buildIndex+7,Origin,Y,flangeCJRadius);
   
   // Pipe A
@@ -265,10 +231,11 @@ TwinPipe::createObjects(Simulation& System)
   Out=ModelSupport::getComposite(SMap,buildIndex," 11 -201 207 -217 ");
   makeCell("PipeBWall",System,cellIndex++,feMat,0.0,Out);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," 211 -201 217 -227 ");
+  Out=ModelSupport::getComposite(SMap,buildIndex," 211 -201 217 -227 127 ");
   makeCell("PipeBFlange",System,cellIndex++,feMat,0.0,Out);
 
-  Out=ModelSupport::getComposite(SMap,buildIndex," 11 -211 217 -227 ");
+  // insert pipe A void:
+  Out=ModelSupport::getComposite(SMap,buildIndex," 11 -211 217 -227 127 ");
   makeCell("PipeBOutVoid",System,cellIndex++,voidMat,0.0,Out);
 
   // outer boundary [flange front]

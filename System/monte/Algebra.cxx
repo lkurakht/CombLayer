@@ -3,7 +3,7 @@
  
  * File:   monte/Algebra.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,12 +37,8 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "support.h"
-#include "stringCombine.h"
 #include "MapSupport.h"
 #include "BnId.h"
 #include "AcompTools.h"
@@ -304,8 +300,7 @@ Algebra::addImplicates(const std::vector<std::pair<int,int> > & IM)
     Adds the implicates to the from a list of surface numbers
     [signed]
     \param IM :: Implicate list 
-    
-   */
+  */
 {
   ELog::RegMethod RegA("Algebra","addImplicates");
 
@@ -330,41 +325,62 @@ Algebra::addImplicates(const std::vector<std::pair<int,int> > & IM)
 bool
 Algebra::constructShannonDivision(const int mcnpSN)
   /*!
-    Given a surface number SN [signed]
-    can we divide base on implicates of that surfac
+    Given a surface number mcnpSN [signed]
+    can we divide base on implicates of that surface
     removing the +/- part 
-    \parma mcnpSN :: Surface for divide and implicate
+    \param mcnpSN :: Surface for divide and implicate
     \return true if a surface can be removed
   */
 {
-  ELog::RegMethod RegA("Algebra","constructShannonDivision");
-  
-  const int SN=convertMCNPSurf(mcnpSN);
-  const int ASN(std::abs(SN));
-  Acomp FX(F);
-  FX.expandCNFBracket();
-  Acomp AD=FX;
+  ELog::RegMethod RegA("Algebra","constructShannonDivision ");
 
+  const int PSN=convertMCNPSurf(mcnpSN);
+  //  const int realPNS=getSurfIndex(PSN);
+  
+
+  Acomp FaT(F);
+  Acomp FaF(F);
+
+  FaT.resolveTrue(PSN);     // a=1
+  FaF.resolveTrue(-PSN);    // a=0
+
+  // resolve F into Fplus and Fminus
+  // test if any of the implicates are true:
+  
   for(const std::pair<int,int>& IP : ImplicateVec)
     {
-      int SNA=IP.first;
-      int SNB=IP.second;
-      int ANA=std::abs(SNA);
-      int ANB=std::abs(SNB);
-      if (ANB==ASN)
-	{
-	  std::swap(ANA,ANB);
-	  std::swap(SNA,SNB);
-	  SNA*=-1;
-	  SNB*=-1;
-	}
+      const int SNA=IP.first;
+      const int SNB=IP.second;
+      if (SNA==PSN)   // a->b
+	FaT.resolveTrue(SNB);     // a -> b
 
-      if (SNA==SN)
-	AD.resolveTrue(SNB);
+      if (SNA== -PSN)
+	FaF.resolveTrue(SNB);     // a -> b
     }
-  F=AD;
+  
 
-  return 1;  
+  // This may have already resolved something::
+  if (FaT.isFalse() && FaF.isFalse())
+    {
+      F=FaT;
+      return 1;
+    }
+
+  if (FaT.isFalse())
+    {
+      F=FaF;
+      F.addIntersect(-PSN);
+      return 1;
+    }
+
+  if (FaF.isFalse())
+    {
+      F=FaT;
+      F.addIntersect(PSN);
+      return 1;
+    }
+  // ok nothing worked
+  return 0;
 }
   
 bool
@@ -375,7 +391,7 @@ Algebra::constructShannonExpansion()
        - for each +/- pair resolve shannon expansion
        - Compute F=a'F(00)+a'bF(01)+bF(11)
           assuming that a->b is true 
-       -- if a -> -b then apply -1 to flag of b
+       -- if a -> -b then apply -1 to flag of b etc
        - if F(01) is null and either F(11) or F(00) is null
              then remove either/and  a and b from the equation.
        - re-resolve for next literal
@@ -386,24 +402,27 @@ Algebra::constructShannonExpansion()
 
   Acomp FX(F);
   FX.expandCNFBracket();
-
+  bool retFlag(0);
+  
   std::set<int> LitM;
   FX.getLiterals(LitM);
 
-
+  if (FX.isEmpty())  // object null
+    retFlag=1;
   for(const std::pair<int,int>& IP : ImplicateVec)
     {
       //
       // now do shannon expansion about both literals [together]
-      // if the literals are opposite signed then we reverse one nad
-      // continue/
-
+      // note that a -> b does not imply b' -> a'. 
       const int& SNA=IP.first;
       const int& SNB=IP.second;
-      
+      //      const int realSNA=getSurfIndex(SNA);
+      //      const int realSNB=getSurfIndex(SNB);
+
       Acomp FaFbT(FX);
       FaFbT.resolveTrue(-SNA);     // a=0
-      FaFbT.resolveTrue(SNB);    // b=1
+      FaFbT.resolveTrue(SNB);      // b=1
+
       if (FaFbT.isFalse())
 	{
 	  Acomp FaFbF(FX);
@@ -417,21 +436,21 @@ Algebra::constructShannonExpansion()
 	  // POST PROCESS
 	  if (FaFbF.isFalse())  // kill by either removing a or using FaTbT?
 	    {
-	      ELog::EM<<"REMOVAL of "<<Acomp::strUnit(SNA)<<ELog::endDiag;
+	      retFlag=1;
 	      FX=FaTbT;
-	      FX.addIntersect(SNB);
+	      FX.addIntersect(SNA);
 	    }
 	  if (FaTbT.isFalse())
 	    {
-	      ELog::EM<<"REMOVAL of "<<Acomp::strUnit(SNB)<<ELog::endDiag;
+	      retFlag=1;
 	      FX=FaFbF;
-	      FX.addIntersect(-SNA);	      
+	      FX.addIntersect(-SNB);
 	    }
 	}
-	      
     }
+  if (retFlag) F=FX;
 
-  return 1;
+  return retFlag;
 }
   
 int

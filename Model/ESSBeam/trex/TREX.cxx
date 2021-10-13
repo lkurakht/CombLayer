@@ -3,7 +3,7 @@
  
  * File:   ESSBeam/trex/TREX.cxx
  *
- * Copyright (c) 2004-2018 by Tsitohaina Randriamalala/Stuart Ansell
+ * Copyright (c) 2004-2019 by Tsitohaina Randriamalala/Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,25 +36,13 @@
 #include <memory>
 #include <array>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "debugMethod.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "stringCombine.h"
-#include "inputParam.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
 #include "objectRegister.h"
-#include "Rules.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
@@ -65,29 +53,26 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "FixedRotate.h"
+#include "FixedOffsetUnit.h"
 #include "FixedGroup.h"
 #include "FixedOffsetGroup.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "ContainedGroup.h"
 #include "CopiedComp.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
+#include "ExternalCut.h"
 #include "FrontBackCut.h"
-#include "World.h"
 #include "AttachSupport.h"
 #include "beamlineSupport.h"
 #include "GuideItem.h"
-#include "Jaws.h"
 #include "GuideLine.h"
 #include "DiskChopper.h"
-#include "VacuumBox.h"
 #include "VacuumPipe.h"
-#include "ChopperHousing.h"
 #include "SingleChopper.h"
 #include "Bunker.h"
-#include "BunkerInsert.h"
 #include "CompBInsert.h"
 #include "ChopperPit.h"
 #include "HoleShape.h"
@@ -104,7 +89,7 @@ namespace essSystem
 TREX::TREX(const std::string& keyName):
   attachSystem::CopiedComp("trex",keyName),
   nC(7),nF(8),stopPoint(0),
-  trexAxis(new attachSystem::FixedOffset(newName+"Axis",4)),
+  trexAxis(new attachSystem::FixedOffsetUnit(newName+"Axis",4)),
 
   FocusMono(new beamlineSystem::GuideLine(newName+"FMono")),
   VPipeBridge(new constructSystem::VacuumPipe(newName+"PipeBridge")),
@@ -192,8 +177,8 @@ TREX::TREX(const std::string& keyName):
 {
   ELog::RegMethod RegA("TREX","TREX");
   
-  ModelSupport::objectRegister& OR = ModelSupport::objectRegister::Instance();
-  // OR.cell(newName+"Axis");
+  ModelSupport::objectRegister& OR =
+    ModelSupport::objectRegister::Instance();
 
   OR.addObject(trexAxis);
   
@@ -248,7 +233,7 @@ TREX::TREX(const std::string& keyName):
   
   for(size_t i=0;i<nC;i++)
     {
-      const std::string strNum(StrFunc::makeString(i));
+      const std::string strNum(std::to_string(i));
       VPipeOutCs[i]=std::shared_ptr<constructSystem::VacuumPipe>
 	(new constructSystem::VacuumPipe(newName+"PipeOutC"+strNum));
       BendOutCs[i]=std::shared_ptr<beamlineSystem::GuideLine>
@@ -276,7 +261,7 @@ TREX::TREX(const std::string& keyName):
   OR.addObject(ShieldF);
   for(size_t i=0;i<nF;i++)
     {
-      const std::string strNum(StrFunc::makeString(i));
+      const std::string strNum(std::to_string(i));
 
       VPipeOutFs[i]=std::shared_ptr<constructSystem::VacuumPipe>
 	(new constructSystem::VacuumPipe(newName+"PipeOutF"+strNum));
@@ -327,13 +312,13 @@ TREX::buildBunkerUnits(Simulation& System,
   ELog::RegMethod RegA("TREX","buildBunkerUnits");
 
   /// Brigde Guide 
-  VPipeBridge->addInsertCell(bunkerVoid); 
+  VPipeBridge->addAllInsertCell(bunkerVoid); 
   VPipeBridge->createAll(System,FA,startIndex);
   FocusBridge->addInsertCell(VPipeBridge->getCells("Void"));
   FocusBridge->createAll(System,*VPipeBridge,0,*VPipeBridge,0);
     
   /// Start Curve
-  VPipeInA->addInsertCell(bunkerVoid);
+  VPipeInA->addAllInsertCell(bunkerVoid);
   VPipeInA->createAll(System,*VPipeBridge,2);
   BendInA->addInsertCell(VPipeInA->getCells("Void"));
   BendInA->createAll(System,*VPipeInA,0,*VPipeInA,0);
@@ -343,7 +328,7 @@ TREX::buildBunkerUnits(Simulation& System,
   CollimA->addInsertCell(VPipeInA->getCells("Void"));
   CollimA->createAll(System,*VPipeInA,-1);
 
-  VPipeInB->addInsertCell(bunkerVoid);
+  VPipeInB->addAllInsertCell(bunkerVoid);
   VPipeInB->createAll(System,BendInA->getKey("Guide0"),2);
   BendInB->addInsertCell(VPipeInB->getCells("Void"));
   BendInB->createAll(System,*VPipeInB,0,*VPipeInB,0);
@@ -353,7 +338,7 @@ TREX::buildBunkerUnits(Simulation& System,
   CollimB->addInsertCell(VPipeInB->getCells("Void"));
   CollimB->createAll(System,*VPipeInB,-1);
 
-  VPipeInC->addInsertCell(bunkerVoid);
+  VPipeInC->addAllInsertCell(bunkerVoid);
   VPipeInC->createAll(System,BendInB->getKey("Guide0"),2);
   BendInC->addInsertCell(VPipeInC->getCells("Void"));
   BendInC->createAll(System,*VPipeInC,0,*VPipeInC,0);
@@ -383,13 +368,13 @@ TREX::buildBunkerWallUnits(Simulation& System,
   ELog::RegMethod RegA("TREX","buildBunkerWallUnits");
   
   BInsertA->addInsertCell(bunkerVoid);
-  BInsertA->createAll(System,FA,startIndex,bunkerObj);
+  BInsertA->createAll(System,FA,startIndex);
   attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsertA);
 
   FocusWallA->addInsertCell(BInsertA->getCells("Item"));
   FocusWallA->createAll(System,*BInsertA,0,*BInsertA,0);
 
-  BInsertB->createAll(System,*BInsertA,2,bunkerObj);
+  BInsertB->createAll(System,*BInsertA,2);
   attachSystem::addToInsertSurfCtrl(System,bunkerObj,"frontWall",*BInsertB);
   return;
 }
@@ -467,7 +452,7 @@ TREX::build(Simulation& System,
   DiskA->createAll(System,ChopperA->getKey("Main"),0);
   ChopperA->insertAxle(System,*DiskA);
   
-  VPipeOutA->addInsertCell(ShieldA->getCell("Void"));
+  VPipeOutA->addAllInsertCell(ShieldA->getCell("Void"));
   VPipeOutA->createAll(System,FocusWallB->getKey("Guide0"),2);
   BendOutA->addInsertCell(VPipeOutA->getCells("Void"));
   BendOutA->createAll(System,*VPipeOutA,0,*VPipeOutA,0);
@@ -498,7 +483,7 @@ TREX::build(Simulation& System,
   ShieldB->setBack(PitB->getKey("Mid"),1);
   ShieldB->createAll(System,PitA->getKey("Mid"),2);
 
-  VPipeOutB->addInsertCell(ShieldB->getCell("Void"));
+  VPipeOutB->addAllInsertCell(ShieldB->getCell("Void"));
   VPipeOutB->createAll(System,*ShieldB,-1);
   BendOutB->addInsertCell(VPipeOutB->getCells("Void"));
   BendOutB->createAll(System,*VPipeOutB,0,*VPipeOutB,0);
@@ -536,8 +521,8 @@ TREX::build(Simulation& System,
   ShieldC->setBack(PitC->getKey("Mid"),1);
   ShieldC->createAll(System,PitB->getKey("Mid"),2);
 
-  VPipeOutCs[0]->addInsertCell(ShieldC->getCell("Void"));
-  VPipeOutCs[0]->addInsertCell(PitB->getCells("MidLayer"));
+  VPipeOutCs[0]->addAllInsertCell(ShieldC->getCell("Void"));
+  VPipeOutCs[0]->addAllInsertCell(PitB->getCells("MidLayer"));
   VPipeOutCs[0]->createAll(System,*ShieldC,-1);
   BendOutCs[0]->addInsertCell(VPipeOutCs[0]->getCells("Void"));
   BendOutCs[0]->createAll(System,*VPipeOutCs[0],0,*VPipeOutCs[0],0);
@@ -552,16 +537,16 @@ TREX::build(Simulation& System,
       
   for(size_t i=1;i<nC-1;i++)
     {      
-      VPipeOutCs[i]->addInsertCell(ShieldC->getCell("Void"));
+      VPipeOutCs[i]->addAllInsertCell(ShieldC->getCell("Void"));
       VPipeOutCs[i]->createAll(System,*VPipeOutCs[i-1],2);
       BendOutCs[i]->addInsertCell(VPipeOutCs[i]->getCells("Void"));
       BendOutCs[i]->createAll(System,*VPipeOutCs[i],0,*VPipeOutCs[i],0);
       LinkPtr= &BendOutCs[i]->getKey("Guide0");
     }
   
-  VPipeOutCs[6]->addInsertCell(ShieldC->getCell("Void"));
-  VPipeOutCs[6]->addInsertCell(PitC->getCells("MidLayer"));
-  VPipeOutCs[6]->addInsertCell(PitC->getCells("Outer"));
+  VPipeOutCs[6]->addAllInsertCell(ShieldC->getCell("Void"));
+  VPipeOutCs[6]->addAllInsertCell(PitC->getCells("MidLayer"));
+  VPipeOutCs[6]->addAllInsertCell(PitC->getCells("Outer"));
   VPipeOutCs[6]->createAll(System,*VPipeOutCs[5],2);
 
   BendOutCs[6]->addInsertCell(VPipeOutCs[6]->getCells("Void"));
@@ -583,7 +568,7 @@ TREX::build(Simulation& System,
   ShieldD->setFront(PitC->getKey("Mid"),2);
   ShieldD->createAll(System,PitC->getKey("Mid"),2);
 
-  VPipeOutD->addInsertCell(ShieldD->getCell("Void"));
+  VPipeOutD->addAllInsertCell(ShieldD->getCell("Void"));
   VPipeOutD->createAll(System,*ShieldD,-1);
   BendOutD->addInsertCell(VPipeOutD->getCells("Void"));
   BendOutD->createAll(System,*VPipeOutD,0,*VPipeOutD,0);
@@ -634,7 +619,7 @@ TREX::build(Simulation& System,
   ShieldE->setBack(PitE->getKey("Mid"),1);
   ShieldE->createAll(System,BendOutD->getKey("Guide0"),2);
   
-  VPipeOutE->addInsertCell(ShieldE->getCell("Void"));
+  VPipeOutE->addAllInsertCell(ShieldE->getCell("Void"));
   VPipeOutE->createAll(System,*ShieldE,-1);
 
   GuideOutE->addInsertCell(VPipeOutE->getCells("Void"));
@@ -649,7 +634,7 @@ TREX::build(Simulation& System,
   ShieldF->addInsertCell(Cave->getCell("L3Front"));
   ShieldF->createAll(System,PitE->getKey("Mid"),2);
    
-  VPipeOutFs[0]->addInsertCell(ShieldF->getCell("Void"));
+  VPipeOutFs[0]->addAllInsertCell(ShieldF->getCell("Void"));
   VPipeOutFs[0]->createAll(System,*ShieldF,-1);
   
   GuideOutFs[0]->addInsertCell(VPipeOutFs[0]->getCells("Void"));
@@ -657,7 +642,7 @@ TREX::build(Simulation& System,
   
   for(size_t i=1;i<nF-1;i++)
     {
-      VPipeOutFs[i]->addInsertCell(ShieldF->getCell("Void"));
+      VPipeOutFs[i]->addAllInsertCell(ShieldF->getCell("Void"));
       VPipeOutFs[i]->createAll(System,*VPipeOutFs[i-1],2);
       
       GuideOutFs[i]->addInsertCell(VPipeOutFs[i]->getCells("Void"));
@@ -670,8 +655,8 @@ TREX::build(Simulation& System,
   			 Cave->getKey("Inner").getFullRule(1));
   CaveFrontCut->createAll(System,Cave->getKey("Mid"),-1);
   
-  VPipeOutFs[7]->addInsertCell(ShieldF->getCell("Void"));
-  VPipeOutFs[7]->addInsertCell(CaveFrontCut->getCells("Void"));
+  VPipeOutFs[7]->addAllInsertCell(ShieldF->getCell("Void"));
+  VPipeOutFs[7]->addAllInsertCell(CaveFrontCut->getCells("Void"));
   VPipeOutFs[7]->createAll(System,*VPipeOutFs[6],2);
   
   GuideOutFs[7]->addInsertCell(VPipeOutFs[7]->getCells("Void"));
@@ -688,7 +673,7 @@ TREX::build(Simulation& System,
   DiskG->createAll(System,ChopperG->getKey("Main"),0);
   ChopperG->insertAxle(System,*DiskG);
   
-  VPipeOutH->addInsertCell(Cave->getCell("Void"));
+  VPipeOutH->addAllInsertCell(Cave->getCell("Void"));
   VPipeOutH->createAll(System,ChopperG->getKey("Beam"),2);
   GuideOutH->addInsertCell(VPipeOutH->getCells("Void"));
   GuideOutH->createAll(System,*VPipeOutH,0,*VPipeOutH,0);

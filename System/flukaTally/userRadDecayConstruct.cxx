@@ -3,7 +3,7 @@
  
  * File:   flukaTally/userRadDecayConstruct.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,37 +38,17 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "support.h"
-#include "surfRegister.h"
-#include "Rules.h"
-#include "HeadRule.h"
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
-#include "LinkUnit.h"
-#include "FixedComp.h"
-#include "BaseMap.h"
-#include "SurfMap.h"
-#include "CellMap.h"
-#include "LinkSupport.h"
 #include "inputParam.h"
 
-#include "Object.h"
 #include "SimFLUKA.h"
-#include "particleConv.h"
-#include "flukaGenParticle.h"
-#include "TallySelector.h"
-#include "flukaTally.h"
 #include "radDecay.h"
 #include "userRadDecayConstruct.h" 
 
@@ -127,6 +107,22 @@ userRadDecayConstruct::processRadDecay(SimFLUKA& System,
 	}
       RadPtr->setIradTime(ATime);
     }
+  else if (keyName=="eCutEnergy")
+    {
+      double eA=IParam.getValueError<double>
+	("tally",Index,2,"tally:eCutEnergy");
+      const double eB=IParam.getDefValue<double>(-1.0,"tally",Index,3);
+      if (eB > -1.0) eA= eB/eA;
+      RadPtr->setECutEnergy(eA);
+    }
+  else if (keyName=="pCutEnergy")
+    {
+      double pA=IParam.getValueError<double>
+	("tally",Index,2,"tally:pCutEnergy");
+      const double pB=IParam.getDefValue<double>(-1.0,"tally",Index,3);
+      if (pB > -1.0) pA= pB/pA;
+      RadPtr->setPCutEnergy(pA);
+    }
   else if (keyName=="NR")
     {
       const size_t NR=
@@ -142,6 +138,8 @@ userRadDecayConstruct::processRadDecay(SimFLUKA& System,
 	IParam.getValueError<std::string>("tally",Index,3,"tally:tally-name");
       
       RadPtr->addDetectors(tallyName,timeIndex);
+      ELog::EM<<"Adding " <<tallyName<<ELog::endCrit;
+
     }
   else
     throw ColErr::InContainerError<std::string>(keyName," RadDecy type");

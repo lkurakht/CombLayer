@@ -3,7 +3,7 @@
  
  * File:   commonBeam/SqrCollimator.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,32 +33,17 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
-#include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
@@ -67,9 +52,8 @@
 #include "generateSurf.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "FixedOffset.h"
+#include "FixedRotate.h"
 #include "ContainedComp.h"
-#include "SpaceCut.h"
 #include "BaseMap.h"
 #include "CellMap.h"
 #include "SurfMap.h"
@@ -80,7 +64,7 @@ namespace xraySystem
 {
 
 SqrCollimator::SqrCollimator(const std::string& Key) :
-  attachSystem::ContainedComp(),attachSystem::FixedOffset(Key,6),
+  attachSystem::ContainedComp(),attachSystem::FixedRotate(Key,6),
   attachSystem::CellMap(),attachSystem::SurfMap()
   /*!
     Default constructor
@@ -89,8 +73,10 @@ SqrCollimator::SqrCollimator(const std::string& Key) :
 {}
   
 SqrCollimator::SqrCollimator(const SqrCollimator& A) : 
-  attachSystem::ContainedComp(A),attachSystem::FixedOffset(A),
-  attachSystem::CellMap(A),attachSystem::SurfMap(A),
+  attachSystem::ContainedComp(A),
+  attachSystem::FixedRotate(A),
+  attachSystem::CellMap(A),
+  attachSystem::SurfMap(A),
   radius(A.radius),length(A.length),innerAWidth(A.innerAWidth),
   innerAHeight(A.innerAHeight),minLength(A.minLength),
   innerMinWidth(A.innerMinWidth),innerMinHeight(A.innerMinHeight),
@@ -113,7 +99,7 @@ SqrCollimator::operator=(const SqrCollimator& A)
   if (this!=&A)
     {
       attachSystem::ContainedComp::operator=(A);
-      attachSystem::FixedOffset::operator=(A);
+      attachSystem::FixedRotate::operator=(A);
       attachSystem::CellMap::operator=(A);
       attachSystem::SurfMap::operator=(A);
       radius=A.radius;
@@ -140,7 +126,7 @@ SqrCollimator::populate(const FuncDataBase& Control)
 {
   ELog::RegMethod RegA("SqrCollimator","populate");
 
-  FixedOffset::populate(Control);
+  FixedRotate::populate(Control);
   
   radius=Control.EvalVar<double>(keyName+"Radius");
   length=Control.EvalVar<double>(keyName+"Length");
@@ -154,28 +140,10 @@ SqrCollimator::populate(const FuncDataBase& Control)
   innerBHeight=Control.EvalVar<double>(keyName+"innerBHeight");
 
   mat=ModelSupport::EvalMat<int>(Control,keyName+"Mat");
-  voidMat=ModelSupport::EvalDefMat<int>(Control,keyName+"VoidMat",0);
+  voidMat=ModelSupport::EvalDefMat(Control,keyName+"VoidMat",0);
   
   return;
 }
-
-void
-SqrCollimator::createUnitVector(const attachSystem::FixedComp& FC,
-				 const long int sideIndex)
-  /*!
-    Create the unit vectors: Note only to construct front/back surf
-    \param FC :: Centre point
-    \param sideIndex :: Side index
-  */
-{
-  ELog::RegMethod RegA("SqrCollimator","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
-
-  return;
-}
-
 
 void
 SqrCollimator::createSurfaces()
@@ -248,26 +216,26 @@ SqrCollimator::createObjects(Simulation& System)
   */
 {
   ELog::RegMethod RegA("SqrCollimator","createObjects");
-  std::string Out;
+  HeadRule HR;
 
   // inner voids
-  Out=ModelSupport::getComposite(SMap,buildIndex,"1 -101 103 -104 105 -106");
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"1 -101 103 -104 105 -106");
 
-  CellMap::makeCell("Void",System,cellIndex++,voidMat,0.0,Out);
-  Out=ModelSupport::getComposite(SMap,buildIndex,"101 -2 203 -204 205 -206");
-  CellMap::makeCell("Void",System,cellIndex++,voidMat,0.0,Out);
+  CellMap::makeCell("Void",System,cellIndex++,voidMat,0.0,HR);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"101 -2 203 -204 205 -206");
+  CellMap::makeCell("Void",System,cellIndex++,voidMat,0.0,HR);
   // metal
-  Out=ModelSupport::getComposite
-    (SMap,buildIndex," 1 -101 -7 (-103:104:-105:106) ");
+  HR=ModelSupport::getHeadRule
+    (SMap,buildIndex,"1 -101 -7 (-103:104:-105:106)");
   
-  CellMap::makeCell("FrontColl",System,cellIndex++,mat,0.0,Out);
-  Out=ModelSupport::getComposite
-    (SMap,buildIndex," 101 -2 -7 (-203:204:-205:206) ");
-  CellMap::makeCell("BackColl",System,cellIndex++,mat,0.0,Out);
+  CellMap::makeCell("FrontColl",System,cellIndex++,mat,0.0,HR);
+  HR=ModelSupport::getHeadRule
+    (SMap,buildIndex,"101 -2 -7 (-203:204:-205:206)");
+  CellMap::makeCell("BackColl",System,cellIndex++,mat,0.0,HR);
 
   
-  Out=ModelSupport::getComposite(SMap,buildIndex,"1 -2 -7");
-  addOuterSurf(Out);
+  HR=ModelSupport::getHeadRule(SMap,buildIndex,"1 -2 -7");
+  addOuterSurf(HR);
   return;
 }
 
@@ -305,7 +273,7 @@ SqrCollimator::createAll(Simulation& System,
     \param sideIndex :: position of linkpoint
   */
 {
-  ELog::RegMethod RegA("SqrCollimator","createAllNoPopulate");
+  ELog::RegMethod RegA("SqrCollimator","createAll");
 
   populate(System.getDataBase());
   createUnitVector(FC,sideIndex);

@@ -3,7 +3,7 @@
  
  * File:   monteInc/HeadRule.h
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -62,12 +62,21 @@ class HeadRule
   explicit HeadRule(const int);
   explicit HeadRule(const std::string&);
   HeadRule(const HeadRule&);
+  HeadRule(HeadRule&&);
   HeadRule(const Rule*);
   HeadRule& operator=(const HeadRule&);
   ~HeadRule();
   bool operator==(const HeadRule&) const;
   bool operator!=(const HeadRule&) const;
-
+  HeadRule& operator+=(const HeadRule&);
+  HeadRule& operator*=(const HeadRule&);
+  HeadRule& operator-=(const HeadRule&);
+  HeadRule& operator/=(const HeadRule&);
+  HeadRule operator+(const HeadRule&) const;
+  HeadRule operator*(const HeadRule&) const;
+  HeadRule operator-(const HeadRule&) const;
+  HeadRule operator/(const HeadRule&) const;
+  
   /// access main rule
   const Rule* getTopRule() const { return HeadNode; }
 
@@ -76,7 +85,9 @@ class HeadRule
   void reset();
 
   /// Has a valid rule
-  bool hasRule() const { return (HeadNode) ? 1 : 0; } 
+  bool hasRule() const { return (HeadNode) ? 1 : 0; }
+  /// has valid filled rule [non-empty]
+  bool isEmpty() const;
   bool isComplementary() const;
   bool isUnion() const;
 
@@ -86,19 +97,39 @@ class HeadRule
   int pairValid(const int,const Geometry::Vec3D&) const;           
   bool isValid(const std::map<int,int>&) const; 
   bool isDirectionValid(const Geometry::Vec3D&,const int) const;
+  bool isDirectionValid(const Geometry::Vec3D&,
+			const std::set<int>&,const int) const;
+
+  std::set<int> surfValid(const Geometry::Vec3D&) const;
+  std::tuple<int,const Geometry::Surface*,Geometry::Vec3D,double>
+  trackSurfIntersect(const Geometry::Vec3D&,const Geometry::Vec3D&)
+    const;
   
+  std::pair<int,double> trackSurfDistance
+    (const Geometry::Vec3D&,const Geometry::Vec3D&) const;
+  std::pair<int,double> trackSurfDistance
+    (const Geometry::Vec3D&,const Geometry::Vec3D&,const std::set<int>&) const;
+
+  int trackSurf(const Geometry::Vec3D&,const Geometry::Vec3D&) const;
   int trackSurf(const Geometry::Vec3D&,const Geometry::Vec3D&,
-		double&) const;
-  int trackSurf(const Geometry::Vec3D&,const Geometry::Vec3D&,
-		double&,const std::set<int>&) const;
+		const std::set<int>&) const;
+
+  Geometry::Vec3D trackPoint(const Geometry::Vec3D&,
+			     const Geometry::Vec3D&) const;
+  Geometry::Vec3D trackClosestPoint
+    (const Geometry::Vec3D&,const Geometry::Vec3D&,
+     const Geometry::Vec3D&) const;
+
   size_t calcSurfIntersection
     (const Geometry::Vec3D&,const Geometry::Vec3D&,
      std::vector<Geometry::Vec3D>&,std::vector<int>&) const;
+
   size_t calcSurfSurfIntersection(std::vector<Geometry::Vec3D>&) const;
 
   std::set<const Geometry::Surface*> getOppositeSurfaces() const;
   const Geometry::Surface* getSurface(const int) const;
   std::vector<const Geometry::Surface*> getSurfaces() const;
+  std::set<int> getSignedSurfaceNumbers() const;
   std::vector<int> getSurfaceNumbers() const;
   std::vector<int> getTopSurfaces() const;
   int getPrimarySurface() const;
@@ -112,13 +143,20 @@ class HeadRule
   bool partMatched(const HeadRule&) const;
 
   std::set<int> getSurfSet() const;
-
+  int getSingleSurf() const;
+  
   int removeItems(const int);
   int removeUnsignedItems(const int);
+  int removeMatchedPlanes(const Geometry::Vec3D&,const double);
+  int removeOuterPlane(const Geometry::Vec3D&,const Geometry::Vec3D&,
+		       const double);
   void isolateSurfNum(const std::set<int>&);
   int removeTopItem(const int);
   int substituteSurf(const int,const int,const Geometry::Surface*);
   void removeCommon();
+
+  std::set<int> findAxisPlanes(const Geometry::Vec3D&,const double);
+  int findAxisPlane(const Geometry::Vec3D&,const double);
   
   void makeComplement();
   HeadRule complement() const;
@@ -141,6 +179,8 @@ class HeadRule
   HeadRule getLevel(const size_t) const;
   size_t countNLevel(const size_t) const;
 
+  HeadRule makeValid(const Geometry::Vec3D&) const;
+  
   bool Intersects(const HeadRule&) const;
 
   std::string display() const;

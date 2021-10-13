@@ -3,7 +3,7 @@
  
  * File:   world/World.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,37 +33,31 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
-#include "Quaternion.h"
 #include "Surface.h"
 #include "surfIndex.h"
 #include "surfRegister.h"
-#include "surfEqual.h"
 #include "Quadratic.h"
 #include "Plane.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "LinkUnit.h"
 #include "FixedComp.h"
-#include "World.h"
+#include "FixedUnit.h"
+#include "objectRegister.h"
 
 namespace World
 {
@@ -76,7 +70,7 @@ masterOrigin()
     \return Fixed Unit
   */
 {
-  static attachSystem::FixedComp MO("World",0);
+  static attachSystem::FixedUnit MO("World",0);
   return MO;
 }
 
@@ -88,7 +82,8 @@ masterZMinusOrigin()
     \return Fixed Unit
   */
 {
-  static attachSystem::FixedComp MO("World",0);  
+  static attachSystem::FixedUnit MO("World",0);
+  
   return MO;
 }
 
@@ -100,26 +95,52 @@ masterTS2Origin()
     \return Fixed Unit
   */
 {
-  static attachSystem::FixedComp MO("WorldTS2",0,
+  static attachSystem::FixedUnit MO("WorldTS2",0,
 				    Geometry::Vec3D(0,0,0),
 				    Geometry::Vec3D(0,1,0),
 				    Geometry::Vec3D(0,0,-1),
 				    Geometry::Vec3D(-1,0,0));
   return MO;
 }
+
+
+void
+buildWorld(objectGroups& OGrp)
+  /*!
+    Build and register a world object in a object group
+    \param OGrp :: Simluation to add a world to.
+  */
+{
+  ELog::RegMethod RegA("World[F]","buildWorld");
+  
+  ModelSupport::objectRegister& OR=
+    ModelSupport::objectRegister::Instance();
+  OR.setObjectGroup(OGrp);
+
+  std::shared_ptr<attachSystem::FixedComp> worldPtr=
+    std::make_shared<attachSystem::FixedUnit>(World::masterOrigin());
+  if (!OGrp.hasRegion("World"))
+    ModelSupport::objectRegister::Instance().cell("World",10000);
+  OGrp.addObject(worldPtr);
+  return;
+}
   
 void 
-createOuterObjects(Simulation& System)
+createOuterObjects(Simulation& System,
+		   const double worldRadius)
   /*!
     Create all the world outer objects
     \param System :: Simulation to modify
+    \param worldRadius :: Size of world
   */
 { 
   ELog::RegMethod RegA("World","createOuterObjects");
+  
   ModelSupport::surfIndex& SurI=ModelSupport::surfIndex::Instance();
+  SurI.reset();
 
   // Create object 1
-  SurI.createSurface(1,"so 20000");
+  SurI.createSurface(1,"so "+std::to_string(worldRadius));
   MonteCarlo::Object tmpCell(1,0,0.0," 1 ");
   tmpCell.setImp(0);
   System.addCell(tmpCell);
@@ -141,7 +162,6 @@ createOuterObjects(Simulation& System)
 
   //   Create object 74123
   System.addCell(MonteCarlo::Object(74123,0,0.0," -1 "));
-
   return;
 }
     

@@ -3,7 +3,7 @@
  
  * File:   funcBase/FuncDataBase.cxx
  *
- * Copyright (c) 2004-2019 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,14 +36,10 @@
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "support.h"
 #include "BaseVisit.h"
-#include "BaseModVisit.h"
 #include "XMLwriteVisitor.h"
 #include "XMLload.h"
 #include "XMLattribute.h"
@@ -117,6 +113,69 @@ FuncDataBase::hasVariable(const std::string& Key) const
   return (FI) ? 1 : 0;
 }
 
+
+std::string
+FuncDataBase::EvalVarString(const std::string& Key) const
+  /*!
+    Get the whole vector/value into a string
+    \param Key :: string to search
+    \return string of value(s)
+    \throw InContainterError if no variable exists
+  */
+{
+  const FItem* FI=findItem(Key);
+  if (!FI)
+    throw ColErr::InContainerError<std::string>
+      (Key,"FuncDataBase::EvalVector variable not found");
+
+  return FI->getString();
+}
+
+template<typename T>
+std::vector<T>
+FuncDataBase::EvalVector(const std::string& Key) const
+  /*!
+    Finds the vector of a variable item(s)
+    This is incomplete on list, as only track direct 
+    transfer and not double->int etc.
+    \param Key :: string to search
+    \return Value of variable 
+    \throw InContainterError if no variable exists
+  */
+{
+  const FItem* FI=findItem(Key);
+  if (!FI)
+    throw ColErr::InContainerError<std::string>
+      (Key,"FuncDataBase::EvalVector variable not found");
+
+  std::vector<T> Out;
+  if (!FI->getVector(Out))
+    throw ColErr::TypeMatch(typeid(T).name(),FI->typeKey(),"EvalVector");
+
+  return Out;
+}
+
+template<typename T>
+std::vector<T>
+FuncDataBase::EvalDefVector(const std::string& Key) const
+  /*!
+    Finds the vector of a variable item(s)
+    This is incomplete on list, as only track direct 
+    transfer and not double->int etc.
+    \param Key :: string to search
+    \return Value of variable 
+    \throw InContainterError if no variable exists
+  */
+{
+  std::vector<T> Out;
+  const FItem* FI=findItem(Key);
+
+  if (FI)
+    FI->getVector(Out);   // no need to check result
+
+  return Out;
+}
+
 template<typename T>
 T
 FuncDataBase::EvalVar(const std::string& Key) const
@@ -131,7 +190,7 @@ FuncDataBase::EvalVar(const std::string& Key) const
   if (!FI)
     throw ColErr::InContainerError<std::string>
       (Key,"FuncDataBase::EvalVar variable not found");
-
+  
   T Out;
   FI->getValue(Out);
   return Out;
@@ -229,7 +288,24 @@ FuncDataBase::EvalPair(const std::string& KeyA,
 
 template<typename T>
 T
-FuncDataBase::EvalPair(const std::string& KeyA,
+FuncDataBase::EvalHead(const std::string& Key,
+		       const std::string& TailA,
+		       const std::string& TailB) const
+  /*!
+    Finds the value of a variable item 
+    \param Key  :: Primary keyname
+    \param TailA :: First tail 
+    \param TailB :: Second tail
+    \return Value of variable 
+    \throw InContainterError if no variables exists
+  */
+{
+  return EvalPair<T>(Key+TailA,Key+TailB);
+}
+
+template<typename T>
+T
+FuncDataBase::EvalTail(const std::string& KeyA,
 		       const std::string& KeyB,
 		       const std::string& Tail) const
   /*!
@@ -270,10 +346,28 @@ FuncDataBase::EvalDefPair(const std::string& KeyA,
 
 template<typename T>
 T
-FuncDataBase::EvalDefPair(const std::string& KeyA,
-		       const std::string& KeyB,
-		       const std::string& Tail,
-		       const T& defVal) const
+FuncDataBase::EvalDefHead(const std::string& Key,
+			  const std::string& TailA,
+			  const std::string& TailB,
+			  const T& defVal) const
+  /*!
+    Finds the value of a variable item 
+    \param Key  :: Primary keyname
+    \param TailA :: First tail 
+    \param TailB :: Second tail
+    \param defVal :: default value
+    \return Value of variable 
+  */
+{
+  return EvalDefPair<T>(Key+TailA,Key+TailB,defVal);
+}
+
+template<typename T>
+T
+FuncDataBase::EvalDefTail(const std::string& KeyA,
+			  const std::string& KeyB,
+			  const std::string& Tail,
+			  const T& defVal) const
   /*!
     Finds the value of a variable item 
     \param KeyA :: First string to search    
@@ -310,6 +404,37 @@ FuncDataBase::subProcVar(std::string& Var) const
        EvalVar<std::string>(Var) : Var);
   Var="";
   return Out;
+}
+
+template<typename T>
+FList<T>*
+FuncDataBase::convertToList(const std::string& Name)
+  /*!
+    Convert a single value to a list
+    \throw excpetion if type mis-match
+    \param Name :: Name of variable
+   */
+{
+  ELog::RegMethod RegA("FuncDataBase","converToList");
+  
+  FItem* FPtr=VList.findVar(Name);
+  if (!FPtr)
+    throw ColErr::InContainerError<std::string>(Name,"Name to FList");
+  
+  FList<T>* OutPtr=dynamic_cast<FList<T>*>(FPtr);
+  
+  if (OutPtr) return OutPtr;
+
+  T Value;
+  if (FPtr->getValue(Value))
+    {
+      FList<T>* FListPtr=
+	dynamic_cast<FList<T>*>(VList.createList<T>(Name));
+
+      // This should not be possible(?)
+      if (FListPtr) return FListPtr;
+    }
+  throw ColErr::TypeMatch(FPtr->typeKey(),typeid(T).name(),"List/Var");
 }
 
 int 
@@ -880,6 +1005,28 @@ FuncDataBase::removeVariable(const std::string& Name)
 
 template<typename T>
 void
+FuncDataBase::pushVariable(const std::string& Name,
+			   const T& V)
+  /*!
+    Extends a string (space deliminated) [specialiszed for string]
+    \param Name :: Name of the variable
+    \param V :: Variable to add
+  */
+{
+  FItem* FPtr=VList.findVar(Name);
+  if (!FPtr)
+    {
+      VList.addVar<T>(Name,V);
+      return;
+    }
+
+  FList<T>* FListPtr=convertToList<T>(Name);
+  FListPtr->pushValue(V);
+  
+}
+
+template<typename T>
+void
 FuncDataBase::addParse(const std::string& Name,const std::string& VParse)
   /*!
     Adds this function if the Code system has been 
@@ -1151,24 +1298,40 @@ template std::string FuncDataBase::EvalPair(const std::string&,
 template Geometry::Vec3D FuncDataBase::EvalPair(const std::string&,
 						const std::string&) const;
 
+// EVALHEAD
 
-template double FuncDataBase::EvalPair(const std::string&,
+template double FuncDataBase::EvalHead(const std::string&,
 				       const std::string&,
 				       const std::string&) const;
-template int FuncDataBase::EvalPair(const std::string&,
+template int FuncDataBase::EvalHead(const std::string&,
 				    const std::string&,
 				    const std::string&) const;
-template size_t FuncDataBase::EvalPair(const std::string&,
+template size_t FuncDataBase::EvalHead(const std::string&,
 				       const std::string&,
 				       const std::string&) const;
-template std::string FuncDataBase::EvalPair(const std::string&,
+template std::string FuncDataBase::EvalHead(const std::string&,
 					    const std::string&,
 					    const std::string&) const;
-template Geometry::Vec3D FuncDataBase::EvalPair(const std::string&,
+template Geometry::Vec3D FuncDataBase::EvalHead(const std::string&,
 						const std::string&,
 						const std::string&) const;
+// EVALTAIL
 
-
+template double FuncDataBase::EvalTail(const std::string&,
+				       const std::string&,
+				       const std::string&) const;
+template int FuncDataBase::EvalTail(const std::string&,
+				    const std::string&,
+				    const std::string&) const;
+template size_t FuncDataBase::EvalTail(const std::string&,
+				       const std::string&,
+				       const std::string&) const;
+template std::string FuncDataBase::EvalTail(const std::string&,
+					    const std::string&,
+					    const std::string&) const;
+template Geometry::Vec3D FuncDataBase::EvalTail(const std::string&,
+						const std::string&,
+						const std::string&) const;
 
 
 // EVALDEFPAIR
@@ -1179,19 +1342,44 @@ template double FuncDataBase::EvalDefPair
 template int FuncDataBase::EvalDefPair
 (const std::string&,const std::string&,const int&) const;
 
-template double FuncDataBase::EvalDefPair
+
+// EVALDEFTAIL
+
+template double FuncDataBase::EvalDefHead
 (const std::string&,const std::string&,
  const std::string&, const double&) const;
 
-template int FuncDataBase::EvalDefPair
+template int FuncDataBase::EvalDefHead
 (const std::string&,const std::string&,
  const std::string&, const int&) const;
 
-template size_t FuncDataBase::EvalDefPair
+template size_t FuncDataBase::EvalDefHead
 (const std::string&,const std::string&,
  const std::string&, const size_t&) const;
 
-template Geometry::Vec3D FuncDataBase::EvalDefPair
+template Geometry::Vec3D FuncDataBase::EvalDefHead
+(const std::string&,const std::string&,
+ const std::string&, const Geometry::Vec3D&) const;
+
+// EVALDEFTAIL
+
+template double FuncDataBase::EvalDefTail
+(const std::string&,const std::string&,
+ const std::string&, const double&) const;
+
+template int FuncDataBase::EvalDefTail
+(const std::string&,const std::string&,
+ const std::string&, const int&) const;
+
+template size_t FuncDataBase::EvalDefTail
+(const std::string&,const std::string&,
+ const std::string&, const size_t&) const;
+
+template std::string FuncDataBase::EvalDefTail
+(const std::string&,const std::string&,
+ const std::string&,const std::string&) const;
+
+template Geometry::Vec3D FuncDataBase::EvalDefTail
 (const std::string&,const std::string&,
  const std::string&, const Geometry::Vec3D&) const;
 
@@ -1209,6 +1397,43 @@ template int FuncDataBase::EvalTriple
 // PARSE
 template
 void FuncDataBase::addParse<double>(const std::string&,const std::string&);
+
+
+// PUSH
+template void
+FuncDataBase::pushVariable<double>(const std::string&,const double&);
+template void
+FuncDataBase::pushVariable<size_t>(const std::string&,const size_t&);
+template void
+FuncDataBase::pushVariable<int>(const std::string&,const int&);
+template void
+FuncDataBase::pushVariable<std::string>(const std::string&,const std::string&);
+
+// EVAL VECTOR
+
+template std::vector<double>
+FuncDataBase::EvalVector(const std::string&) const;
+template std::vector<int>
+FuncDataBase::EvalVector(const std::string&) const;
+template std::vector<long int>
+FuncDataBase::EvalVector(const std::string&) const;
+template std::vector<size_t>
+FuncDataBase::EvalVector(const std::string&) const;
+template std::vector<std::string>
+FuncDataBase::EvalVector(const std::string&) const;
+
+// EVAL DEF VECTOR
+template std::vector<double>
+FuncDataBase::EvalDefVector(const std::string&) const;
+template std::vector<int>
+FuncDataBase::EvalDefVector(const std::string&) const;
+template std::vector<long int>
+FuncDataBase::EvalDefVector(const std::string&) const;
+template std::vector<size_t>
+FuncDataBase::EvalDefVector(const std::string&) const;
+template std::vector<std::string>
+FuncDataBase::EvalDefVector(const std::string&) const;
+
 
 
 /// \endcond TEMPLATE

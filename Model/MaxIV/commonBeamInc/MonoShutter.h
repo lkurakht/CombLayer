@@ -60,7 +60,6 @@ class MonoShutter :
   // Functions:
 
   void populate(const FuncDataBase&);
-  void createUnitVector(const attachSystem::FixedComp&,const long int);
 
   void createSurfaces();
   void createObjects(Simulation&);
@@ -75,8 +74,9 @@ class MonoShutter :
   MonoShutter& operator=(const MonoShutter&);
   virtual ~MonoShutter();
 
-  void createAll(Simulation&,const attachSystem::FixedComp&,
-		 const long int);
+  using FixedComp::createAll;
+  virtual void createAll(Simulation&,const attachSystem::FixedComp&,
+			 const long int);
   
 };
 

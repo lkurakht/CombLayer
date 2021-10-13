@@ -3,7 +3,7 @@
  
  * File:   flukaTally/flukaTallySelector.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2021 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,33 +34,25 @@
 #include <iterator>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
-#include "GTKreport.h"
 #include "OutputLog.h"
-#include "BaseVisit.h"
-#include "BaseModVisit.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "support.h"
 
 #include "Code.h"
 #include "varList.h"
 #include "FuncDataBase.h"
-#include "MainProcess.h"
 #include "inputParam.h"
 #include "groupRange.h"
 #include "objectGroups.h"
 #include "Simulation.h"
 #include "SimFLUKA.h"
 
-#include "userBinConstruct.h"
 
 #include "flukaTallyModification.h"
-#include "flukaTallySelector.h"
+
 
 
 void
@@ -90,6 +82,8 @@ tallyModification(SimFLUKA& System,
       if(key=="help")
 	{
 	  ELog::EM<<"TMod Help "
+	    "  -- userName :: tallyName/Number ExternalaName \n"
+	    "  -- ascii :: tallyName/Number \n"
 	    "  -- binary :: tallyName/Number \n"
 	    "  -- particle ::tallyName/Number particle \n"
 	    "  -- auxParticle tallyName/Number particle \n"
@@ -101,7 +95,13 @@ tallyModification(SimFLUKA& System,
           return;
 	}
       
-      if(key=="binary")
+      if(key=="ascii")
+        {
+	  const std::string tName=IParam.getValueError<std::string>
+	    ("TMod",i,1,"No tally name for doseType");
+	  flukaSystem::setAsciiOutput(System,tName);
+        }
+      else if(key=="binary")
         {
 	  const std::string tName=IParam.getValueError<std::string>
 	    ("TMod",i,1,"No tally name for doseType");
@@ -110,12 +110,20 @@ tallyModification(SimFLUKA& System,
       else if(key=="doseType")
         {
 	  const std::string tName=IParam.getValueError<std::string>
-	    ("TMod",i,1,"No tally name for doseType");
+	    ("TMod",i,1,"No tally name for "+key);
 	  const std::string PT=IParam.getValueError<std::string>
-	    ("TMod",i,2,"No particle for doseType");
+	    ("TMod",i,2,"No particle for "+key);
 	  const std::string DT=IParam.getValueError<std::string>
-	    ("TMod",i,3,"No standard for doseType");
+	    ("TMod",i,3,"No standard for "+key);
           flukaSystem::setDoseType(System,tName,PT,DT);
+        }
+      else if(key=="userName")
+        {
+	  const std::string tName=IParam.getValueError<std::string>
+	    ("TMod",i,1,"No tally name for "+key);
+	  const std::string externalName=IParam.getValueError<std::string>
+	    ("TMod",i,2,"No external for "+key);
+          flukaSystem::setUserName(System,tName,externalName);
         }
       else if(key=="auxParticle")
         {
@@ -155,7 +163,7 @@ tallyModification(SimFLUKA& System,
           flukaSystem::setAngle(System,tName,AA,AB,NA,AFlag);
         }
       else
-	ELog::EM<<"Currently no modification possible for:"<<key<<ELog::endDiag;
+	ELog::EM<<"Currently no modification possible for:"<<key<<ELog::endErr;
     }
   return;
 }

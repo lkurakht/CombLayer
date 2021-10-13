@@ -3,7 +3,7 @@
  
  * File:   t1Build/SideCoolTarget.cxx
  *
- * Copyright (c) 2004-2018 by Stuart Ansell
+ * Copyright (c) 2004-2020 by Stuart Ansell
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,37 +33,20 @@
 #include <algorithm>
 #include <memory>
 
-#include "Exception.h"
 #include "FileReport.h"
-#include "GTKreport.h"
 #include "NameStack.h"
 #include "RegMethod.h"
 #include "OutputLog.h"
 #include "BaseVisit.h"
 #include "BaseModVisit.h"
-#include "support.h"
-#include "stringCombine.h"
-#include "MatrixBase.h"
-#include "Matrix.h"
 #include "Vec3D.h"
 #include "Quaternion.h"
-#include "Surface.h"
-#include "surfIndex.h"
 #include "surfRegister.h"
-#include "objectRegister.h"
-#include "surfEqual.h"
-#include "surfDivide.h"
-#include "surfDIter.h"
-#include "Quadratic.h"
-#include "Plane.h"
-#include "Cylinder.h"
-#include "EllipticCyl.h"
-#include "Sphere.h"
-#include "Rules.h"
 #include "varList.h"
 #include "Code.h"
 #include "FuncDataBase.h"
 #include "HeadRule.h"
+#include "Importance.h"
 #include "Object.h"
 #include "groupRange.h"
 #include "objectGroups.h"
@@ -74,8 +57,10 @@
 #include "LinkUnit.h"
 #include "FixedComp.h"
 #include "FixedOffset.h"
+#include "ExternalCut.h"
 #include "ContainedComp.h"
-#include "BeamWindow.h"
+#include "BaseMap.h"
+#include "CellMap.h"
 #include "ProtonVoid.h"
 #include "TargetBase.h"
 #include "SideCoolTarget.h"
@@ -85,7 +70,7 @@ namespace ts1System
 {
 
 SideCoolTarget::SideCoolTarget(const std::string& Key) :
-  constructSystem::TargetBase(Key,6)
+  TMRSystem::TargetBase(Key,6)
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Name for item in search
@@ -93,7 +78,7 @@ SideCoolTarget::SideCoolTarget(const std::string& Key) :
 {}
 
 SideCoolTarget::SideCoolTarget(const SideCoolTarget& A) : 
-  constructSystem::TargetBase(A),
+  TMRSystem::TargetBase(A),
   mainLength(A.mainLength),
   xRadius(A.xRadius),zRadius(A.zRadius),
   cladThick(A.cladThick),waterThick(A.waterThick),
@@ -119,10 +104,7 @@ SideCoolTarget::operator=(const SideCoolTarget& A)
 {
   if (this!=&A)
     {
-      constructSystem::TargetBase::operator=(A);
-      xStep=A.xStep;
-      yStep=A.yStep;
-      zStep=A.zStep;
+      TMRSystem::TargetBase::operator=(A);
       mainLength=A.mainLength;
       xRadius=A.xRadius;
       zRadius=A.zRadius;
@@ -190,23 +172,6 @@ SideCoolTarget::populate(const FuncDataBase& Control)
   externTemp=Control.EvalVar<double>(keyName+"ExternTemp");
   
   ///  nLayers=Control.EvalVar<size_t>(keyName+"NLayers");
-
-  return;
-}
-
-void
-SideCoolTarget::createUnitVector(const attachSystem::FixedComp& FC,
-				 const long int sideIndex)
-  /*!
-    Create the unit vectors
-    \param FC :: Fixed unit for origin + xyz
-    \param sideIndex :: offset side
-  */
-{
-  ELog::RegMethod RegA("SideCoolTarget","createUnitVector");
-
-  FixedComp::createUnitVector(FC,sideIndex);
-  applyOffset();
 
   return;
 }
@@ -378,8 +343,8 @@ SideCoolTarget::createLinks()
 
 void
 SideCoolTarget::addProtonLine(Simulation& System,
-			 const attachSystem::FixedComp& refFC,
-			 const long int index)
+			      const attachSystem::FixedComp& refFC,
+			      const long int index)
   /*!
     Add a proton void cell
     \param System :: Simualation
@@ -390,7 +355,7 @@ SideCoolTarget::addProtonLine(Simulation& System,
   ELog::RegMethod RegA("SideCoolTarget","addProtonLine");
 
   // 0 ::  front face of target
-  PLine->createAll(System,*this,0,refFC,index);
+  PLine->createAll(System,*this,0);
   createBeamWindow(System,1);
   System.populateCells();
   System.createObjSurfMap();
@@ -412,17 +377,19 @@ SideCoolTarget::getInnerCells() const
 
 void
 SideCoolTarget::createAll(Simulation& System,
-		       const attachSystem::FixedComp& FC)
+			  const attachSystem::FixedComp& FC,
+			  const long int sideIndex)
   /*!
     Generic function to create everything
     \param System :: Simulation item
     \param FC :: Fixed Component for origin
+    \param sideIndex :: Link poitn
   */
 {
   ELog::RegMethod RegA("SideCoolTarget","createAll");
 
   populate(System.getDataBase());
-  createUnitVector(FC,0);
+  createUnitVector(FC,sideIndex);
   createSurfaces();
   createObjects(System);
   createLinks();
